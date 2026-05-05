@@ -3,13 +3,22 @@ name: code-quality
 description: >
   Code quality skill for writing and reviewing code optimized for low cognitive
   complexity, readability, and long-term maintainability. Applies guard clauses,
-  early returns, clear naming, single-responsibility functions, reuse of
-  existing utilities, single source of truth for union-type metadata (one map
-  instead of N parallel maps), schema-first validation with type inference
-  (Zod / Pydantic / valibot — define the schema once, infer the type from it),
-  small change footprints, and pragmatic performance choices grounded in
-  research from SonarSource (Cognitive Complexity), Robert C. Martin's Clean
-  Code, and Knuth's guidance on optimization. Use this skill whenever writing, refactoring, or reviewing code
+  early returns, clear naming, single-responsibility functions, single level of
+  abstraction per function, type-driven design (make illegal states
+  unrepresentable, branded primitives, discriminated unions), reuse of existing
+  utilities, single source of truth for union-type metadata (one map instead of
+  N parallel maps), schema-first validation with type inference (Zod /
+  Pydantic / valibot — define the schema once, infer the type from it), total
+  functions and structured error type design, functional core + imperative
+  shell, DTO / domain / persistence separation, dependency injection of clock
+  / RNG / IDs for testability, idempotency for retryable operations, money in
+  minor units, small change footprints, neighbour-pattern symmetry, and
+  pragmatic performance choices. Pairs with the `tdd` skill: when authoring
+  new functions, invoke `tdd` to drive the implementation through
+  RED-GREEN-REFACTOR while applying these rules. Grounded in research from
+  SonarSource (Cognitive Complexity), Robert C. Martin's Clean Code, Knuth's
+  guidance on optimization, Alexis King ("Parse, Don't Validate"), and Gary
+  Bernhardt ("Functional Core, Imperative Shell"). Use this skill whenever writing, refactoring, or reviewing code
   — especially during the GREEN and REFACTOR phases of TDD, code reviews, or
   whenever the user asks to "improve quality", "make this readable", "reduce
   complexity", "make this easier to maintain", "deduplicate", "clean this up",
@@ -18,7 +27,7 @@ disable-model-invocation: true
 license: MIT
 metadata:
   author: mthines
-  version: '1.1.0'
+  version: '1.2.0'
   workflow_type: advisory-and-applied
   tags:
     - code-quality
@@ -30,6 +39,12 @@ metadata:
     - maintainability
     - reuse
     - single-source-of-truth
+    - type-driven-design
+    - functional-core
+    - testability
+    - idempotency
+    - api-design
+    - tdd-companion
 ---
 
 # Code Quality Skill
@@ -104,6 +119,23 @@ before adding the variant. See `rules/maintainability.md`.
 | Separate `type User = {...}` and `userSchema = z.object({...})` for the same shape | One schema; `type User = z.infer<typeof UserSchema>` | Two declarations drift; one cannot |
 | Re-validating an already-parsed value deep in the stack | Parse once at the boundary; trust the type internally | Validation is a boundary concern, not a per-call concern |
 | Splitting every nested object into its own sub-schema "for cleanliness" | Keep flat unless the sub-shape is reused or has its own boundary | Premature decomposition; over-engineering |
+| Function mixes orchestration sentences with low-level mechanics | Extract by abstraction level (R16) | Readers stop at the level they care about |
+| Runtime check enforcing "these two fields can't both be set" | Discriminated union (R15) | Compiler enforces the invariant; runtime check disappears |
+| Raw `string` for `Email`, `UserId`, `OrderId` | Brand the type via the schema (R11) | Mixing IDs becomes a compile error |
+| `any` or unjustified cast silencing the type checker | Schema parse, narrowed `unknown`, or `// because:` comment (R17) | Unjustified `any` is the shape most type bugs take |
+| Function calls `Date.now()` / `Math.random()` directly | Inject the clock / RNG (R9) | Pure functions are testable; impure functions are flaky |
+| Function throws for "not found" or returns sentinels (`-1`, `""`) | Total-ise: return `null` or `Result<T, E>` (R10) | Total functions are testable exhaustively |
+| Every error throws the same `Error` with a parsed message | Discriminated `AppError` union (R12) | Structured fields beat string parsing |
+| Importing a module triggers a side effect | Factory: `createX(...)` (R20) | Tests stop being accidentally integration tests |
+| Operation that may be retried is not safe to invoke twice | Idempotency key, upsert, or right HTTP method (R18) | Retries corrupt state otherwise |
+| Money stored as `number` | Integer minor units or decimal library (R19) | Floats cannot represent decimal currency exactly |
+| Floats compared with `===` | Compare with epsilon, or use integer ticks | `0.1 + 0.2 !== 0.3` |
+| `await` in a `for` loop where `Promise.all` was meant | Choose serial or parallel consciously | Accidental serialisation is a perf bug |
+| Every `open` without a paired `close` | `try/finally` or `using` | Resource leaks compound silently |
+| New file does not match neighbouring files' patterns | Read 2–3 neighbours and mimic them | Outlier code forces context-switching for every reader |
+| Refactor PR mixed with feature PR | Split into two PRs | Mixed PRs get rubber-stamped or rejected on the wrong grounds |
+| Helpers at the top of the file, public function 200 lines down | Public surface first; helpers below in call order | Files read top to bottom |
+| Reaching `a.b.c.d.method()` to act on `a` | Tell, don't ask: put the operation on `a` | Callers shouldn't walk private structure |
 
 ---
 
@@ -113,62 +145,92 @@ before adding the variant. See `rules/maintainability.md`.
 
 While writing code, apply these in order of impact:
 
-1. **Reuse before creating** — before writing a helper, type, constant,
+1. **Compose with the `tdd` skill for new code** — when authoring a new
+   function, module, or behaviour from scratch, invoke the `tdd` skill
+   (`Skill('tdd')`) to drive the implementation through a strict
+   RED → GREEN → REFACTOR cycle. Apply the rules below in GREEN and
+   REFACTOR. Skip the handoff for trivial edits (typos, config tweaks),
+   refactors of existing code (no new behaviour), or when the user
+   explicitly opts out. See `rules/testability.md` for the integration.
+2. **Match the neighbours** — before writing a new file in an existing
+   module, read 2–3 sibling files and mimic their structure (folder
+   layout, error shape, import order, test style, naming convention).
+   Outlier code forces every reader to context-switch. See
+   `rules/collaboration.md` §1.
+3. **Reuse before creating** — before writing a helper, type, constant,
    formatter, or hook, search the codebase for one that already exists.
    Grep the domain noun and a synonym; check neighbour files; check the
    standard library and existing dependencies. A second implementation of
-   the same concept is worse than the first — behaviour drifts and bugs
-   get fixed in only one copy. See `rules/maintainability.md` §1.
-2. **Naming first** — before writing the body, name the function and its
-   parameters so they describe *what* it does and *what* it returns. If you
-   can't name it crisply, the responsibility is unclear; rethink the
+   the same concept is worse than the first. See
+   `rules/maintainability.md` §1.
+4. **Naming first** — before writing the body, name the function and its
+   parameters so they describe *what* it does and *what* it returns. If
+   you can't name it crisply, the responsibility is unclear; rethink the
    boundary, not the implementation.
-3. **Guard clauses up top** — handle errors, edge cases, and early-exit
+5. **Design the type before the body** — model the inputs and outputs so
+   illegal states cannot be represented (discriminated unions, branded
+   primitives, total return types, `Result<T, E>` for expected failures).
+   The cheapest place to catch a bug is the place the bug cannot exist.
+   See `rules/abstraction.md` §2 and `rules/api-design.md` §4–§5.
+6. **Guard clauses up top** — handle errors, edge cases, and early-exit
    conditions at the start of the function. Reserve the indented body for
    the happy path.
-4. **One job per function** — if you find yourself writing "and" in a
-   docstring or commit message ("validates and persists"), split it.
-5. **Limit nesting to 2 levels** — beyond that, extract a helper or invert a
-   condition. SonarQube's research uses nesting as the primary cognitive
-   load multiplier.
-6. **Keep parameter count low (≤3 ideally, ≤5 hard cap)** — past that, group
-   into an object/struct so callers don't need to memorize positional order.
-7. **One source of truth for union-type metadata** — when a union has
-   associated data (labels, colours, icons, flags), use one record keyed by
-   the union with all metadata as the value, not N parallel maps. Adding a
-   variant must be a single edit. See `rules/maintainability.md` §2.
-8. **Defer *generic* abstraction, not reuse** — wait for a third real use
-   case before extracting a flag-driven generic helper. But always reuse
-   utilities that already exist, and always consolidate parallel maps over
-   the same union the moment they appear — those are not "premature".
+7. **One job per function, one level of abstraction per body** — if you
+   find yourself writing "and" in a docstring or mixing orchestration
+   sentences with low-level mechanics, split. See
+   `rules/abstraction.md` §1.
+8. **Limit nesting to 2 levels** — beyond that, extract a helper or
+   invert a condition.
+9. **Keep parameter count low (≤3 ideally, ≤5 hard cap)** — past that,
+   group into an object/struct.
+10. **One source of truth for union-type metadata** — when a union has
+    associated data (labels, colours, icons, flags), use one record keyed
+    by the union with structured values, not N parallel maps. Adding a
+    variant must be a single edit. See `rules/maintainability.md` §2.
+11. **Push impurity outward** — keep decision logic pure; push I/O, time,
+    randomness, and ID generation to the edges. Inject the clock / RNG /
+    fetcher; do not call them directly from core logic. See
+    `rules/architecture.md` §3 and `rules/correctness.md` §7.
+12. **Defer *generic* abstraction, not reuse** — wait for a third real
+    use case before extracting a flag-driven generic helper. Always reuse
+    utilities that already exist, and always consolidate parallel maps
+    over the same union the moment they appear — those are not
+    "premature".
 
-See `rules/cognitive-complexity.md` and `rules/control-flow.md` for the
-mechanics behind 3 and 5. See `rules/naming.md` for 2. See
-`rules/functions.md` for 4 and 6. See `rules/maintainability.md` for 1, 7,
-and 8.
+Cross-references: `rules/cognitive-complexity.md` and
+`rules/control-flow.md` for 6 and 8; `rules/naming.md` for 4;
+`rules/functions.md` for 7 and 9; `rules/maintainability.md` for 3, 10,
+and 12; `rules/abstraction.md`, `rules/architecture.md`,
+`rules/api-design.md`, `rules/correctness.md`, `rules/testability.md`,
+`rules/collaboration.md`, and `rules/refactor-recipes.md` for the deeper
+patterns.
 
 ### Review Mode
 
 When asked to review or refactor:
 
-1. **Read all of the target code first** — don't critique what you haven't
-   read.
-2. **Score by cognitive load, not style** — pick the function that took you
-   the longest to understand, that's your highest-priority refactor.
+1. **Read all of the target code first** — don't critique what you
+   haven't read.
+2. **Score by cognitive load, not style** — pick the function that took
+   you the longest to understand, that's your highest-priority refactor.
 3. **Score by change footprint** — for each new concept (a union, a
    constant, a piece of metadata), count how many files would need to
-   change if a new variant were added. Anything beyond ~3 files, or that
-   the type system cannot enforce, is a maintainability finding.
-4. **Check for existing utilities** — grep for similar helpers, formatters,
-   or constants that the new code could have reused instead of duplicating.
-5. **Suggest changes with the diff inline** — don't just say "this is
+   change if a new variant were added. Anything beyond ~3 files, or
+   that the type system cannot enforce, is a maintainability finding.
+4. **Check for existing utilities** — grep for similar helpers,
+   formatters, or constants that the new code could have reused instead
+   of duplicating.
+5. **Cite recipes by name** — use `rules/refactor-recipes.md` so reviews
+   read as "apply R1 (Consolidate Parallel Maps)" rather than free-form
+   prose.
+6. **Suggest changes with the diff inline** — don't just say "this is
    complex"; show the before/after.
-6. **Prioritize by impact** — fix the thing that hurts readers and future
-   maintainers most, not the thing that's easiest to nitpick. Ignore
-   stylistic preferences if a linter would catch them.
-7. **Stop when good enough** — perfect is a moving target. If the function
-   reads top-to-bottom, names match the domain, and the change footprint
-   for the next variant is small, leave it.
+7. **Prioritize by impact** — fix the thing that hurts readers and
+   future maintainers most, not the thing that's easiest to nitpick.
+   Ignore stylistic preferences if a linter would catch them.
+8. **Stop when good enough** — perfect is a moving target. If the
+   function reads top-to-bottom, names match the domain, and the change
+   footprint for the next variant is small, leave it.
 
 Load `rules/review-checklist.md` for the structured review pass.
 
@@ -190,6 +252,13 @@ file every time is wasted context.
 | Reviewing existing code | `rules/review-checklist.md` |
 | Cognitive complexity scoring | `rules/cognitive-complexity.md` |
 | Union types with associated data, parallel maps, duplicated constants, "where should this live", reuse decisions | `rules/maintainability.md` |
+| Abstraction levels, type-driven design, illegal states unrepresentable, branded primitives, generics, `any`/cast discipline | `rules/abstraction.md` |
+| Module boundaries, public surface, dependency direction, functional core / imperative shell, DTO ↔ domain ↔ persistence, immutability defaults, side-effecting imports | `rules/architecture.md` |
+| Function signatures, parameter ordering, total functions, modeling absence, designing the error type system, tell-don't-ask, file reading order | `rules/api-design.md` |
+| Idempotency, money / decimals / floats, dates and time, identifiers, encoding, determinism, assertions, async / concurrency, resource management | `rules/correctness.md` |
+| Hard-to-test code, dependency injection of clock / RNG / IDs, when to invoke the `tdd` skill | `rules/testability.md` |
+| PR scope, neighbour-pattern symmetry, migration & evolution, working with legacy code, diff hygiene | `rules/collaboration.md` |
+| Naming a refactor in review output (R1 Consolidate Parallel Maps, R6 Replace Type Declaration with Inferred Type, etc.) | `rules/refactor-recipes.md` |
 
 ---
 
@@ -258,6 +327,36 @@ answer is "many" or "no", restructure first — usually by consolidating
 parallel maps, hoisting a duplicated constant, or co-locating data with
 the operations on it. See `rules/maintainability.md` §3.
 
+### 11. Make illegal states unrepresentable
+The cheapest place to catch a bug is the place the bug cannot exist. Lift
+constraints into the type system: discriminated unions for state machines,
+exhaustive `switch` with `assertNever`, branded primitives, refined types
+(`NonEmptyArray<T>`). Runtime guards that the type system could enforce
+are noise that drifts. See `rules/abstraction.md` §2.
+
+### 12. Pure core, impure shell
+Decision logic is pure: no I/O, no time, no randomness, no global state.
+Side effects live in a thin shell at the edges. Pure code is the cheapest
+to test and reason about; impure code is unavoidable but should be small
+enough to verify by integration tests. Inject the clock, RNG, fetcher,
+and ID generator rather than calling them directly. See
+`rules/architecture.md` §3 and `rules/correctness.md` §7.
+
+### 13. Total functions over throw-for-missing
+A function is total when every input has a defined output. Return `null`
+for absent-by-design and `Result<T, E>` for expected failures; reserve
+`throw` for programmer errors and unexpected I/O failures. Sentinels
+(`-1`, `""`, `0`) lie — every sentinel collides with a real value the
+next caller will hit. See `rules/api-design.md` §4.
+
+### 14. Test-first for new code
+When authoring a new function, module, or behaviour, invoke the `tdd`
+skill (`Skill('tdd')`) to drive the implementation through a strict
+RED → GREEN → REFACTOR cycle. Apply the rules in this skill silently in
+GREEN; apply them explicitly in REFACTOR. Skip the handoff only for
+trivial edits, refactors of existing code, or when the user opts out.
+See `rules/testability.md`.
+
 ---
 
 ## When Things Conflict
@@ -297,7 +396,7 @@ When invoked in review mode, structure findings as:
 ## Code Quality Review: [target]
 
 ### High Impact (fix these)
-- [file:line] [issue] → [proposed change]
+- [file:line] [issue] → [proposed change, citing recipe ID where applicable: R1, R6, etc.]
 
 ### Medium Impact (consider)
 - [file:line] [issue] → [proposed change]
@@ -306,8 +405,16 @@ When invoked in review mode, structure findings as:
 - [file:line] [issue]
 
 ### Maintainability findings
-- [file:line] [duplicated concept / parallel maps / shotgun-surgery risk] → [proposed consolidation]
+- [file:line] [duplicated concept / parallel maps / shotgun-surgery risk] → [proposed consolidation, e.g., R1 Consolidate Parallel Maps]
 - [estimated change footprint for the next obvious variant: N files, type-checked? yes/no]
+
+### Correctness findings (when relevant)
+- [file:line] [idempotency / money / dates / determinism / async / resources]
+- [proposed fix, citing recipe ID]
+
+### Testability findings (when relevant)
+- [file:line] [hard-to-test surface, missing injection, coupled to global state]
+- [proposed fix, e.g., R9 Inject the Clock / RNG / IDs]
 
 ### What's already good
 - [brief notes on what to preserve]
@@ -315,9 +422,11 @@ When invoked in review mode, structure findings as:
 
 The Maintainability findings section is required when the reviewed code
 introduces or extends union types, enums, shared constants, or new
-utilities. Skip it only when the change is purely local (a single
-function's internals).
+utilities. Correctness and Testability sections are required when the
+reviewed code involves retryable operations, money, dates, async I/O,
+resource handles, or non-trivial pure logic. Skip them when not
+applicable — do not manufacture findings to look thorough.
 
-When invoked in authoring mode, just write the code. Apply the principles
-silently. Don't narrate every guard clause — the user will see clean code
-in the diff.
+When invoked in authoring mode, just write the code (or hand off to the
+`tdd` skill first for new code). Apply the principles silently. Don't
+narrate every guard clause — the user will see clean code in the diff.

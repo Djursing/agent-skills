@@ -133,7 +133,121 @@ Load `rules/maintainability.md` for the patterns referenced below.
       impossible (discriminated union, branded type, exhaustive `switch`)
       instead of relying on runtime checks?
 
-## Pass 8: Future-Proofing Smell
+## Pass 8: Abstraction & Type-Driven Design
+
+Load `rules/abstraction.md` for the patterns referenced below.
+
+- [ ] **One level of abstraction per function.** Body does not mix
+      orchestration sentences with low-level mechanics. Apply R16 if it
+      does.
+- [ ] **Illegal states unrepresentable.** Optional fields that should
+      never both be missing (or both set) modelled as a discriminated
+      union, not enforced at runtime. Apply R15.
+- [ ] **Branded primitives at boundaries.** `Email`, `UserId`, `OrderId`
+      are branded types, not raw `string`. Apply R11.
+- [ ] **Exhaustive matching.** `switch` over a union ends with
+      `assertNever(x)` so adding a variant fails the build.
+- [ ] **Generics earn their keep.** Type parameters introduced only
+      where the same algorithm operates over different concrete types,
+      not for one-caller "flexibility".
+- [ ] **`any` and casts justified.** Every `any` / `as Foo` carries a
+      one-line `// because:` comment. Apply R17.
+
+## Pass 9: Architecture
+
+Load `rules/architecture.md`.
+
+- [ ] **Public surface intentional.** Module exports only what callers
+      need; internals stay internal.
+- [ ] **No barrel files** (or, if present, justified — and not creating
+      circular imports).
+- [ ] **Dependency direction.** Domain code imports nothing
+      infrastructure-shaped; circular imports absent.
+- [ ] **Functional core, imperative shell.** Pure decision logic
+      separated from I/O. Apply R8.
+- [ ] **DTO ↔ domain ↔ persistence.** Wire shapes parsed at boundaries;
+      domain types used internally; persistence types do not leak into
+      the UI.
+- [ ] **Immutability defaults.** `const` over `let`; `readonly` on
+      public fields; no shared mutable state without a single owner.
+- [ ] **No side-effecting imports.** Importing a module does not trigger
+      network calls, file writes, or singleton creation. Apply R20.
+
+## Pass 10: API Design
+
+Load `rules/api-design.md`.
+
+- [ ] **Parameter order.** Subject first; required before optional;
+      data before configuration.
+- [ ] **Total functions.** No throws for "expected absence"; no
+      sentinels (`-1`, `""`, `0`). Returns `null` / `Result` instead.
+      Apply R10.
+- [ ] **Error type system.** Discriminated `AppError` union (or
+      equivalent), not `new Error('parse my message')`. Apply R12.
+- [ ] **`Error.cause` preserved** through error transformations.
+- [ ] **Tell, don't ask.** No `a.b.c.d.method()` chains for behaviour
+      (records are exempt — walking pure data is fine).
+- [ ] **File reading order.** Public surface at the top; helpers below
+      in roughly the order they are called.
+
+## Pass 11: Correctness Hotspots
+
+Load `rules/correctness.md`. Apply when the code touches any of these
+domains.
+
+- [ ] **Idempotency.** Retryable operations (POST, queue handlers,
+      external calls) safe to invoke twice. Apply R18.
+- [ ] **Money.** Stored as integer minor units or decimal library;
+      currency tagged. Never `number`. Apply R19.
+- [ ] **Floats.** Equality compared with epsilon; or values converted to
+      integers for exact comparison.
+- [ ] **Dates.** UTC stored, local rendered; `Date` not mutated;
+      durations distinguished from instants.
+- [ ] **Identifiers.** Branded; not used as ordering proxies.
+- [ ] **Encoding.** Escaping at the layer that interprets (HTML at
+      render, SQL via parameters, URL-encoded at URL build).
+- [ ] **Determinism.** No direct `Date.now()` / `Math.random()` /
+      `process.env` reads inside core logic. Apply R9.
+- [ ] **Async / concurrency.** Serial vs. parallel `await` chosen
+      consciously; cancellation observed; no race conditions on shared
+      state.
+- [ ] **Resource management.** Every `open` has a `close` (try/finally
+      or `using`); listeners and timers torn down.
+- [ ] **Assertions.** Invariants encoded with `assert` / `assertNever`
+      where the type system cannot enforce them.
+
+## Pass 12: Testability
+
+Load `rules/testability.md`.
+
+- [ ] **Cheap to test.** A test for the public behaviour fits in <10
+      lines for a function under 30 lines.
+- [ ] **No hidden non-determinism.** Clock, RNG, IDs injected. Apply R9.
+- [ ] **Pure core surfaced.** Decision logic separable from I/O; tests
+      do not require real DB / network.
+- [ ] **Behaviour, not implementation.** Tests bound to the public API;
+      not pinned to internal helpers.
+- [ ] **Exhaustive coverage of total functions** (present + absent
+      branches for `T | null`).
+- [ ] **For new code authored under this review:** was `tdd` invoked
+      before implementation? If not, was the omission justified?
+
+## Pass 13: Collaboration
+
+Load `rules/collaboration.md`.
+
+- [ ] **Symmetry with neighbours.** New code follows the patterns of
+      sibling files (folder layout, error shape, import order, test
+      style).
+- [ ] **PR scope.** One logical change per PR; refactor and feature
+      separated.
+- [ ] **Migration discipline.** Breaking changes ship in two phases
+      (additive, then subtractive); deprecations marked with
+      `@deprecated` and a removal target.
+- [ ] **Diff hygiene.** Format / whitespace changes separated from
+      substantive changes.
+
+## Pass 14: Future-Proofing Smell
 
 - [ ] Any unused parameters / options "for future use"? Delete.
 - [ ] Any abstractions with one concrete implementation? Inline.
