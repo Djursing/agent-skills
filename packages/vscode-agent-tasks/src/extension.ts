@@ -17,6 +17,10 @@ import {
 import * as child_process from 'child_process';
 import { ArtifactWatcher } from './watchers/artifact-watcher';
 import { SessionsProvider, SessionItem } from './providers/sessions-provider';
+import {
+  SessionActivityDecorationProvider,
+  SESSION_URI_SCHEME,
+} from './providers/session-activity-decoration-provider';
 import { SessionWatcher } from './watchers/session-watcher';
 import { HookEventWatcher } from './watchers/hook-event-watcher';
 import { PluginInstaller, removeSentinel, isSentinelPresent, setHooksDormantContext } from './lib/plugin-installer';
@@ -279,6 +283,15 @@ export function activate(context: vscode.ExtensionContext): void {
     treeDataProvider: sessionsProvider,
     showCollapseAll: true,
   });
+
+  // Activity decorations — coloured dot badge next to running/needs-input/
+  // unread/stalled rows. Replaces the old "Running" pinned group.
+  const sessionActivityDecorationProvider = new SessionActivityDecorationProvider();
+  sessionsProvider.activityDecoration = sessionActivityDecorationProvider;
+  const sessionActivityDecorationSub = vscode.window.registerFileDecorationProvider(
+    sessionActivityDecorationProvider
+  );
+  log(`Registered activity decoration provider for scheme=${SESSION_URI_SCHEME}`);
 
   // Sessions panel correlates each session with its `(worktree, gitBranch)`
   // artifact dir. Refresh on artifact create/delete so chevrons and child
@@ -898,6 +911,8 @@ export function activate(context: vscode.ExtensionContext): void {
     sessionsToggleScopeCmd,
     sessionsOpenFilterCmd,
     sessionsResetFilterCmd,
+    sessionActivityDecorationSub,
+    sessionActivityDecorationProvider,
     visibilitySub,
     tickDisposable,
     configSub,

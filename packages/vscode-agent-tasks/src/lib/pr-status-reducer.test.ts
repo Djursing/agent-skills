@@ -95,35 +95,35 @@ describe('resolveDisplayStatus — idle session with PR enrichment', () => {
 // Tests: non-idle session status takes precedence over PR state
 // ---------------------------------------------------------------------------
 
-describe('resolveDisplayStatus — non-idle session status takes precedence', () => {
-  it('"running" takes precedence over PR open state', () => {
+describe('resolveDisplayStatus — PR icon wins over non-idle status', () => {
+  it('running + open PR → pr-open (icon shows PR; activity is on the dot)', () => {
     expect(
       resolveDisplayStatus('running', makePrEnrichment('open', 'passing'))
-    ).toBe('running');
+    ).toBe('pr-open');
   });
 
-  it('"needs-input" takes precedence over PR merged state', () => {
+  it('needs-input + merged PR → pr-merged', () => {
     expect(
       resolveDisplayStatus('needs-input', makePrEnrichment('merged', 'none'))
-    ).toBe('needs-input');
+    ).toBe('pr-merged');
   });
 
-  it('"unread" takes precedence over PR state (no PR case)', () => {
-    expect(
-      resolveDisplayStatus('unread', { status: 'no-pr' })
-    ).toBe('unread');
-  });
-
-  it('"unread" takes precedence even with an open PR', () => {
+  it('unread + open PR → pr-open', () => {
     expect(
       resolveDisplayStatus('unread', makePrEnrichment('open', 'passing'))
-    ).toBe('unread');
+    ).toBe('pr-open');
   });
 
-  it('"stalled" takes precedence over PR open state', () => {
+  it('stalled + open + failing CI → pr-ci-failing', () => {
     expect(
       resolveDisplayStatus('stalled', makePrEnrichment('open', 'failing'))
-    ).toBe('stalled');
+    ).toBe('pr-ci-failing');
+  });
+
+  it('non-idle + no PR enrichment → session status (unchanged)', () => {
+    expect(resolveDisplayStatus('running', { status: 'no-pr' })).toBe('running');
+    expect(resolveDisplayStatus('needs-input', { status: 'loading' })).toBe('needs-input');
+    expect(resolveDisplayStatus('unread', { status: 'error', reason: 'x' })).toBe('unread');
   });
 });
 

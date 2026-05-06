@@ -24,27 +24,27 @@ export type DisplayStatus =
 /**
  * Resolves the display status for a session row.
  *
- * When the session is `idle` and there is a successfully-fetched PR enrichment,
- * the PR state is used for the icon. All other SessionStatus values take
- * precedence (running, needs-input, unread, stalled all override PR state).
+ * When the session's branch has a known PR, the PR state always wins for the
+ * row's icon — that gives the user a consistent at-a-glance "this row is
+ * about a PR" cue regardless of whether the agent happens to be running on
+ * it right now. Activity is communicated separately via a coloured
+ * FileDecoration dot, so we don't lose that signal.
+ *
+ * Sessions without a PR fall back to their session status icon
+ * (running / needs-input / unread / stalled / idle).
  */
 export function resolveDisplayStatus(
   sessionStatus: SessionStatus,
   prEnrichment: PrEnrichment | undefined
 ): DisplayStatus {
-  // Non-idle session states always take precedence
-  if (sessionStatus !== 'idle') return sessionStatus;
-
-  // No enrichment or enrichment not yet a successful PR result — fall through
-  if (!prEnrichment || prEnrichment.status !== 'pr') return 'idle';
-
-  const { state, ciState } = prEnrichment.info;
-
-  if (state === 'open' || state === 'draft') {
-    return ciState === 'failing' ? 'pr-ci-failing' : 'pr-open';
+  if (prEnrichment?.status === 'pr') {
+    const { state, ciState } = prEnrichment.info;
+    if (state === 'open' || state === 'draft') {
+      return ciState === 'failing' ? 'pr-ci-failing' : 'pr-open';
+    }
+    if (state === 'merged') return 'pr-merged';
+    if (state === 'closed') return 'pr-closed';
   }
-  if (state === 'merged') return 'pr-merged';
-  if (state === 'closed') return 'pr-closed';
 
-  return 'idle';
+  return sessionStatus;
 }
