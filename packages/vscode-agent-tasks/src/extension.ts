@@ -30,6 +30,7 @@ import type { SessionMetadata } from './parsers/session-jsonl-parser';
 import { PrStatusCache } from './lib/pr-status-cache';
 import { SystemGhExecutor } from './lib/gh-executor';
 import { PrPoller } from './lib/pr-poller';
+import { DEFAULT_SESSION_FILTER } from './lib/session-filter';
 
 export function activate(context: vscode.ExtensionContext): void {
   initLogger(context);
@@ -357,7 +358,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const showOpenPr = cfg.get<boolean>('showOpenPr', true);
     const showMergedClosedPr = cfg.get<boolean>('showMergedClosedPr', false);
     const showIdleNoPr = cfg.get<boolean>('showIdleNoPr', false);
-    const showStalled = cfg.get<boolean>('showStalled', false);
+    const showStalled = cfg.get<boolean>('showStalled', true);
 
     type Item = vscode.QuickPickItem & { id: string };
     const items: Item[] = [
@@ -420,6 +421,28 @@ export function activate(context: vscode.ExtensionContext): void {
     sessionsProvider.refresh();
     vscode.window.setStatusBarMessage('Sessions: showing all categories', 2500);
   });
+
+  // "Show fewer" — restore the default filter so the user can collapse back
+  // after expanding via "Show all". Wired to the muted footer row at the
+  // bottom of the tree when the current filter is looser than defaults.
+  const sessionsRestoreDefaultFilterCmd = vscode.commands.registerCommand(
+    'agentTasks.sessions.restoreDefaultFilter',
+    async () => {
+      const cfg = vscode.workspace.getConfiguration('agentTasks.sessions.filter');
+      await cfg.update('showActive', DEFAULT_SESSION_FILTER.showActive, vscode.ConfigurationTarget.Global);
+      await cfg.update('showOpenPr', DEFAULT_SESSION_FILTER.showOpenPr, vscode.ConfigurationTarget.Global);
+      await cfg.update(
+        'showMergedClosedPr',
+        DEFAULT_SESSION_FILTER.showMergedClosedPr,
+        vscode.ConfigurationTarget.Global
+      );
+      await cfg.update('showIdleNoPr', DEFAULT_SESSION_FILTER.showIdleNoPr, vscode.ConfigurationTarget.Global);
+      await cfg.update('showStalled', DEFAULT_SESSION_FILTER.showStalled, vscode.ConfigurationTarget.Global);
+      log('Command: sessions.restoreDefaultFilter (Show fewer)');
+      sessionsProvider.refresh();
+      vscode.window.setStatusBarMessage('Sessions: restored default filter', 2500);
+    }
+  );
 
   // -------------------------------------------------------------------------
   // Hook event watcher — drives sub-second session state transitions via
@@ -911,6 +934,7 @@ export function activate(context: vscode.ExtensionContext): void {
     sessionsToggleScopeCmd,
     sessionsOpenFilterCmd,
     sessionsResetFilterCmd,
+    sessionsRestoreDefaultFilterCmd,
     sessionActivityDecorationSub,
     sessionActivityDecorationProvider,
     visibilitySub,

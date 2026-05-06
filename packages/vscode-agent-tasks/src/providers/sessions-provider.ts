@@ -46,6 +46,7 @@ import {
   applySessionFilter,
   describeFilter,
   DEFAULT_SESSION_FILTER,
+  isFilterMoreInclusiveThanDefault,
   type SessionFilter,
 } from '../lib/session-filter';
 
@@ -422,30 +423,45 @@ export class LinkedArtifactItem extends vscode.TreeItem {
 // ---------------------------------------------------------------------------
 
 /**
- * A leaf rendered at the very bottom of the Sessions tree when the visibility
- * filter is hiding any sessions. Clicking it resets the filter to "show all"
- * so the user has a one-click escape hatch — no settings hunt required.
+ * A leaf rendered at the very bottom of the Sessions tree, surfacing a
+ * one-click filter affordance. Two modes:
  *
- * Visually subtle: muted icon colour and the count rendered in the (grey)
+ *   - `expand`  → "Hiding N sessions (…)"  — clears all filters (show all).
+ *     Used when the current filter is suppressing rows.
+ *   - `restore` → "Showing all categories" — restores the default filter
+ *     (active + open PR). Used after the user expanded the view and wants
+ *     to collapse back without hunting through the QuickPick.
+ *
+ * Visually subtle: muted icon colour and the message rendered in the (grey)
  * `description` slot so the row reads as metadata, not work.
  */
 export class FilterStatusItem extends vscode.TreeItem {
-  constructor(message: string) {
-    // Minimal footer — only the icon and the muted count description, no
-    // "Show all" label. The full message goes to the tooltip so the row
-    // stays unobtrusive at the bottom of the list.
+  constructor(mode: 'expand' | 'restore', message: string) {
     super('', vscode.TreeItemCollapsibleState.None);
     this.description = message;
-    this.iconPath = new vscode.ThemeIcon(
-      'eye',
-      new vscode.ThemeColor('descriptionForeground')
-    );
-    this.tooltip = `${message}\n\nClick to clear all filters and show every session.`;
-    this.contextValue = 'claudeSessionsFilterStatus';
-    this.command = {
-      command: 'agentTasks.sessions.resetFilter',
-      title: 'Show all sessions',
-    };
+    if (mode === 'expand') {
+      this.iconPath = new vscode.ThemeIcon(
+        'eye',
+        new vscode.ThemeColor('descriptionForeground')
+      );
+      this.tooltip = `${message}\n\nClick to clear all filters and show every session.`;
+      this.contextValue = 'claudeSessionsFilterStatus';
+      this.command = {
+        command: 'agentTasks.sessions.resetFilter',
+        title: 'Show all sessions',
+      };
+    } else {
+      this.iconPath = new vscode.ThemeIcon(
+        'filter',
+        new vscode.ThemeColor('descriptionForeground')
+      );
+      this.tooltip = `${message}\n\nClick to show fewer — back to the default filter (active sessions + open PRs).`;
+      this.contextValue = 'claudeSessionsFilterStatus';
+      this.command = {
+        command: 'agentTasks.sessions.restoreDefaultFilter',
+        title: 'Show fewer',
+      };
+    }
   }
 }
 
@@ -1087,6 +1103,14 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionTreeItem
    */
   private _filterMessage: string | undefined;
 
+  /**
+   * Footer mode for the current rendered state. `expand` when the filter is
+   * suppressing rows (offer "show all"); `restore` when the user has loosened
+   * the filter beyond defaults and we want to offer "show fewer". `undefined`
+   * means no footer at all (filter at defaults, nothing hidden).
+   */
+  private _footerMode: 'expand' | 'restore' | undefined;
+
   /** Filter status message for the current rendered state. */
   public getFilterMessage(): string | undefined {
     return this._filterMessage;
@@ -1185,11 +1209,21 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionTreeItem
         filtered.visible.map((f) => f.session)
       );
     }
-    this._filterMessage = describeFilter({
+    const hiddenMessage = describeFilter({
       visible: [],
       hiddenCount: combinedHidden,
       hiddenByCategory: aggregatedHiddenByCategory,
     });
+    if (hiddenMessage) {
+      this._filterMessage = hiddenMessage;
+      this._footerMode = 'expand';
+    } else if (isFilterMoreInclusiveThanDefault(filter)) {
+      this._filterMessage = 'Collapse sessions';
+      this._footerMode = 'restore';
+    } else {
+      this._filterMessage = undefined;
+      this._footerMode = undefined;
+    }
 
     // Collect every session across worktrees once so we can build the pinned
     // "Running" section. Running sessions are MOVED to the section, not
@@ -1266,12 +1300,15 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionTreeItem
   }
 
   /**
-   * If the visibility filter hid anything, append a muted "Show all" footer
-   * row at the very bottom of the tree. Click resets the filter — fastest
-   * possible recovery from "where did my session go?"
+   * Append a muted footer row at the very bottom of the tree, mirroring the
+   * current filter state. Two shapes:
+   *   - filter is hiding rows  → "Hiding N…" footer; click to show all.
+   *   - filter is looser than defaults → "Showing all categories" footer;
+   *     click to show fewer (back to defaults).
+   * Default-state filters render no footer.
    */
   private appendFilterStatusItem(items: SessionTreeItem[]): void {
-    if (!this._filterMessage) return;
-    items.push(new FilterStatusItem(this._filterMessage));
+    if (!this._footerMode || !this._filterMessage) return;
+    items.push(new FilterStatusItem(this._footerMode, this._filterMessage));
   }
 }

@@ -28,15 +28,16 @@ export interface SessionFilter {
 }
 
 /**
- * Defaults — tuned via /ux: a fresh user sees only active work and idle
- * sessions that have an open PR. Everything else is opt-in.
+ * Defaults — tuned via /ux: a fresh user sees active work, idle sessions
+ * with an open PR, and stalled sessions (so a stuck agent isn't silently
+ * hidden). Merged/closed PRs and bare idle sessions are opt-in.
  */
 export const DEFAULT_SESSION_FILTER: SessionFilter = {
   showActive: true,
   showOpenPr: true,
   showMergedClosedPr: false,
   showIdleNoPr: false,
-  showStalled: false,
+  showStalled: true,
 };
 
 export interface FilterableSession {
@@ -149,24 +150,28 @@ export function isFilterActive(filter: SessionFilter): boolean {
 }
 
 /**
- * Build a one-line summary of *what's currently hidden* — phrased as the
- * user's mental model ("Hiding 67 sessions (idle, merged/closed PRs)")
- * rather than as a list of rule names. Returns undefined when nothing is
- * suppressed.
+ * True when at least one category that defaults to OFF is currently ON. This
+ * means the user has loosened the filter beyond defaults — used to drive the
+ * "Show fewer / Collapse sessions" footer affordance so they can return to
+ * the default view in one click. Categories that default ON contribute
+ * nothing here; turning them off makes the filter STRICTER, not looser.
+ */
+export function isFilterMoreInclusiveThanDefault(filter: SessionFilter): boolean {
+  return (
+    (filter.showMergedClosedPr && !DEFAULT_SESSION_FILTER.showMergedClosedPr) ||
+    (filter.showIdleNoPr && !DEFAULT_SESSION_FILTER.showIdleNoPr)
+  );
+}
+
+/**
+ * Build a one-line summary phrased as a direct call-to-action ("Show 69 more
+ * sessions") so the footer reads as the button it is. Returns undefined when
+ * nothing is suppressed.
  */
 export function describeFilter<T extends FilterableSession>(
   result: FilterResult<T>
 ): string | undefined {
   if (result.hiddenCount === 0) return undefined;
-
-  const parts: string[] = [];
-  if (result.hiddenByCategory.active > 0) parts.push('active');
-  if (result.hiddenByCategory['idle-no-pr'] > 0) parts.push('idle');
-  if (result.hiddenByCategory['merged-closed-pr'] > 0) parts.push('merged/closed PRs');
-  if (result.hiddenByCategory['open-pr'] > 0) parts.push('open PRs');
-  if (result.hiddenByCategory.stalled > 0) parts.push('stalled');
-
   const sessionWord = result.hiddenCount === 1 ? 'session' : 'sessions';
-  if (parts.length === 0) return `Hiding ${result.hiddenCount} ${sessionWord}`;
-  return `Hiding ${result.hiddenCount} ${sessionWord} (${parts.join(', ')})`;
+  return `Show ${result.hiddenCount} more ${sessionWord}`;
 }

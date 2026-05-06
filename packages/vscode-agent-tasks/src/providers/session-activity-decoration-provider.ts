@@ -17,10 +17,12 @@
  *
  *   running     → ⚪ (white circle)  — agent working, no action needed
  *   needs-input → 🟡                — waiting on you, act now
- *   unread      → 🔵                — finished while you were away, review
  *   stalled     → 🟠                — stuck, investigate
  *
- * Idle sessions get no decoration — that's the default state.
+ * Idle and unread sessions get no decoration — the row's existing icon
+ * (status or PR icon) already conveys enough context, so a separate blue dot
+ * for `unread` was redundant. The `unread` state still drives state machine
+ * behaviour; only the badge is suppressed.
  */
 
 import * as vscode from 'vscode';
@@ -41,7 +43,6 @@ interface ActivityBadge {
 const ACTIVITY: Partial<Record<SessionStatus, ActivityBadge>> = {
   running: { badge: '⚪', tooltip: 'Running' },
   'needs-input': { badge: '🟡', tooltip: 'Waiting for input' },
-  unread: { badge: '🔵', tooltip: 'Unread' },
   stalled: { badge: '🟠', tooltip: 'Stalled' },
 };
 
