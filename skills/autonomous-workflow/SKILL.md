@@ -9,6 +9,7 @@ description: >
   isolation", "in a worktree", or independent feature work. Invoke with
   /autonomous-workflow.
 license: MIT
+disable-model-invocation: true
 metadata:
   author: mthines
   version: '3.5.0'

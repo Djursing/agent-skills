@@ -23,15 +23,10 @@ Skills live in `skills/` as standard SKILL.md files.
 Agents live in `agents/` since they require their own model and tool configuration.
 
 ### Agent-invokable skills (model can `Skill()`-invoke without a slash command)
-- `autonomous-workflow` — Phase-based orchestrator (0–7) for end-to-end feature development. **Installs two agents** under the `aw-` namespace (`aw-` = "autonomous-workflow"): `aw-planner` for phases 0–2, `aw-executor` for phases 3–7, connected by `plan.md`. See [`skills/autonomous-workflow/CLAUDE.md`](./skills/autonomous-workflow/CLAUDE.md) for design intent before editing
-- `batch-linear-tickets` — Batch orchestrator for Linear tickets. Fans out `linear-ticket-investigator` per ticket, correlates findings, gates user approval, then fans out `aw-planner` + `aw-executor` pairs (autonomous-workflow namespace) in worktrees. Requires Linear MCP
 - `confidence` — Confidence assessment for plans, code, and bug analysis. **Plan mode is multi-signal** (LLM dimensional scoring + deterministic rule checks; a failed rule caps the gate at 89% regardless of LLM score)
-- `dx` — Developer Experience review for CLI tools and shell scripts
 - `holistic-analysis` — Full execution path analysis for stuck bugs/refactors
-- `profile-optimizer` — Analyse React DevTools Profiler exports or Chrome Performance traces; auto-detects the format, extracts hotspots, maps them to source, and emits a ranked optimisation plan. Confidence-gated via `confidence(bug-analysis)` — iterates if root-cause certainty is below 90%
 - `tdd` — Test-Driven Development with strict RED-GREEN-REFACTOR cycles
 - `ux` — UX design review for web and React Native apps
-- `video-analyser` — Analyse a screen recording for bugs: resolves input from a Linear ticket URL, local path, or direct URL; extracts keyframes with ffmpeg; runs optional Tesseract OCR and Whisper transcription; returns structured findings (errors, UI state, repro steps)
 
 ### Workflow companions (`disable-model-invocation: true`, called by orchestrators via `Skill()`)
 - `aw-create-plan` — Generates `.agent/{branch}/plan.md` for autonomous-workflow Full Mode
@@ -39,15 +34,20 @@ Agents live in `agents/` since they require their own model and tool configurati
 - `aw-review-quality-gate` — Self-check quality gate for review findings before delivery
 
 ### Slash commands (`disable-model-invocation: true`)
+- `autonomous-workflow` — Phase-based orchestrator (0–7) for end-to-end feature development. **Installs two agents** under the `aw-` namespace (`aw-` = "autonomous-workflow"): `aw-planner` for phases 0–2, `aw-executor` for phases 3–7, connected by `plan.md`. See [`skills/autonomous-workflow/CLAUDE.md`](./skills/autonomous-workflow/CLAUDE.md) for design intent before editing
+- `batch-linear-tickets` — Batch orchestrator for Linear tickets. Fans out `linear-ticket-investigator` per ticket, correlates findings, gates user approval, then fans out `aw-planner` + `aw-executor` pairs (autonomous-workflow namespace) in worktrees. Requires Linear MCP
 - `ci-auto-fix` — Diagnose and fix a failed CI check, iteratively pushing fixes until CI is green (currently GitHub Actions via `gh`)
 - `code-quality` — Code-quality review for readability, complexity, and maintainability
 - `create-pr` — Generate a narrative PR description, push, then watch CI and auto-fix simple failures (lint, format, lockfiles); escalates judgment-required failures via `/confidence`
 - `create-skill` — Scaffold or review agent skills (SKILL.md + rules/ + references/ + templates/) against best-practice frontmatter, progressive disclosure, token-aware structure, and the agent-skills.git symlink + inventory wiring. Modes: `scaffold` (default), `review`, `upgrade`
+- `dx` — Developer Experience review for CLI tools and shell scripts
 - `implement-suggestion` — Implement fixes from review comments
 - `init-claude` — Initialize Claude Code configuration for a project
+- `profile-optimizer` — Analyse React DevTools Profiler exports or Chrome Performance traces; auto-detects the format, extracts hotspots, maps them to source, and emits a ranked optimisation plan. Confidence-gated via `confidence(bug-analysis)` — iterates if root-cause certainty is below 90%
 - `resolve-conflicts` — Analyze and resolve Git merge/rebase conflicts
 - `review-changes` — Review branch changes or PR (dispatches to reviewer)
 - `update-claude` — Update CLAUDE.md and rules based on code changes
+- `video-analyser` — Analyse a screen recording for bugs: resolves input from a Linear ticket URL, local path, or direct URL; extracts keyframes with ffmpeg; runs optional Tesseract OCR and Whisper transcription; returns structured findings (errors, UI state, repro steps)
 
 ### Agents
 - `reviewer` — Constructive code reviewer with auto-fix, report, and PR comment modes
