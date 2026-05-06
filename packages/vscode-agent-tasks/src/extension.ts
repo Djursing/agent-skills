@@ -342,84 +342,74 @@ export function activate(context: vscode.ExtensionContext): void {
     );
   });
 
-  // "Filter Sessions…" — multi-select QuickPick exposing the four filter
-  // axes (stale, idle, merged-PR, only-with-PR). Defaults follow the UX
-  // recommendation: hide stale > 14d, everything else off. Settings are
-  // written at Global scope so the choice persists across workspaces.
+  // "Filter Sessions…" — multi-select QuickPick. Each checkbox controls
+  // exactly one session category (inclusion model). Active sessions
+  // (running, needs-input, unread) are always shown and are not in the list.
   const sessionsOpenFilterCmd = vscode.commands.registerCommand(
     'agentTasks.sessions.openFilter',
     async () => {
       const cfg = vscode.workspace.getConfiguration('agentTasks.sessions.filter');
-      const stale = cfg.get<number>('hideStaleAfterDays', 14);
-      const hideIdle = cfg.get<boolean>('hideIdle', false);
-      const hidePrMergedClosed = cfg.get<boolean>('hidePrMergedClosed', false);
-      const onlyWithPr = cfg.get<boolean>('onlyWithPr', false);
+      const showOpenPr = cfg.get<boolean>('showOpenPr', true);
+      const showMergedClosedPr = cfg.get<boolean>('showMergedClosedPr', false);
+      const showIdleNoPr = cfg.get<boolean>('showIdleNoPr', false);
+      const showStalled = cfg.get<boolean>('showStalled', false);
 
       type Item = vscode.QuickPickItem & { id: string };
       const items: Item[] = [
         {
-          id: 'stale',
-          label: `$(history) Hide stale sessions (older than ${stale === 0 ? '∞' : stale + 'd'})`,
-          description: stale > 0 ? 'on' : 'off',
-          detail: 'Hide sessions whose last activity is older than the configured threshold. Running, needs-input, and unread sessions are never hidden.',
-          picked: stale > 0,
+          id: 'openPr',
+          label: '$(git-pull-request) With an open PR',
+          picked: showOpenPr,
         },
         {
-          id: 'idle',
-          label: '$(circle-outline) Hide idle sessions without a PR',
-          description: hideIdle ? 'on' : 'off',
-          detail: 'Idle sessions whose branch has an open or merged PR stay visible — only sessions with no PR are hidden.',
-          picked: hideIdle,
+          id: 'mergedClosedPr',
+          label: '$(git-merge) With a merged or closed PR',
+          picked: showMergedClosedPr,
         },
         {
-          id: 'merged',
-          label: '$(git-merge) Hide merged / closed PRs',
-          description: hidePrMergedClosed ? 'on' : 'off',
-          detail: 'Tidy the panel after work ships.',
-          picked: hidePrMergedClosed,
+          id: 'idleNoPr',
+          label: '$(circle-outline) Idle, no PR',
+          picked: showIdleNoPr,
         },
         {
-          id: 'onlyPr',
-          label: '$(git-pull-request) Only show sessions with a PR',
-          description: onlyWithPr ? 'on' : 'off',
-          detail: 'Sessions still loading PR status remain visible.',
-          picked: onlyWithPr,
+          id: 'stalled',
+          label: '$(warning) Stalled',
+          picked: showStalled,
         },
       ];
 
       const picked = await vscode.window.showQuickPick(items, {
         canPickMany: true,
-        title: 'Filter Sessions',
-        placeHolder: 'Toggle visibility filters — running/needs-input/unread sessions are always shown',
+        title: 'Show sessions',
+        placeHolder: 'Active sessions (running, waiting for input, unread) are always shown',
       });
       if (!picked) return;
 
       const ids = new Set(picked.map((p) => p.id));
-      // For the stale toggle: "on" preserves the current threshold
-      // (or restores 14d if it was 0). "off" sets 0 to disable the rule.
-      const nextStale = ids.has('stale') ? (stale > 0 ? stale : 14) : 0;
-      await cfg.update('hideStaleAfterDays', nextStale, vscode.ConfigurationTarget.Global);
-      await cfg.update('hideIdle', ids.has('idle'), vscode.ConfigurationTarget.Global);
-      await cfg.update('hidePrMergedClosed', ids.has('merged'), vscode.ConfigurationTarget.Global);
-      await cfg.update('onlyWithPr', ids.has('onlyPr'), vscode.ConfigurationTarget.Global);
+      await cfg.update('showOpenPr', ids.has('openPr'), vscode.ConfigurationTarget.Global);
+      await cfg.update('showMergedClosedPr', ids.has('mergedClosedPr'), vscode.ConfigurationTarget.Global);
+      await cfg.update('showIdleNoPr', ids.has('idleNoPr'), vscode.ConfigurationTarget.Global);
+      await cfg.update('showStalled', ids.has('stalled'), vscode.ConfigurationTarget.Global);
       log(
-        `Command: sessions.openFilter → stale=${nextStale} idle=${ids.has('idle')} merged=${ids.has('merged')} onlyPr=${ids.has('onlyPr')}`
+        `Command: sessions.openFilter → openPr=${ids.has('openPr')} mergedClosed=${ids.has('mergedClosedPr')} idleNoPr=${ids.has('idleNoPr')} stalled=${ids.has('stalled')}`
       );
       sessionsProvider.refresh();
     }
   );
 
+  // "Show all" — flip every category on so the user sees the full set.
+  // Wired to the muted footer row at the bottom of the tree.
   const sessionsResetFilterCmd = vscode.commands.registerCommand(
     'agentTasks.sessions.resetFilter',
     async () => {
       const cfg = vscode.workspace.getConfiguration('agentTasks.sessions.filter');
-      await cfg.update('hideStaleAfterDays', 14, vscode.ConfigurationTarget.Global);
-      await cfg.update('hideIdle', false, vscode.ConfigurationTarget.Global);
-      await cfg.update('hidePrMergedClosed', false, vscode.ConfigurationTarget.Global);
-      await cfg.update('onlyWithPr', false, vscode.ConfigurationTarget.Global);
-      log('Command: sessions.resetFilter');
+      await cfg.update('showOpenPr', true, vscode.ConfigurationTarget.Global);
+      await cfg.update('showMergedClosedPr', true, vscode.ConfigurationTarget.Global);
+      await cfg.update('showIdleNoPr', true, vscode.ConfigurationTarget.Global);
+      await cfg.update('showStalled', true, vscode.ConfigurationTarget.Global);
+      log('Command: sessions.resetFilter (Show all)');
       sessionsProvider.refresh();
-      vscode.window.setStatusBarMessage('Sessions filter reset to defaults', 2500);
+      vscode.window.setStatusBarMessage('Sessions: showing all categories', 2500);
     }
   );
 
