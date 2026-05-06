@@ -74,22 +74,22 @@ describe('categorise', () => {
 });
 
 describe('applySessionFilter — defaults', () => {
-  it('shows active sessions and idle sessions with open PRs by default', () => {
+  it('shows active, open-PR, and stalled sessions by default', () => {
     const sessions = [
       s('running'),
       s('needs-input'),
       s('unread'),
       s('idle', prOpen),
+      s('stalled'),
       s('idle', prMerged), // hidden
       s('idle', noPr),     // hidden
-      s('stalled'),        // hidden
     ];
     const result = applySessionFilter(sessions, DEFAULT_SESSION_FILTER);
-    expect(result.visible).toHaveLength(4);
-    expect(result.hiddenCount).toBe(3);
+    expect(result.visible).toHaveLength(5);
+    expect(result.hiddenCount).toBe(2);
     expect(result.hiddenByCategory['merged-closed-pr']).toBe(1);
     expect(result.hiddenByCategory['idle-no-pr']).toBe(1);
-    expect(result.hiddenByCategory.stalled).toBe(1);
+    expect(result.hiddenByCategory.stalled).toBe(0);
   });
 });
 
@@ -180,7 +180,7 @@ describe('isFilterActive', () => {
   it('returns true when any flag deviates from defaults', () => {
     expect(isFilterActive({ ...DEFAULT_SESSION_FILTER, showActive: false })).toBe(true);
     expect(isFilterActive({ ...DEFAULT_SESSION_FILTER, showOpenPr: false })).toBe(true);
-    expect(isFilterActive({ ...DEFAULT_SESSION_FILTER, showStalled: true })).toBe(true);
+    expect(isFilterActive({ ...DEFAULT_SESSION_FILTER, showStalled: false })).toBe(true);
     expect(isFilterActive({ ...DEFAULT_SESSION_FILTER, showMergedClosedPr: true })).toBe(true);
     expect(isFilterActive({ ...DEFAULT_SESSION_FILTER, showIdleNoPr: true })).toBe(true);
   });
@@ -192,20 +192,16 @@ describe('describeFilter', () => {
     expect(describeFilter(result)).toBeUndefined();
   });
 
-  it('lists every hidden bucket in user-readable terms', () => {
+  it('phrases the message as a "Show N more sessions" call-to-action', () => {
     const result = applySessionFilter(
-      [s('idle', prMerged), s('idle'), s('stalled')],
+      [s('idle', prMerged), s('idle'), s('idle', prClosed)],
       DEFAULT_SESSION_FILTER
     );
-    const text = describeFilter(result);
-    expect(text).toMatch(/Hiding 3 sessions/);
-    expect(text).toMatch(/idle/);
-    expect(text).toMatch(/merged\/closed PRs/);
-    expect(text).toMatch(/stalled/);
+    expect(describeFilter(result)).toBe('Show 3 more sessions');
   });
 
   it('uses singular wording for exactly one hidden session', () => {
-    const result = applySessionFilter([s('stalled')], DEFAULT_SESSION_FILTER);
-    expect(describeFilter(result)).toMatch(/Hiding 1 session\b/);
+    const result = applySessionFilter([s('idle')], DEFAULT_SESSION_FILTER);
+    expect(describeFilter(result)).toBe('Show 1 more session');
   });
 });
