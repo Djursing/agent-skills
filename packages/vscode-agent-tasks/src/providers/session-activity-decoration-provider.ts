@@ -8,11 +8,14 @@
  * URI scheme. SessionItem sets that URI on every leaf row; we look up the
  * status in a Map injected by SessionsProvider on each refresh.
  *
- * Color mapping (uses VS Code chart colours so it adapts to light/dark themes):
- *   running     → charts.green
- *   needs-input → charts.yellow
- *   unread      → charts.blue
- *   stalled     → charts.orange
+ * Color mapping (uses VS Code theme colours so it adapts to light/dark themes).
+ * Only states that require user action are coloured — `running` is neutral
+ * grey because the agent is just working and the user has nothing to do.
+ *
+ *   running     → descriptionForeground (neutral grey/white)
+ *   needs-input → charts.yellow         (waiting on you — act now)
+ *   unread      → charts.blue           (finished while you were away — review)
+ *   stalled     → charts.orange         (stuck — investigate)
  *
  * Idle sessions get no decoration — that's the default state.
  */
@@ -35,7 +38,9 @@ interface ActivityBadge {
 const ACTIVITY: Partial<Record<SessionStatus, ActivityBadge>> = {
   running: {
     badge: '●',
-    color: new vscode.ThemeColor('charts.green'),
+    // Neutral colour — running means the agent is working, not that you
+    // need to do anything. Reserve hot colours for states that demand action.
+    color: new vscode.ThemeColor('descriptionForeground'),
     tooltip: 'Running',
   },
   'needs-input': {
