@@ -46,9 +46,17 @@ import {
   applySessionFilter,
   describeFilter,
   DEFAULT_SESSION_FILTER,
+  isFilterActive,
   isFilterMoreInclusiveThanDefault,
   type SessionFilter,
 } from '../lib/session-filter';
+
+/**
+ * Below this total session count, the default filter is bypassed so a small
+ * Sessions panel never shows a "Show N more sessions" footer. Explicit user
+ * filter customisations still apply regardless of count.
+ */
+const SESSION_FILTER_BYPASS_THRESHOLD = 10;
 
 // ---------------------------------------------------------------------------
 // Configured artifact directory names (mirrors agent-tasks-provider.ts)
@@ -1179,6 +1187,14 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionTreeItem
     // shown iff its category is enabled. running/needs-input/unread always
     // count as the `active` category which is always-on, so signal cannot be
     // accidentally hidden by toggling a flag.
+    //
+    // Skip filtering entirely when the total session count is at or below the
+    // bypass threshold AND the user has not customised the filter — a small
+    // panel should never show a "Show N more sessions" footer.
+    let totalSessions = 0;
+    for (const sessions of buckets.values()) totalSessions += sessions.length;
+    const skipFilter =
+      totalSessions <= SESSION_FILTER_BYPASS_THRESHOLD && !isFilterActive(filter);
     let combinedHidden = 0;
     const aggregatedHiddenByCategory = {
       active: 0,
@@ -1187,27 +1203,29 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionTreeItem
       'idle-no-pr': 0,
       stalled: 0,
     };
-    for (const [worktreePath, sessions] of buckets) {
-      const filterable = sessions.map((s) => ({
-        session: s,
-        status: this.computeStatus(s),
-        mtime: s.mtime,
-        prEnrichment:
-          this.prStatusCache && s.gitBranch
-            ? this.prStatusCache.getEnrichment(s.gitBranch)
-            : undefined,
-      }));
-      const filtered = applySessionFilter(filterable, filter);
-      combinedHidden += filtered.hiddenCount;
-      for (const k of Object.keys(aggregatedHiddenByCategory) as Array<
-        keyof typeof aggregatedHiddenByCategory
-      >) {
-        aggregatedHiddenByCategory[k] += filtered.hiddenByCategory[k];
+    if (!skipFilter) {
+      for (const [worktreePath, sessions] of buckets) {
+        const filterable = sessions.map((s) => ({
+          session: s,
+          status: this.computeStatus(s),
+          mtime: s.mtime,
+          prEnrichment:
+            this.prStatusCache && s.gitBranch
+              ? this.prStatusCache.getEnrichment(s.gitBranch)
+              : undefined,
+        }));
+        const filtered = applySessionFilter(filterable, filter);
+        combinedHidden += filtered.hiddenCount;
+        for (const k of Object.keys(aggregatedHiddenByCategory) as Array<
+          keyof typeof aggregatedHiddenByCategory
+        >) {
+          aggregatedHiddenByCategory[k] += filtered.hiddenByCategory[k];
+        }
+        buckets.set(
+          worktreePath,
+          filtered.visible.map((f) => f.session)
+        );
       }
-      buckets.set(
-        worktreePath,
-        filtered.visible.map((f) => f.session)
-      );
     }
     const hiddenMessage = describeFilter({
       visible: [],
