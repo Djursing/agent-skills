@@ -41,6 +41,7 @@ import type { HookEvent, HookEventName } from '../lib/hook-event-types';
 import type { PrEnrichment } from '../lib/pr-status-cache';
 import type { PrPoller, BranchTarget } from '../lib/pr-poller';
 import { resolveDisplayStatus, type DisplayStatus } from '../lib/pr-status-reducer';
+import { sessionUri, type SessionActivityDecorationProvider } from './session-activity-decoration-provider';
 import {
   applySessionFilter,
   describeFilter,
@@ -247,6 +248,10 @@ export class SessionItem extends vscode.TreeItem {
     this.description = `${branchTrunc} · ${timeStr}`;
 
     this.iconPath = SessionItem.iconForStatus(this.displayStatus);
+    // Synthetic resourceUri keys this row into the FileDecorationProvider so
+    // the activity dot (running/needs-input/unread/stalled) renders next to
+    // the row without VS Code trying to open the URI.
+    this.resourceUri = sessionUri(session.sessionId);
     this.tooltip = SessionItem.buildTooltip(
       session,
       timeStr,
@@ -723,6 +728,13 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionTreeItem
   prPoller: PrPoller | null = null;
 
   /**
+   * Optional activity-decoration provider. When set, `buildRootItems()`
+   * pushes the current `sessionId → SessionStatus` map so it can render the
+   * coloured dot badge next to active rows.
+   */
+  activityDecoration: SessionActivityDecorationProvider | null = null;
+
+  /**
    * Sessions whose `claude --resume` terminal is currently open in THIS
    * window. Forces the status icon to "active" regardless of mtime — a
    * stronger signal than the file-watcher heuristic. Updated by the click
@@ -1178,33 +1190,33 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionTreeItem
       }
     }
 
-    const running = allSessions
-      .filter((s) => this.isRunning(s))
-      .sort((a, b) => b.mtime - a.mtime);
-    const runningIds = new Set(running.map((s) => s.sessionId));
-
-    const items: SessionTreeItem[] = [];
-    if (running.length > 0) {
-      items.push(new RunningGroupItem(running));
+    // Push the current activity map to the FileDecorationProvider so the
+    // coloured dot badge renders for running/needs-input/unread/stalled rows.
+    if (this.activityDecoration) {
+      const map = new Map<string, SessionStatus>();
+      for (const session of allSessions) {
+        map.set(session.sessionId, this.computeStatus(session));
+      }
+      this.activityDecoration.setStatuses(map);
     }
 
-    // Single worktree (or scope === 'current') → flat list (running already
-    // surfaced in the section above, so exclude them here).
+    const items: SessionTreeItem[] = [];
+
+    // Single worktree (or scope === 'current') → flat list. Active sessions
+    // are no longer pinned at the top — the activity dot makes them visible
+    // wherever they sort in the list, which is less disruptive when one
+    // session bounces between idle and running.
     if (worktreePaths.length <= 1) {
-      const sessions = (buckets.get(worktreePaths[0]) ?? []).filter(
-        (s) => !runningIds.has(s.sessionId)
-      );
+      const sessions = buckets.get(worktreePaths[0]) ?? [];
       items.push(...sessions.map((s) => this.makeSessionItem(s)));
       this.appendFilterStatusItem(items);
       return items;
     }
 
     // Multi-worktree → grouped, current first, others by most-recent activity.
-    // Running sessions are excluded from their worktree group because they
-    // already appear in the pinned section.
     const groups: Array<{ wt: string; sessions: SessionMetadata[]; mtime: number }> = [];
     for (const wt of worktreePaths) {
-      const sessions = (buckets.get(wt) ?? []).filter((s) => !runningIds.has(s.sessionId));
+      const sessions = buckets.get(wt) ?? [];
       const mtime = sessions.reduce((max, s) => Math.max(max, s.mtime), 0);
       groups.push({ wt, sessions, mtime });
     }
