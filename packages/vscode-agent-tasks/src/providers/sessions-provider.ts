@@ -431,7 +431,10 @@ export class LinkedArtifactItem extends vscode.TreeItem {
  */
 export class FilterStatusItem extends vscode.TreeItem {
   constructor(message: string) {
-    super('Show all', vscode.TreeItemCollapsibleState.None);
+    // Minimal footer — only the icon and the muted count description, no
+    // "Show all" label. The full message goes to the tooltip so the row
+    // stays unobtrusive at the bottom of the list.
+    super('', vscode.TreeItemCollapsibleState.None);
     this.description = message;
     this.iconPath = new vscode.ThemeIcon(
       'eye',
