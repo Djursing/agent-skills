@@ -9,6 +9,19 @@ tags:
 
 # Error Recovery Procedures
 
+## Contents
+
+- [Overview](#overview)
+- [Worktree Creation Failures](#worktree-creation-failures)
+- [Dependency Installation Failures](#dependency-installation-failures)
+- [Test Failures During Iteration](#test-failures-during-iteration)
+- [Stuck-Loop Hit at 3 Iterations](#stuck-loop-hit-at-3-iterations)
+- [Companion Skill Not Available](#companion-skill-not-available)
+- [Build Failures](#build-failures)
+- [CI Failures (Phase 7)](#ci-failures-phase-7)
+- [Agent-Specific Recovery](#agent-specific-recovery)
+- [References](#references)
+
 ## Overview
 
 Recovery procedures for common errors during autonomous execution. Don't give

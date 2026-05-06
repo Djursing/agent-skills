@@ -2,6 +2,14 @@
 
 How Anthropic's published guidance on agent architecture maps to concrete design choices in the autonomous-workflow skill.
 
+## Contents
+
+- [1. Purpose](#1-purpose)
+- [2. Key principles with quotes and design mapping](#2-key-principles-with-quotes-and-design-mapping)
+- [3. What the autonomous-workflow does NOT do (and why)](#3-what-the-autonomous-workflow-does-not-do-and-why)
+- [4. Open questions and divergences](#4-open-questions-and-divergences)
+- [5. References](#5-references)
+
 ---
 
 ## 1. Purpose

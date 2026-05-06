@@ -11,6 +11,17 @@ tags:
 
 # Planner ↔ Executor Handoff
 
+## Contents
+
+- [Overview](#overview)
+- [Why this boundary](#why-this-boundary)
+- [Handoff contract](#handoff-contract)
+- [Handoff message format](#handoff-message-format)
+- [Receiving handoff (executor entry point)](#receiving-handoff-executor-entry-point)
+- [What the planner DOES NOT do](#what-the-planner-does-not-do)
+- [What the executor DOES NOT do](#what-the-executor-does-not-do)
+- [References](#references)
+
 ## Overview
 
 The autonomous-workflow runs as two agents connected by a single artifact:

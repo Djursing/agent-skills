@@ -2,6 +2,13 @@
 
 UX writing is interface design with words. Every user-facing string is a design decision.
 
+## Contents
+
+- Core Principles
+- Specific Copy Types
+- Tone Guidelines
+- What to Flag
+
 ## Core Principles
 
 ### 1. Clarity Over Cleverness

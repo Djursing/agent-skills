@@ -2,6 +2,15 @@
 
 Real-world examples of error recovery during autonomous workflow execution.
 
+## Contents
+
+- [Scenario 1: Test Failures Requiring Multiple Iterations](#scenario-1-test-failures-requiring-multiple-iterations)
+- [Scenario 2: Dependency Installation Failure](#scenario-2-dependency-installation-failure)
+- [Scenario 3: Merge Conflict During Push](#scenario-3-merge-conflict-during-push)
+- [Scenario 4: Build Failure After Implementation](#scenario-4-build-failure-after-implementation)
+- [Scenario 5: Flaky Test Discovery](#scenario-5-flaky-test-discovery)
+- [Key Takeaways](#key-takeaways)
+
 > **Note on tooling:** Examples below use [`gw`](https://github.com/mthines/gw-tools)
 > commands as the happy path. `gw` is recommended but **optional** — if it's
 > not installed, the workflow falls back to native `git worktree`. See

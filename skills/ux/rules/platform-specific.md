@@ -1,5 +1,12 @@
 # Platform-Specific Rules
 
+## Contents
+
+- Apple Human Interface Guidelines (iOS 17-18)
+- Material Design 3 (Android)
+- React Native Platform-Adaptive Patterns
+- What to Flag
+
 ## Apple Human Interface Guidelines (iOS 17-18)
 
 ### Navigation
@@ -79,7 +86,7 @@ Display (L/M/S), Headline (L/M/S), Title (L/M/S), Body (L/M/S), Label (L/M/S)
 | Alert style | iOS action sheet | Material dialog |
 
 ### Implementation
-```
+```tsx
 // Platform-adaptive values
 Platform.select({ ios: value, android: value, web: value })
 

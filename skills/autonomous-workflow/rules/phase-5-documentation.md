@@ -9,6 +9,15 @@ tags:
 
 # Phase 5: Documentation
 
+## Contents
+
+- [Overview](#overview)
+- [Core Principles](#core-principles)
+- [Procedure](#procedure)
+- [Claude MD Trigger](#claude-md-trigger)
+- [Documentation Checklist](#documentation-checklist)
+- [References](#references)
+
 ## Overview
 
 Bring the project's documentation in sync with the changes made in Phase 3 — README, CHANGELOG, API docs, and project-level agent guidance (`CLAUDE.md` and `.claude/rules/`). The phase ends with a mandatory `update-claude` invocation that closes the self-improving doc loop so future autonomous runs start with sharper context.

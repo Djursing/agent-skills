@@ -10,6 +10,17 @@ tags:
 
 # Phase 7: CI Gate + Optional Cleanup
 
+## Contents
+
+- [Overview](#overview)
+- [Core Principles](#core-principles)
+- [Procedure](#procedure)
+- [Auto Fix](#auto-fix)
+- [Parallel CI Fixes](#parallel-ci-fixes)
+- [Optional Post-Merge Cleanup](#optional-post-merge-cleanup)
+- [Phase 7 Checklist](#phase-7-checklist)
+- [References](#references)
+
 ## Overview
 
 After the draft PR is open, watch CI until every check is green. If a check fails, dispatch `ci-auto-fix` (in parallel when independent failures pile up). Only after the PR is merged is worktree cleanup considered, and only when the user wants it.

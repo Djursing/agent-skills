@@ -12,6 +12,20 @@ tags:
 
 # Phase 2: Worktree Setup (MANDATORY)
 
+## Contents
+
+- [Overview](#overview)
+- [Core Principles](#core-principles)
+- [Why Isolation Matters](#why-isolation-matters)
+- [When to Skip (Rare)](#when-to-skip-rare)
+- [Procedure](#procedure)
+- [Plan Generation](#plan-generation)
+- [Planner Handoff](#planner-handoff)
+- [Command Reference](#command-reference)
+- [Setup Checklist](#setup-checklist)
+- [Troubleshooting](#troubleshooting)
+- [References](#references)
+
 ## Overview
 
 This phase is MANDATORY before any code changes. Every autonomous run creates

@@ -1,5 +1,14 @@
 # Visual Design Rules
 
+## Contents
+
+- Typography
+- Color
+- Spacing & Alignment
+- Elevation & Depth
+- Icons
+- What to Flag
+
 ## Typography
 
 ### Size Minimums

@@ -10,6 +10,18 @@ tags:
 
 # Smart Worktree Detection
 
+## Contents
+
+- [Overview](#overview)
+- [Core Principles](#core-principles)
+- [Detection Algorithm](#detection-algorithm)
+- [Decision Logic](#decision-logic)
+- [User Prompt Template](#user-prompt-template)
+- [Implementation](#implementation)
+- [Examples](#examples)
+- [Benefits](#benefits)
+- [References](#references)
+
 ## Overview
 
 Before creating a new worktree, check if the current context matches the task.

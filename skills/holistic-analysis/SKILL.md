@@ -1,7 +1,7 @@
 ---
 name: holistic-analysis
 description: >
-  Force a full holistic re-analysis when a fix or refactor isn't working. Instead
+  Forces a full holistic re-analysis when a fix or refactor isn't working. Instead
   of continuing to patch in isolation, this skill triggers a structured step-back
   analysis that traces the entire execution path end-to-end — from entry point to
   exit — analyzing each block, every contract boundary, and the full data flow.
@@ -10,6 +10,19 @@ description: >
   "analyze the whole thing", "zoom out", "look at the bigger picture", "rethink this",
   or when an attempt has failed and the user wants a fresh, thorough analysis.
   Also triggers on "/holistic", "/step-back", "/rethink", "/zoom-out".
+license: MIT
+metadata:
+  author: mthines
+  version: '1.1.0'
+  workflow_type: advisory
+  tags:
+    - holistic-analysis
+    - step-back
+    - root-cause
+    - debugging
+    - refactor
+    - execution-path
+    - metacognition
 ---
 
 # Holistic Analysis
@@ -17,6 +30,21 @@ description: >
 When this skill activates, STOP all incremental patching. Do not attempt another
 narrow change. Instead, execute the full analysis protocol below before writing any
 code.
+
+## Contents
+
+- [Mode Detection](#mode-detection) — pick `fix` (default) or `refactor`
+- [Context Gathering](#context-gathering) — 11-point checklist before reasoning
+- [Phase 1: Full Execution Path Walkthrough](#phase-1-full-execution-path-walkthrough) — entry-to-exit map, per-block analysis, contract boundaries, summary
+- [Phase 2: Step Back — Identify the Principle](#phase-2-step-back--identify-the-principle)
+- [Phase 3: Scene Set — Explain the Situation to the Duck](#phase-3-scene-set--explain-the-situation-to-the-duck)
+- [Phase 4: Structured Hypothesis Generation](#phase-4-structured-hypothesis-generation) — fix-mode root causes / refactor-mode approaches
+- [Phase 5: Meta-Cognitive Check — Challenge Your Own Reasoning](#phase-5-meta-cognitive-check--challenge-your-own-reasoning)
+- [Phase 6: Confidence Gate — Analysis Validation](#phase-6-confidence-gate--analysis-validation) — `/confidence bug-analysis` or `/confidence plan`
+- [Phase 7: Plan the Change — Words Before Code](#phase-7-plan-the-change--words-before-code)
+- [Phase 8: Implement and Verify](#phase-8-implement-and-verify) — `/confidence code` gate
+- [Output Format](#output-format)
+- [Anti-Patterns — What NOT to Do](#anti-patterns--what-not-to-do)
 
 ## Mode Detection
 

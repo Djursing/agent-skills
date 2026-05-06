@@ -1,5 +1,15 @@
 # Performance UX Rules
 
+## Contents
+
+- Response Time Thresholds
+- Loading Patterns
+- Empty States
+- Error States
+- Animation & Transitions
+- Core Web Vitals (Web)
+- What to Flag
+
 ## Response Time Thresholds
 
 | Duration | User Perception | Required UX |

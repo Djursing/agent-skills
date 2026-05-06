@@ -1,17 +1,26 @@
 ---
 name: confidence
 description: >
-  Rate confidence that the current work fully solves the stated requirement.
+  Rates confidence that the current work fully solves the stated requirement.
   Supports plan validation, code review, and bug analysis modes. Plan mode
-  combines LLM judgment with deterministic rule checks (multi-signal gate).
-  Use before committing to autonomous execution, after implementation, or
-  during investigation. Triggers on confidence check, validate plan, rate
-  confidence, or quality gate.
+  combines LLM judgment with deterministic rule checks (multi-signal gate);
+  a failed rule caps the gate at 89% regardless of LLM score. Use before
+  committing to autonomous execution, after implementation, or during
+  investigation. Triggers on "confidence check", "validate plan", "rate
+  confidence", "quality gate", "/confidence".
 license: MIT
 metadata:
   author: mthines
-  version: '2.0.0'
+  version: '2.1.0'
   workflow_type: advisory
+  tags:
+    - confidence
+    - quality-gate
+    - plan-validation
+    - code-review
+    - bug-analysis
+    - multi-signal
+    - autonomous-workflow
 ---
 
 # Confidence Assessment
@@ -22,6 +31,18 @@ Rate your confidence that the current work fully solves the stated requirement.
 > a stand-alone gate (token probability ≠ correctness). This skill combines
 > the LLM's dimensional scoring with **deterministic rule checks** the agent
 > must run alongside. The final score is gated on BOTH passing.
+
+## Contents
+
+- [Mode Detection](#mode-detection)
+- [Assessment Dimensions](#assessment-dimensions)
+  - [For `plan` mode](#for-plan-mode) — multi-signal: LLM scoring + rule checks (89% cap on failure)
+  - [For `code` mode](#for-code-mode)
+  - [For `bug-analysis` mode](#for-bug-analysis-mode)
+- [Output Format](#output-format)
+- [Score Thresholds](#score-thresholds)
+- [Iteration Protocol (plan mode)](#iteration-protocol-plan-mode)
+- [Auto-Fix (Fix Mode Only)](#auto-fix-fix-mode-only)
 
 ---
 

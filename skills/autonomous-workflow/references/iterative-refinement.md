@@ -4,6 +4,16 @@ Examples showing how continuous iteration and self-validation improve code quali
 
 > **Scope note — refinement vs. stuck-loop:** Self-review iteration (refining a draft until it's good) is distinct from stuck-loop iteration (the same test failing repeatedly). The 3-iteration cap in [`phase-4-testing.md`](../rules/phase-4-testing.md#stuck-loop-detection) applies to the latter — not to quality-driven self-refinement covered in this document.
 
+## Contents
+
+- [Concept](#concept)
+- [Example 1: API Client Implementation with Progressive Refinement](#example-1-api-client-implementation-with-progressive-refinement)
+- [Example 2: Form Validation Component with Iterative UX Improvements](#example-2-form-validation-component-with-iterative-ux-improvements)
+- [Key Principles of Iterative Refinement](#key-principles-of-iterative-refinement)
+- [Comparison: Without vs With Iterative Refinement](#comparison-without-vs-with-iterative-refinement)
+- [When to Stop Iterating](#when-to-stop-iterating)
+- [Conclusion](#conclusion)
+
 ## Concept
 
 **Iterative refinement** means validating and improving work at every step, not just at the end. Each phase includes self-review checkpoints to catch issues early.

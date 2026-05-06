@@ -10,6 +10,15 @@ tags:
 
 # Phase 0: Validation & Questions (MANDATORY)
 
+## Contents
+
+- [Overview](#overview)
+- [Core Principles](#core-principles)
+- [Procedure](#procedure)
+- [Example](#example)
+- [Validation Checklist](#validation-checklist)
+- [References](#references)
+
 ## Overview
 
 This phase is MANDATORY. Never skip directly to implementation. Understand the

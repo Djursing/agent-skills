@@ -10,6 +10,20 @@ tags:
 
 # Artifacts Overview
 
+## Contents
+
+- [CRITICAL: When to Create Artifacts](#critical-when-to-create-artifacts)
+- [Overview](#overview)
+- [When to Use Artifacts](#when-to-use-artifacts)
+- [Two-Artifact Pattern](#two-artifact-pattern)
+- [Plan Versioning](#plan-versioning)
+- [Quality Gate](#quality-gate)
+- [File Location](#file-location)
+- [Gitignore](#gitignore)
+- [Context Recovery](#context-recovery)
+- [Key Principles](#key-principles)
+- [References](#references)
+
 ---
 
 ## CRITICAL: When to Create Artifacts

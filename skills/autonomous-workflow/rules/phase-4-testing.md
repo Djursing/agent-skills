@@ -10,6 +10,17 @@ tags:
 
 # Phase 4: Testing & Iteration
 
+## Contents
+
+- [Overview](#overview)
+- [Core Principles](#core-principles)
+- [Procedure](#procedure)
+- [Stuck-Loop Detection](#stuck-loop-detection)
+- [Stuck Recovery](#stuck-recovery)
+- [When to Stop and Ask (beyond stuck-loop)](#when-to-stop-and-ask-beyond-stuck-loop)
+- [Testing Checklist](#testing-checklist)
+- [References](#references)
+
 ## Overview
 
 Run the project's test suite and iterate until tests pass — but with a **hard,

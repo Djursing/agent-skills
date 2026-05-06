@@ -4,6 +4,17 @@ Single source of truth for which optional skills the workflow invokes, when, and
 how. **All companions skip silently if not installed.** This file is the place
 to disable, swap, or add companions.
 
+## Contents
+
+- [How invocation works](#how-invocation-works)
+- [Registry](#registry)
+- [Stuck-Loop Protocol (Phase 4)](#stuck-loop-protocol-phase-4)
+- [Parallelization](#parallelization)
+- [Adding a New Companion](#adding-a-new-companion)
+- [Removing a Companion](#removing-a-companion)
+- [Why some skills can't be disabled](#why-some-skills-cant-be-disabled)
+- [Companion Output Logging](#companion-output-logging)
+
 ---
 
 ## How invocation works

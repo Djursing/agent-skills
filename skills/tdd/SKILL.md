@@ -1,7 +1,7 @@
 ---
 name: tdd
 description: >
-  Test-Driven Development skill enforcing strict RED-GREEN-REFACTOR cycles.
+  Enforces strict Test-Driven Development with RED-GREEN-REFACTOR cycles.
   Writes one failing test at a time, implements minimal code to pass, then
   refactors. Uses subagent isolation to prevent tests-by-construction. Pairs
   with the `code-quality` skill: invokes `Skill('code-quality')` during the
@@ -12,12 +12,20 @@ description: >
 license: MIT
 metadata:
   author: mthines
-  version: '1.1.0'
-  workflow_type: test-driven-development
+  version: '1.2.0'
+  workflow_type: applied
   modes:
     - tdd-full
     - test-first
     - test-after
+  tags:
+    - tdd
+    - testing
+    - red-green-refactor
+    - test-first
+    - test-after
+    - refactoring
+    - code-quality
 ---
 
 # Test-Driven Development

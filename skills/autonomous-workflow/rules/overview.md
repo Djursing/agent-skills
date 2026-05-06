@@ -9,6 +9,20 @@ tags:
 
 # Autonomous Workflow Overview
 
+## Contents
+
+- [CRITICAL: First Step - Mode Detection](#critical-first-step---mode-detection)
+- [Overview](#overview)
+- [Core Principles](#core-principles)
+- [Companion Skills](#companion-skills)
+- [Artifact System](#artifact-system)
+- [Workflow Phases (0–7)](#workflow-phases-07)
+- [Phase Flow](#phase-flow)
+- [When to Use](#when-to-use)
+- [Workflow Modes](#workflow-modes)
+- [Expected Outcomes](#expected-outcomes)
+- [References](#references)
+
 ---
 
 ## CRITICAL: First Step - Mode Detection

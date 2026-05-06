@@ -10,6 +10,21 @@ tags:
 
 # Safety Guardrails
 
+## Contents
+
+- [Overview](#overview)
+- [Validation Checkpoints (per Phase)](#validation-checkpoints-per-phase)
+- [Self-Validation Questions](#self-validation-questions)
+- [Stuck-Loop Limit (Phase 4)](#stuck-loop-limit-phase-4)
+- [Tool Prerequisites](#tool-prerequisites)
+- [Companion-Skill Safety](#companion-skill-safety)
+- [Resource Limits](#resource-limits)
+- [When to Stop and Ask](#when-to-stop-and-ask)
+- [Quality Gates](#quality-gates)
+- [Rollback Procedures](#rollback-procedures)
+- [Checkpoint Failure Protocol](#checkpoint-failure-protocol)
+- [References](#references)
+
 ## Overview
 
 Validation checkpoints, resource limits, and rollback procedures for the

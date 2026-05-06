@@ -24,6 +24,15 @@ workflow falls back to native `git worktree` if it's absent.
 and warns the user about the features they're missing.** See [Fallback to
 native `git worktree`](#fallback-to-native-git-worktree) below.
 
+## Contents
+
+- [Verification](#verification)
+- [Fallback to native `git worktree`](#fallback-to-native-git-worktree)
+- [Installing `gw` (recommended)](#installing-gw-recommended)
+- [Installing `gh` (REQUIRED)](#installing-gh-required)
+- [Troubleshooting](#troubleshooting)
+- [References](#references)
+
 ---
 
 ## Verification

@@ -2,6 +2,19 @@
 
 This example demonstrates a full autonomous workflow execution from start to finish.
 
+## Contents
+
+- [Scenario](#scenario)
+- [Phase 0: Validation & Questions](#phase-0-validation--questions)
+- [Phase 1: Task Intake & Planning](#phase-1-task-intake--planning)
+- [Phase 2: Worktree Setup](#phase-2-worktree-setup)
+- [Phase 3: Implementation](#phase-3-implementation)
+- [Phase 4: Testing & Iteration](#phase-4-testing--iteration)
+- [Phase 5: Documentation](#phase-5-documentation)
+- [Phase 6: PR Creation & Delivery](#phase-6-pr-creation--delivery)
+- [Phase 7: CI Gate](#phase-7-ci-gate)
+- [Outcome](#outcome)
+
 > **Note on tooling:** This example uses [`gw`](https://github.com/mthines/gw-tools)
 > commands as the happy path because `gw` is the recommended worktree tool and
 > ships with auto-copy of secrets, pre/post-checkout hooks, smart cleanup, and

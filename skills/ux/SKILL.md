@@ -1,17 +1,18 @@
 ---
 name: ux
 description: >
-  UX design review and advisory skill for web and React Native (Expo) applications.
-  Analyzes UI code against established UX principles, accessibility standards (WCAG 2.2),
+  Reviews UX, accessibility, and microcopy for web and React Native (Expo) applications.
+  Analyzes UI code against established UX principles, WCAG 2.2 accessibility standards,
   platform guidelines (Apple HIG, Material Design 3), and UX writing best practices.
   Triggers on: "ux review", "review ux", "check accessibility", "improve the UI",
   "ux audit", "review this component", "is this accessible", "check usability",
   "ux feedback", "review the design", "improve usability", "check contrast",
   "review navigation", "ux writing", "improve copy", "review microcopy",
   "make this more intuitive", "ux best practices", "/ux".
+license: MIT
 metadata:
   author: mthines
-  version: "1.0.0"
+  version: '1.1.0'
   workflow_type: advisory
   tags: [ux, accessibility, design, react-native, expo, web, wcag, usability, ux-writing]
 ---

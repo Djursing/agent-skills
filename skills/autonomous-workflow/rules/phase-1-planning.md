@@ -18,6 +18,20 @@ inside the worktree, never on the main branch.
 > optional `holistic-analysis` → technical design → `code-quality(plan)` →
 > `confidence(plan)` gate → Phase 2.
 
+## Contents
+
+- [Prerequisite Gate](#prerequisite-gate)
+- [Core Principles](#core-principles)
+- [Parallel Research](#parallel-research)
+- [Step 1: Analyze Codebase](#step-1-analyze-codebase)
+- [Complex Task Detection](#complex-task-detection)
+- [Step 2: Draft Technical Design](#step-2-draft-technical-design)
+- [Design Quality](#design-quality)
+- [Confidence Gate](#confidence-gate)
+- [Planner-Executor Handoff](#planner-executor-handoff)
+- [Planning Checklist](#planning-checklist)
+- [References](#references)
+
 ---
 
 ## Prerequisite Gate

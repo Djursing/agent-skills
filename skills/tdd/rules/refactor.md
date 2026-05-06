@@ -9,6 +9,12 @@ tags:
 
 # REFACTOR Phase
 
+## Contents
+
+- [Decision: Refactor or Skip?](#decision-refactor-or-skip)
+- [Procedure (when refactoring)](#procedure-when-refactoring)
+- [Guardrails](#guardrails)
+
 Evaluate and improve code quality while keeping all tests green.
 
 This phase delegates the *what counts as quality* question to the

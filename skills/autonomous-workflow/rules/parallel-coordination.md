@@ -11,6 +11,17 @@ tags:
 
 # Parallel Agent Coordination
 
+## Contents
+
+- [Overview](#overview)
+- [Sub-Agent Parallelization (within one run)](#sub-agent-parallelization-within-one-run)
+- [Multi-Agent Handoff (across runs)](#multi-agent-handoff-across-runs)
+- [Handoff Protocol](#handoff-protocol)
+- [Receiving Handoff](#receiving-handoff)
+- [Parallel Execution Patterns](#parallel-execution-patterns)
+- [Conflict Resolution](#conflict-resolution)
+- [References](#references)
+
 ## Overview
 
 Two distinct concerns live in this rule:

@@ -12,6 +12,17 @@ tags:
 
 # Phase 6: PR Creation & Delivery
 
+## Contents
+
+- [Overview](#overview)
+- [Core Principles](#core-principles)
+- [Procedure (Order of Operations)](#procedure-order-of-operations)
+- [Pre-Push Review](#pre-push-review)
+- [Walkthrough](#walkthrough)
+- [PR Creation](#pr-creation)
+- [Delivery Checklist](#delivery-checklist)
+- [References](#references)
+
 ## Overview
 
 Hand the work off to the user as a reviewable DRAFT pull request — but only after a quality review and (in Full Mode) a generated walkthrough. This phase is orchestrated almost entirely through companion skills:
