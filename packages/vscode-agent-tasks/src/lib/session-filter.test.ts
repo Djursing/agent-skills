@@ -1,6 +1,7 @@
 /**
- * Tests for session-filter — covers the always-show rule, each filter axis,
- * and the describe/active helpers used by the provider layer.
+ * Tests for session-filter — covers categorisation of every (status × pr-state)
+ * combination, the always-show rule, the inclusion-model semantics, and the
+ * footer summary helper.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -8,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SESSION_FILTER,
   applySessionFilter,
+  categorise,
   describeFilter,
   isFilterActive,
   type FilterableSession,
@@ -16,22 +18,7 @@ import {
 import type { SessionStatus } from '../parsers/session-jsonl-parser';
 import type { PrEnrichment } from './pr-status-cache';
 
-const NOW = new Date('2026-05-06T14:00:00Z').getTime();
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function session(
-  status: SessionStatus,
-  ageDays: number,
-  prEnrichment?: PrEnrichment
-): FilterableSession {
-  return {
-    status,
-    mtime: NOW - ageDays * DAY_MS,
-    prEnrichment,
-  };
-}
-
-function makePr(state: 'open' | 'merged' | 'closed'): PrEnrichment {
+function makePr(state: 'open' | 'merged' | 'closed' | 'draft'): PrEnrichment {
   return {
     status: 'pr',
     info: {
@@ -45,168 +32,132 @@ function makePr(state: 'open' | 'merged' | 'closed'): PrEnrichment {
   };
 }
 const prOpen = makePr('open');
+const prDraft = makePr('draft');
 const prMerged = makePr('merged');
 const prClosed = makePr('closed');
 const noPr: PrEnrichment = { status: 'no-pr' };
 const loading: PrEnrichment = { status: 'loading' };
 
+function s(
+  status: SessionStatus,
+  prEnrichment?: PrEnrichment
+): FilterableSession {
+  return { status, mtime: 0, prEnrichment };
+}
+
+describe('categorise', () => {
+  it('returns active for running, needs-input, unread', () => {
+    expect(categorise(s('running'))).toBe('active');
+    expect(categorise(s('needs-input'))).toBe('active');
+    expect(categorise(s('unread'))).toBe('active');
+  });
+
+  it('returns stalled for stalled status', () => {
+    expect(categorise(s('stalled'))).toBe('stalled');
+  });
+
+  it('returns open-pr for idle + open or draft PR', () => {
+    expect(categorise(s('idle', prOpen))).toBe('open-pr');
+    expect(categorise(s('idle', prDraft))).toBe('open-pr');
+  });
+
+  it('returns merged-closed-pr for idle + merged or closed PR', () => {
+    expect(categorise(s('idle', prMerged))).toBe('merged-closed-pr');
+    expect(categorise(s('idle', prClosed))).toBe('merged-closed-pr');
+  });
+
+  it('returns idle-no-pr for idle + no PR / loading / undefined', () => {
+    expect(categorise(s('idle'))).toBe('idle-no-pr');
+    expect(categorise(s('idle', noPr))).toBe('idle-no-pr');
+    expect(categorise(s('idle', loading))).toBe('idle-no-pr');
+  });
+});
+
+describe('applySessionFilter — defaults', () => {
+  it('shows active sessions and idle sessions with open PRs by default', () => {
+    const sessions = [
+      s('running'),
+      s('needs-input'),
+      s('unread'),
+      s('idle', prOpen),
+      s('idle', prMerged), // hidden
+      s('idle', noPr),     // hidden
+      s('stalled'),        // hidden
+    ];
+    const result = applySessionFilter(sessions, DEFAULT_SESSION_FILTER);
+    expect(result.visible).toHaveLength(4);
+    expect(result.hiddenCount).toBe(3);
+    expect(result.hiddenByCategory['merged-closed-pr']).toBe(1);
+    expect(result.hiddenByCategory['idle-no-pr']).toBe(1);
+    expect(result.hiddenByCategory.stalled).toBe(1);
+  });
+});
+
 describe('applySessionFilter — always-show rule', () => {
-  it('never hides a running session, even if every filter would match', () => {
-    const sessions = [session('running', 365, prMerged)];
-    const result = applySessionFilter(
-      sessions,
-      {
-        hideStaleAfterDays: 1,
-        hideIdle: true,
-        hidePrMergedClosed: true,
-        onlyWithPr: true,
-      },
-      NOW
-    );
-    expect(result.visible).toHaveLength(1);
+  it('never hides running, needs-input, unread regardless of any flag', () => {
+    const filter: SessionFilter = {
+      showOpenPr: false,
+      showMergedClosedPr: false,
+      showIdleNoPr: false,
+      showStalled: false,
+    };
+    const sessions = [s('running'), s('needs-input'), s('unread')];
+    const result = applySessionFilter(sessions, filter);
+    expect(result.visible).toHaveLength(3);
     expect(result.hiddenCount).toBe(0);
   });
+});
 
-  it('never hides a needs-input or unread session', () => {
-    const sessions = [
-      session('needs-input', 365),
-      session('unread', 365),
-    ];
-    const result = applySessionFilter(
-      sessions,
-      { ...DEFAULT_SESSION_FILTER, hideStaleAfterDays: 1, hideIdle: true },
-      NOW
-    );
+describe('applySessionFilter — single-purpose toggles', () => {
+  it('showOpenPr controls only the open-pr bucket', () => {
+    const sessions = [s('idle', prOpen), s('idle', prMerged), s('idle', noPr)];
+    const both = applySessionFilter(sessions, {
+      ...DEFAULT_SESSION_FILTER,
+      showOpenPr: true,
+    });
+    expect(both.visible).toHaveLength(1);
+    expect(both.visible[0]?.prEnrichment).toBe(prOpen);
+
+    const none = applySessionFilter(sessions, {
+      ...DEFAULT_SESSION_FILTER,
+      showOpenPr: false,
+    });
+    expect(none.visible).toHaveLength(0);
+  });
+
+  it('showMergedClosedPr controls only the merged-closed bucket', () => {
+    const sessions = [s('idle', prOpen), s('idle', prMerged), s('idle', prClosed)];
+    const result = applySessionFilter(sessions, {
+      showOpenPr: false,
+      showMergedClosedPr: true,
+      showIdleNoPr: false,
+      showStalled: false,
+    });
+    expect(result.visible).toHaveLength(2);
+    expect(result.visible.map((v) => v.prEnrichment)).toEqual([prMerged, prClosed]);
+  });
+
+  it('showIdleNoPr controls only the idle-no-pr bucket', () => {
+    const sessions = [s('idle', prOpen), s('idle'), s('idle', loading)];
+    const result = applySessionFilter(sessions, {
+      showOpenPr: false,
+      showMergedClosedPr: false,
+      showIdleNoPr: true,
+      showStalled: false,
+    });
     expect(result.visible).toHaveLength(2);
   });
-});
 
-describe('applySessionFilter — staleness', () => {
-  it('hides sessions older than hideStaleAfterDays', () => {
-    const sessions = [
-      session('idle', 5),
-      session('idle', 20),
-      session('idle', 14.5),
-    ];
-    const result = applySessionFilter(
-      sessions,
-      { ...DEFAULT_SESSION_FILTER, hideStaleAfterDays: 14 },
-      NOW
-    );
-    expect(result.visible).toHaveLength(1);
-    expect(result.hiddenCount).toBe(2);
-    expect(result.hiddenByReason.stale).toBe(2);
-  });
-
-  it('hideStaleAfterDays=0 disables the rule', () => {
-    const sessions = [session('idle', 999)];
-    const result = applySessionFilter(
-      sessions,
-      { ...DEFAULT_SESSION_FILTER, hideStaleAfterDays: 0 },
-      NOW
-    );
-    expect(result.visible).toHaveLength(1);
-  });
-});
-
-describe('applySessionFilter — hideIdle', () => {
-  it('hides idle sessions when enabled', () => {
-    const sessions = [session('idle', 1), session('stalled', 1)];
-    const result = applySessionFilter(
-      sessions,
-      { ...DEFAULT_SESSION_FILTER, hideStaleAfterDays: 0, hideIdle: true },
-      NOW
-    );
+  it('showStalled controls only the stalled bucket', () => {
+    const sessions = [s('stalled'), s('idle', prOpen), s('idle')];
+    const result = applySessionFilter(sessions, {
+      showOpenPr: false,
+      showMergedClosedPr: false,
+      showIdleNoPr: false,
+      showStalled: true,
+    });
     expect(result.visible).toHaveLength(1);
     expect(result.visible[0]?.status).toBe('stalled');
-    expect(result.hiddenByReason.idle).toBe(1);
-  });
-
-  it('keeps idle sessions whose branch has a known PR', () => {
-    // Idle + has PR = signal (e.g. iterating on a PR), not noise.
-    const sessions = [
-      session('idle', 1),               // no PR → hidden
-      session('idle', 1, prOpen),       // has PR → visible
-      session('idle', 1, prMerged),     // has PR → visible (still visible by hideIdle alone)
-    ];
-    const result = applySessionFilter(
-      sessions,
-      { ...DEFAULT_SESSION_FILTER, hideStaleAfterDays: 0, hideIdle: true },
-      NOW
-    );
-    expect(result.visible).toHaveLength(2);
-    expect(result.hiddenByReason.idle).toBe(1);
-  });
-
-  it('still hides idle sessions whose PR enrichment is loading or no-pr', () => {
-    const sessions = [
-      session('idle', 1, loading),
-      session('idle', 1, noPr),
-    ];
-    const result = applySessionFilter(
-      sessions,
-      { ...DEFAULT_SESSION_FILTER, hideStaleAfterDays: 0, hideIdle: true },
-      NOW
-    );
-    expect(result.visible).toHaveLength(0);
-    expect(result.hiddenByReason.idle).toBe(2);
-  });
-});
-
-describe('applySessionFilter — hidePrMergedClosed', () => {
-  it('hides merged and closed PRs', () => {
-    const sessions = [
-      session('idle', 1, prOpen),
-      session('idle', 1, prMerged),
-      session('idle', 1, prClosed),
-    ];
-    const result = applySessionFilter(
-      sessions,
-      { ...DEFAULT_SESSION_FILTER, hideStaleAfterDays: 0, hidePrMergedClosed: true },
-      NOW
-    );
-    expect(result.visible).toHaveLength(1);
-    expect(result.visible[0]?.prEnrichment).toBe(prOpen);
-    expect(result.hiddenByReason['pr-merged-closed']).toBe(2);
-  });
-
-  it('does not hide sessions whose enrichment is loading or errored', () => {
-    const sessions = [
-      session('idle', 1, loading),
-      session('idle', 1, { status: 'error', reason: 'transient' }),
-    ];
-    const result = applySessionFilter(
-      sessions,
-      { ...DEFAULT_SESSION_FILTER, hideStaleAfterDays: 0, hidePrMergedClosed: true },
-      NOW
-    );
-    expect(result.visible).toHaveLength(2);
-  });
-});
-
-describe('applySessionFilter — onlyWithPr', () => {
-  it('hides sessions whose PR state is no-pr', () => {
-    const sessions = [
-      session('idle', 1, prOpen),
-      session('idle', 1, noPr),
-    ];
-    const result = applySessionFilter(
-      sessions,
-      { ...DEFAULT_SESSION_FILTER, hideStaleAfterDays: 0, onlyWithPr: true },
-      NOW
-    );
-    expect(result.visible).toHaveLength(1);
-    expect(result.hiddenByReason['no-pr-required']).toBe(1);
-  });
-
-  it('does NOT hide sessions still loading PR enrichment (avoid flicker)', () => {
-    const sessions = [session('idle', 1, loading)];
-    const result = applySessionFilter(
-      sessions,
-      { ...DEFAULT_SESSION_FILTER, hideStaleAfterDays: 0, onlyWithPr: true },
-      NOW
-    );
-    expect(result.visible).toHaveLength(1);
   });
 });
 
@@ -215,34 +166,34 @@ describe('isFilterActive', () => {
     expect(isFilterActive(DEFAULT_SESSION_FILTER)).toBe(false);
   });
 
-  it('returns true if any axis differs from default', () => {
-    const variations: SessionFilter[] = [
-      { ...DEFAULT_SESSION_FILTER, hideStaleAfterDays: 7 },
-      { ...DEFAULT_SESSION_FILTER, hideIdle: true },
-      { ...DEFAULT_SESSION_FILTER, hidePrMergedClosed: true },
-      { ...DEFAULT_SESSION_FILTER, onlyWithPr: true },
-    ];
-    for (const f of variations) expect(isFilterActive(f)).toBe(true);
+  it('returns true when any flag deviates from defaults', () => {
+    expect(isFilterActive({ ...DEFAULT_SESSION_FILTER, showOpenPr: false })).toBe(true);
+    expect(isFilterActive({ ...DEFAULT_SESSION_FILTER, showStalled: true })).toBe(true);
+    expect(isFilterActive({ ...DEFAULT_SESSION_FILTER, showMergedClosedPr: true })).toBe(true);
+    expect(isFilterActive({ ...DEFAULT_SESSION_FILTER, showIdleNoPr: true })).toBe(true);
   });
 });
 
 describe('describeFilter', () => {
-  it('returns undefined when nothing is hidden and filter is at defaults', () => {
-    expect(describeFilter(DEFAULT_SESSION_FILTER, 0)).toBeUndefined();
+  it('returns undefined when nothing is hidden', () => {
+    const result = applySessionFilter([s('running')], DEFAULT_SESSION_FILTER);
+    expect(describeFilter(result)).toBeUndefined();
   });
 
-  it('summarises the active rules with hidden count', () => {
-    const summary = describeFilter(
-      { ...DEFAULT_SESSION_FILTER, hideIdle: true },
-      3
+  it('lists every hidden bucket in user-readable terms', () => {
+    const result = applySessionFilter(
+      [s('idle', prMerged), s('idle'), s('stalled')],
+      DEFAULT_SESSION_FILTER
     );
-    expect(summary).toMatch(/Hiding 3 sessions/);
-    expect(summary).toMatch(/older than 14d/);
-    expect(summary).toMatch(/idle/);
+    const text = describeFilter(result);
+    expect(text).toMatch(/Hiding 3 sessions/);
+    expect(text).toMatch(/idle/);
+    expect(text).toMatch(/merged\/closed PRs/);
+    expect(text).toMatch(/stalled/);
   });
 
-  it('uses singular "session" when exactly 1 is hidden', () => {
-    const summary = describeFilter(DEFAULT_SESSION_FILTER, 1);
-    expect(summary).toMatch(/Hiding 1 session\b/);
+  it('uses singular wording for exactly one hidden session', () => {
+    const result = applySessionFilter([s('stalled')], DEFAULT_SESSION_FILTER);
+    expect(describeFilter(result)).toMatch(/Hiding 1 session\b/);
   });
 });

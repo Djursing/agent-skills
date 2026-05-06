@@ -665,16 +665,13 @@ export type SessionsScope = 'current' | 'all';
 export function readSessionFilter(): SessionFilter {
   const cfg = vscode.workspace.getConfiguration('agentTasks.sessions.filter');
   return {
-    hideStaleAfterDays: cfg.get<number>(
-      'hideStaleAfterDays',
-      DEFAULT_SESSION_FILTER.hideStaleAfterDays
+    showOpenPr: cfg.get<boolean>('showOpenPr', DEFAULT_SESSION_FILTER.showOpenPr),
+    showMergedClosedPr: cfg.get<boolean>(
+      'showMergedClosedPr',
+      DEFAULT_SESSION_FILTER.showMergedClosedPr
     ),
-    hideIdle: cfg.get<boolean>('hideIdle', DEFAULT_SESSION_FILTER.hideIdle),
-    hidePrMergedClosed: cfg.get<boolean>(
-      'hidePrMergedClosed',
-      DEFAULT_SESSION_FILTER.hidePrMergedClosed
-    ),
-    onlyWithPr: cfg.get<boolean>('onlyWithPr', DEFAULT_SESSION_FILTER.onlyWithPr),
+    showIdleNoPr: cfg.get<boolean>('showIdleNoPr', DEFAULT_SESSION_FILTER.showIdleNoPr),
+    showStalled: cfg.get<boolean>('showStalled', DEFAULT_SESSION_FILTER.showStalled),
   };
 }
 
@@ -1115,12 +1112,18 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionTreeItem
       this.prPoller.setActiveBranches(branchTargets);
     }
 
-    // Apply user visibility filter per bucket. The filter is pure and
-    // per-status; running/needs-input/unread sessions are always-shown so
-    // active work cannot be accidentally hidden. Filter messages are
-    // accumulated and surfaced via TreeView.message by extension.ts.
-    const now = Date.now();
-    let totalHidden = 0;
+    // Apply user visibility filter per bucket. Inclusion model — a session is
+    // shown iff its category is enabled. running/needs-input/unread always
+    // count as the `active` category which is always-on, so signal cannot be
+    // accidentally hidden by toggling a flag.
+    let combinedHidden = 0;
+    const aggregatedHiddenByCategory = {
+      active: 0,
+      'open-pr': 0,
+      'merged-closed-pr': 0,
+      'idle-no-pr': 0,
+      stalled: 0,
+    };
     for (const [worktreePath, sessions] of buckets) {
       const filterable = sessions.map((s) => ({
         session: s,
@@ -1131,14 +1134,23 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionTreeItem
             ? this.prStatusCache.getEnrichment(s.gitBranch)
             : undefined,
       }));
-      const filtered = applySessionFilter(filterable, filter, now);
-      totalHidden += filtered.hiddenCount;
+      const filtered = applySessionFilter(filterable, filter);
+      combinedHidden += filtered.hiddenCount;
+      for (const k of Object.keys(aggregatedHiddenByCategory) as Array<
+        keyof typeof aggregatedHiddenByCategory
+      >) {
+        aggregatedHiddenByCategory[k] += filtered.hiddenByCategory[k];
+      }
       buckets.set(
         worktreePath,
         filtered.visible.map((f) => f.session)
       );
     }
-    this._filterMessage = describeFilter(filter, totalHidden);
+    this._filterMessage = describeFilter({
+      visible: [],
+      hiddenCount: combinedHidden,
+      hiddenByCategory: aggregatedHiddenByCategory,
+    });
 
     // Collect every session across worktrees once so we can build the pinned
     // "Running" section. Running sessions are MOVED to the section, not

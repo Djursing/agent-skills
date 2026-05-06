@@ -1,34 +1,38 @@
 /**
  * Pure session-filter helper. No VS Code imports — vitest-safe.
  *
- * The Sessions panel can show 70+ sessions per worktree, most of which are
- * old idle transcripts. This module decides which sessions to render based on
- * user-configurable filters. The always-show rule guarantees that signal
- * (running, needs-input, unread) is never suppressed regardless of filters
- * — a filter that hides the session you just started is a footgun, not a
- * feature.
+ * Inclusion model: each filter flag enables a single, mutually exclusive
+ * session category. A session is visible iff it is in the always-show set
+ * (running, needs-input, unread) OR matches any enabled category.
+ *
+ * The categories are defined so they cover every (status × pr-state) combo
+ * exactly once, which keeps the QuickPick UI honest — every checkbox controls
+ * one specific kind of row, never compound semantics.
  */
 
 import type { SessionStatus } from '../parsers/session-jsonl-parser';
 import type { PrEnrichment } from './pr-status-cache';
 
 export interface SessionFilter {
-  /** Hide sessions whose mtime is older than N days. 0 disables. */
-  hideStaleAfterDays: number;
-  /** Hide sessions whose computed status is `idle`. */
-  hideIdle: boolean;
-  /** Hide sessions whose PR enrichment is `pr-merged` or `pr-closed`. */
-  hidePrMergedClosed: boolean;
-  /** Hide sessions that do not have an associated PR (status === 'no-pr'). */
-  onlyWithPr: boolean;
+  /** Show idle sessions whose branch has an open or draft PR. */
+  showOpenPr: boolean;
+  /** Show idle sessions whose PR has been merged or closed. */
+  showMergedClosedPr: boolean;
+  /** Show idle sessions whose branch has no PR. */
+  showIdleNoPr: boolean;
+  /** Show stalled sessions (mid-turn but no recent writes). */
+  showStalled: boolean;
 }
 
-/** Defaults — tuned via `/ux`: keep the panel quiet without surprising users. */
+/**
+ * Defaults — tuned via /ux: a fresh user sees only active work and idle
+ * sessions that have an open PR. Everything else is opt-in.
+ */
 export const DEFAULT_SESSION_FILTER: SessionFilter = {
-  hideStaleAfterDays: 14,
-  hideIdle: false,
-  hidePrMergedClosed: false,
-  onlyWithPr: false,
+  showOpenPr: true,
+  showMergedClosedPr: false,
+  showIdleNoPr: false,
+  showStalled: false,
 };
 
 export interface FilterableSession {
@@ -38,19 +42,18 @@ export interface FilterableSession {
   prEnrichment?: PrEnrichment;
 }
 
-export type HiddenReason =
-  | 'stale'
-  | 'idle'
-  | 'pr-merged-closed'
-  | 'no-pr-required';
+export type Category =
+  | 'active'
+  | 'open-pr'
+  | 'merged-closed-pr'
+  | 'idle-no-pr'
+  | 'stalled';
 
 export interface FilterResult<T extends FilterableSession> {
-  /** Sessions kept after applying the filter. */
   visible: T[];
-  /** Number of sessions suppressed. */
   hiddenCount: number;
-  /** Counts per reason — useful for the panel status message. */
-  hiddenByReason: Record<HiddenReason, number>;
+  /** Per-category counts for whatever was suppressed. */
+  hiddenByCategory: Record<Category, number>;
 }
 
 const ALWAYS_SHOW: ReadonlySet<SessionStatus> = new Set<SessionStatus>([
@@ -59,113 +62,104 @@ const ALWAYS_SHOW: ReadonlySet<SessionStatus> = new Set<SessionStatus>([
   'unread',
 ]);
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * Categorise a session. Each session resolves to exactly one category — the
+ * always-show statuses bucket as `active`; otherwise the PR state determines
+ * the bucket; falling through to `stalled` or `idle-no-pr`.
+ */
+export function categorise(session: FilterableSession): Category {
+  if (ALWAYS_SHOW.has(session.status)) return 'active';
+  if (session.status === 'stalled') return 'stalled';
+
+  // status is now 'idle' (the only remaining SessionStatus).
+  const pr = session.prEnrichment;
+  if (pr?.status === 'pr') {
+    const state = pr.info.state;
+    if (state === 'open' || state === 'draft') return 'open-pr';
+    if (state === 'merged' || state === 'closed') return 'merged-closed-pr';
+  }
+  return 'idle-no-pr';
+}
+
+function isCategoryEnabled(category: Category, filter: SessionFilter): boolean {
+  switch (category) {
+    case 'active':
+      return true;
+    case 'open-pr':
+      return filter.showOpenPr;
+    case 'merged-closed-pr':
+      return filter.showMergedClosedPr;
+    case 'idle-no-pr':
+      return filter.showIdleNoPr;
+    case 'stalled':
+      return filter.showStalled;
+  }
+}
 
 /**
- * Apply a `SessionFilter` to a list of sessions. Always-show statuses
- * (`running`, `needs-input`, `unread`) bypass every filter. Other statuses
- * are removed if any active filter rule matches.
- *
- * The `now` parameter is injected so tests are deterministic.
+ * Apply a `SessionFilter` to a list of sessions. Inclusion model: a session
+ * is visible iff its category is enabled. The `active` category is always
+ * enabled and covers running/needs-input/unread.
  */
 export function applySessionFilter<T extends FilterableSession>(
   sessions: T[],
-  filter: SessionFilter,
-  now: number
+  filter: SessionFilter
 ): FilterResult<T> {
   const visible: T[] = [];
-  const hiddenByReason: Record<HiddenReason, number> = {
-    stale: 0,
-    idle: 0,
-    'pr-merged-closed': 0,
-    'no-pr-required': 0,
+  const hiddenByCategory: Record<Category, number> = {
+    active: 0,
+    'open-pr': 0,
+    'merged-closed-pr': 0,
+    'idle-no-pr': 0,
+    stalled: 0,
   };
 
   for (const session of sessions) {
-    if (ALWAYS_SHOW.has(session.status)) {
-      visible.push(session);
-      continue;
-    }
-
-    let hidden: HiddenReason | undefined;
-
-    if (
-      filter.hideStaleAfterDays > 0 &&
-      now - session.mtime > filter.hideStaleAfterDays * DAY_MS
-    ) {
-      hidden = 'stale';
-    } else if (
-      filter.hideIdle &&
-      session.status === 'idle' &&
-      session.prEnrichment?.status !== 'pr'
-    ) {
-      // An idle session that is attached to a known PR is signal, not noise —
-      // it's something the user is iterating on or about to merge. Only hide
-      // idle sessions whose branch has no PR (or whose PR state is still
-      // loading / errored — those will become "pr" on the next poll tick).
-      hidden = 'idle';
-    } else if (
-      filter.hidePrMergedClosed &&
-      session.prEnrichment?.status === 'pr' &&
-      (session.prEnrichment.info.state === 'merged' ||
-        session.prEnrichment.info.state === 'closed')
-    ) {
-      hidden = 'pr-merged-closed';
-    } else if (
-      filter.onlyWithPr &&
-      session.prEnrichment !== undefined &&
-      session.prEnrichment.status === 'no-pr'
-    ) {
-      // Sessions whose PR state is still loading or errored are NOT hidden —
-      // we can't yet make an informed call, and flicker is worse than noise.
-      hidden = 'no-pr-required';
-    }
-
-    if (hidden === undefined) {
+    const cat = categorise(session);
+    if (isCategoryEnabled(cat, filter)) {
       visible.push(session);
     } else {
-      hiddenByReason[hidden]++;
+      hiddenByCategory[cat]++;
     }
   }
 
   const hiddenCount =
-    hiddenByReason.stale +
-    hiddenByReason.idle +
-    hiddenByReason['pr-merged-closed'] +
-    hiddenByReason['no-pr-required'];
+    hiddenByCategory['open-pr'] +
+    hiddenByCategory['merged-closed-pr'] +
+    hiddenByCategory['idle-no-pr'] +
+    hiddenByCategory.stalled;
 
-  return { visible, hiddenCount, hiddenByReason };
+  return { visible, hiddenCount, hiddenByCategory };
 }
 
 /** True when the filter differs from the documented defaults. */
 export function isFilterActive(filter: SessionFilter): boolean {
   return (
-    filter.hideStaleAfterDays !== DEFAULT_SESSION_FILTER.hideStaleAfterDays ||
-    filter.hideIdle !== DEFAULT_SESSION_FILTER.hideIdle ||
-    filter.hidePrMergedClosed !== DEFAULT_SESSION_FILTER.hidePrMergedClosed ||
-    filter.onlyWithPr !== DEFAULT_SESSION_FILTER.onlyWithPr
+    filter.showOpenPr !== DEFAULT_SESSION_FILTER.showOpenPr ||
+    filter.showMergedClosedPr !== DEFAULT_SESSION_FILTER.showMergedClosedPr ||
+    filter.showIdleNoPr !== DEFAULT_SESSION_FILTER.showIdleNoPr ||
+    filter.showStalled !== DEFAULT_SESSION_FILTER.showStalled
   );
 }
 
 /**
- * Build a one-line summary of the active filter, suitable for `TreeView.message`.
- * Returns undefined when the filter is at defaults AND nothing was hidden.
+ * Build a one-line summary of *what's currently hidden* — phrased as the
+ * user's mental model ("Hiding 67 sessions (idle, merged/closed PRs)")
+ * rather than as a list of rule names. Returns undefined when nothing is
+ * suppressed.
  */
-export function describeFilter(
-  filter: SessionFilter,
-  hiddenCount: number
+export function describeFilter<T extends FilterableSession>(
+  result: FilterResult<T>
 ): string | undefined {
-  if (hiddenCount === 0 && !isFilterActive(filter)) return undefined;
+  if (result.hiddenCount === 0) return undefined;
 
   const parts: string[] = [];
-  if (filter.hideStaleAfterDays > 0) {
-    parts.push(`older than ${filter.hideStaleAfterDays}d`);
-  }
-  if (filter.hideIdle) parts.push('idle');
-  if (filter.hidePrMergedClosed) parts.push('merged/closed PRs');
-  if (filter.onlyWithPr) parts.push('without PR');
+  if (result.hiddenByCategory['idle-no-pr'] > 0) parts.push('idle');
+  if (result.hiddenByCategory['merged-closed-pr'] > 0) parts.push('merged/closed PRs');
+  if (result.hiddenByCategory['open-pr'] > 0) parts.push('open PRs');
+  if (result.hiddenByCategory.stalled > 0) parts.push('stalled');
 
-  if (parts.length === 0) return undefined;
-  const sessionWord = hiddenCount === 1 ? 'session' : 'sessions';
-  return `Hiding ${hiddenCount} ${sessionWord} (${parts.join(', ')})`;
+  const sessionWord = result.hiddenCount === 1 ? 'session' : 'sessions';
+  if (parts.length === 0) return `Hiding ${result.hiddenCount} ${sessionWord}`;
+  return `Hiding ${result.hiddenCount} ${sessionWord} (${parts.join(', ')})`;
 }
