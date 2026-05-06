@@ -28,6 +28,7 @@ Agents live in `agents/` since they require their own model and tool configurati
 - `confidence` — Confidence assessment for plans, code, and bug analysis. **Plan mode is multi-signal** (LLM dimensional scoring + deterministic rule checks; a failed rule caps the gate at 89% regardless of LLM score)
 - `dx` — Developer Experience review for CLI tools and shell scripts
 - `holistic-analysis` — Full execution path analysis for stuck bugs/refactors
+- `profile-optimizer` — Analyse React DevTools Profiler exports or Chrome Performance traces; auto-detects the format, extracts hotspots, maps them to source, and emits a ranked optimisation plan. Confidence-gated via `confidence(bug-analysis)` — iterates if root-cause certainty is below 90%
 - `tdd` — Test-Driven Development with strict RED-GREEN-REFACTOR cycles
 - `ux` — UX design review for web and React Native apps
 - `video-analyser` — Analyse a screen recording for bugs: resolves input from a Linear ticket URL, local path, or direct URL; extracts keyframes with ffmpeg; runs optional Tesseract OCR and Whisper transcription; returns structured findings (errors, UI state, repro steps)
