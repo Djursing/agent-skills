@@ -8,30 +8,47 @@ at natural lifecycle boundaries.
 
 ## What it does
 
-Registers five Claude Code lifecycle hooks:
+Registers seven Claude Code lifecycle hooks:
 
-| Hook | Session panel transition |
-|------|--------------------------|
-| `UserPromptSubmit` | → `running` |
-| `Stop` | → `needs-input` |
-| `SessionStart` | → `running` |
-| `SessionEnd` | → `idle` |
-| `Notification` | refresh (no state change) |
+| Hook | Event emitted | Session panel transition |
+|------|---------------|--------------------------|
+| `UserPromptSubmit` | `UserPromptSubmit` (v1) | → `running` |
+| `Stop` | `Stop` (v1) | → `needs-input` |
+| `SessionStart` | `SessionStart` (v1) | → `running` |
+| `SessionEnd` | `SessionEnd` (v1) | → `idle` |
+| `Notification` | `Notification` (v1) | refresh (no state change) |
+| `PreToolUse` (matcher: `Agent`) | `SubagentDispatch` (v2) | sub-agent child appears |
+| `SubagentStop` | `SubagentFinished` (v2) | sub-agent child closes |
 
 Each hook fires `bin/emit-event.js`, which writes a single NDJSON line to
-`${CLAUDE_PLUGIN_DATA}/events/<sessionId>.ndjson`. The VS Code extension's
-`HookEventWatcher` watches that directory and feeds events into
-`SessionsProvider` as an override layer on top of the existing JSONL polling
-fallback.
+`${CLAUDE_PLUGIN_DATA}/events/<sessionId>.ndjson`.
+The VS Code extension's `HookEventWatcher` watches that directory and feeds
+events into `SessionsProvider` as an override layer on top of the existing JSONL
+polling fallback.
+
+Sub-agent events (`SubagentDispatch`, `SubagentFinished`) carry `schemaVersion: 2`.
+The five v1 events are unchanged.
 
 ## Privacy guarantees
 
-The hook script emits **only** `{event, sessionId, cwd, ts}`. It never reads
-or emits:
-- Prompt content
+The hook script operates on a strict allow-list and never forwards prompt content.
+
+For v1 events, the emitted fields are `{schemaVersion, event, sessionId, cwd, ts}`.
+
+For `SubagentDispatch` (v2), the emitted fields are:
+`{schemaVersion, event, sessionId, cwd, ts, toolUseId, subagentType, description}`.
+The `description` field comes from `tool_input.description` in the `PreToolUse`
+payload — it is the user-visible label for the sub-agent task.
+The `prompt` field inside `tool_input` is **never** forwarded.
+
+For `SubagentFinished` (v2), the emitted fields are:
+`{schemaVersion, event, sessionId, cwd, ts, subagentType}`.
+
+The hook script never reads or emits:
+- Prompt content (user messages or system prompts)
 - Response or transcript content
-- Tool call inputs or outputs
-- Any field beyond the four listed above
+- Any tool call input beyond the three allow-listed sub-agent fields above
+- Any field not listed in the allow-list above
 
 ## Installation
 

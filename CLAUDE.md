@@ -86,9 +86,10 @@ nx release vscode-agent-tasks --configuration=dry-run
 ### Key source files (vscode-agent-tasks)
 
 - `src/extension.ts` — activation entry point; wires `HookEventWatcher`, `PluginInstaller`, adaptive tick, `PrStatusCache`, `PrPoller`
-- `src/providers/sessions-provider.ts` — `SessionsProvider`; `computeStatus` has a 5-tier override: terminal-open → hook override → unread TTL → terminal-closed → `deriveRunState`
-- `src/watchers/hook-event-watcher.ts` — watches `~/.claude/plugins/data/agent-tasks-hooks-agent-skills-plugins/events/*.ndjson` for new events; validates `schemaVersion`
-- `src/lib/hook-event-types.ts` — shared `HookEvent` / `HookEventName` types (includes optional `schemaVersion`)
+- `src/providers/sessions-provider.ts` — `SessionsProvider`; `computeStatus` has a 6-tier override: sub-agent roll-up → terminal-open → hook override → unread TTL → terminal-closed → `deriveRunState`; `SubagentItem` tree node; `makeSessionChildren` prepends sub-agents when `showSubagents=true`
+- `src/watchers/hook-event-watcher.ts` — watches `~/.claude/plugins/data/agent-tasks-hooks-agent-skills-plugins/events/*.ndjson` for new events; validates `schemaVersion` (accepts 1 and 2, rejects all other numeric values)
+- `src/lib/hook-event-types.ts` — discriminated union `HookEvent = HookEventV1 | SubagentDispatchEvent | SubagentFinishedEvent`; `HookEventName` includes `SubagentDispatch` and `SubagentFinished`
+- `src/lib/subagent-reducer.ts` — pure functions (no VS Code dep): `applySubagentDispatch`, `applySubagentFinished` (FIFO correlation), `computeRollupStatus` (worst-child-wins)
 - `src/lib/plugin-data-path.ts` — `getPluginDataDir()`, `getSentinelPath()`, `getHookEventsDir()` path helpers
 - `src/lib/plugin-installer.ts` — `PluginInstaller`; first-run consent modal, version check, CLI install, sentinel write
 - `src/lib/emit-event.test.ts` — vitest unit tests for `plugins/agent-tasks-hooks/bin/emit-event.js`
@@ -118,18 +119,23 @@ Do NOT add a package without updating `tsconfig.json` references and `nx.json` r
 ### Plugin: agent-tasks-hooks
 
 `plugins/agent-tasks-hooks/` — Claude Code lifecycle hook plugin for the Agent Tasks VS Code extension.
-Registers `UserPromptSubmit`, `Stop`, `SessionStart`, `SessionEnd`, `Notification` hooks.
+Registers `UserPromptSubmit`, `Stop`, `SessionStart`, `SessionEnd`, `Notification`, `PreToolUse` (matcher: `Agent`), and `SubagentStop` hooks.
 Emits NDJSON events to `${CLAUDE_PLUGIN_DATA}/events/<sessionId>.ndjson`.
 Hook script is `bin/emit-event.js` (Node.js, always exits 0, 40ms hard cap).
-Each emitted event includes `schemaVersion: 1` (added in v0.2.0).
-The extension rejects events with a known `schemaVersion` that is not `1`; missing `schemaVersion` is accepted for backwards compatibility.
+Five v1 events emit `schemaVersion: 1`; two v2 sub-agent events (`SubagentDispatch`, `SubagentFinished`) emit `schemaVersion: 2`.
+Missing `schemaVersion` is accepted for backwards compatibility with pre-0.2.0 events on disk.
+The extension accepts `schemaVersion` 1 and 2; rejects all other numeric values.
 Sentinel file at `${CLAUDE_PLUGIN_DATA}/sentinel` controls activation.
 Validate with `claude plugin validate plugins/agent-tasks-hooks`.
 
+Privacy: `SubagentDispatch` events include only `{subagentType, description, toolUseId}` from the Agent tool call.
+The `prompt` field inside `tool_input` is never forwarded.
+
 ### Sessions panel — status model
 
-The Sessions panel uses a four-tier status computation:
+The Sessions panel uses a six-tier status computation:
 
+0. Sub-agent roll-up (`showSubagents=true`): any child running → `running` (overrides all tiers below).
 1. Terminal open in this window → `running` (definite signal).
 2. Hook override within 5-minute TTL → hook-driven status.
 3. Unread TTL (24h): if hook override is `unread` and `session.mtime > 24h`, downgrade to `idle`.
@@ -142,6 +148,12 @@ Plus PR-derived display-only statuses: `pr-open` | `pr-ci-failing` | `pr-merged`
 `unread` is set when a `Stop` hook fires and the session's terminal is NOT open.
 `needs-input` is set when a `Stop` hook fires and the terminal IS open.
 `unread` clears when the user opens the session (`clearUnread` is called in `openSession`).
+
+**Sub-agent children**: when `agentTasks.sessions.showSubagents` is `true` (default `false`), each session with dispatched sub-agents becomes collapsible.
+Sub-agent rows appear most-recent-first above artifact rows.
+Sub-agents show a pulse icon (running) or check icon (done).
+Clicking a sub-agent row reveals the parent terminal — no per-child terminal in v1.
+FIFO correlation: `SubagentFinished` matches the oldest running sub-agent of the same type because `SubagentStop` provides no `tool_use_id`.
 
 **Duplicate-Stop guard**: `clearUnread` records a timestamp; subsequent `Stop` events with an older `ts` are discarded so a duplicate hook call cannot re-set the `unread` badge after the user dismissed it.
 
