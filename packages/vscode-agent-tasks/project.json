@@ -20,7 +20,6 @@
     "build": {
       "executor": "nx:run-commands",
       "outputs": ["{projectRoot}/dist"],
-      "dependsOn": ["version"],
       "options": {
         "command": "node esbuild.config.mjs",
         "cwd": "packages/vscode-agent-tasks"
@@ -35,7 +34,7 @@
     },
     "package": {
       "executor": "nx:run-commands",
-      "dependsOn": ["build"],
+      "dependsOn": ["version", "build"],
       "outputs": ["{workspaceRoot}/dist/packages/vscode-agent-tasks/*.vsix"],
       "options": {
         "commands": [
