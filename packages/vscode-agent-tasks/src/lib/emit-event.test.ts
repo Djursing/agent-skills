@@ -272,6 +272,143 @@ describe('emit-event.js', () => {
     expect(parsed['event']).toBe(eventName);
   });
 
+  // ---- SubagentDispatch v2 (PreToolUse/Agent) ----
+
+  it('emits a SubagentDispatch v2 event for PreToolUse with tool_name=Agent', async () => {
+    fs.writeFileSync(sentinelPath, '');
+    const payload = JSON.stringify({
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Agent',
+      tool_use_id: 'tu-abc123',
+      session_id: 'session-dispatch-test',
+      cwd: '/workspace/agent',
+      tool_input: {
+        subagent_type: 'general-purpose',
+        description: 'Implement feature Y',
+        prompt: 'SECRET — must not be forwarded',
+      },
+    });
+    const result = await runScript(pluginDataDir, payload);
+    expect(result.exitCode).toBe(0);
+
+    const eventsDir = path.join(pluginDataDir, 'events');
+    const content = fs.readFileSync(
+      path.join(eventsDir, 'session-dispatch-test.ndjson'),
+      'utf8'
+    );
+    const parsed = JSON.parse(content.trim()) as Record<string, unknown>;
+
+    expect(parsed['schemaVersion']).toBe(2);
+    expect(parsed['event']).toBe('SubagentDispatch');
+    expect(parsed['sessionId']).toBe('session-dispatch-test');
+    expect(parsed['toolUseId']).toBe('tu-abc123');
+    expect(parsed['subagentType']).toBe('general-purpose');
+    expect(parsed['description']).toBe('Implement feature Y');
+    // Privacy: prompt must never be forwarded
+    expect(parsed['prompt']).toBeUndefined();
+  });
+
+  it('SubagentDispatch only includes allow-listed fields (no prompt, no extras)', async () => {
+    fs.writeFileSync(sentinelPath, '');
+    const payload = JSON.stringify({
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Agent',
+      tool_use_id: 'tu-privacy',
+      session_id: 'session-privacy',
+      cwd: '/workspace',
+      tool_input: {
+        subagent_type: 'researcher',
+        description: 'Research topic Z',
+        prompt: 'secret prompt text',
+        system_prompt: 'secret system prompt',
+        other_field: 'secret other field',
+      },
+    });
+    await runScript(pluginDataDir, payload);
+
+    const eventsDir = path.join(pluginDataDir, 'events');
+    const content = fs.readFileSync(path.join(eventsDir, 'session-privacy.ndjson'), 'utf8');
+    const parsed = JSON.parse(content.trim()) as Record<string, unknown>;
+
+    const keys = Object.keys(parsed).sort();
+    expect(keys).toEqual(['cwd', 'description', 'event', 'schemaVersion', 'sessionId', 'subagentType', 'toolUseId', 'ts'].sort());
+    expect(parsed['prompt']).toBeUndefined();
+    expect(parsed['system_prompt']).toBeUndefined();
+    expect(parsed['other_field']).toBeUndefined();
+  });
+
+  it('non-Agent PreToolUse emits a standard v1 event (no SubagentDispatch)', async () => {
+    fs.writeFileSync(sentinelPath, '');
+    const payload = JSON.stringify({
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Bash',
+      tool_use_id: 'tu-bash',
+      session_id: 'session-bash',
+      cwd: '/workspace',
+      tool_input: { command: 'ls' },
+    });
+    await runScript(pluginDataDir, payload);
+
+    const eventsDir = path.join(pluginDataDir, 'events');
+    const content = fs.readFileSync(path.join(eventsDir, 'session-bash.ndjson'), 'utf8');
+    const parsed = JSON.parse(content.trim()) as Record<string, unknown>;
+
+    // Standard v1 — event name stays as PreToolUse, schemaVersion stays 1
+    expect(parsed['schemaVersion']).toBe(1);
+    expect(parsed['event']).toBe('PreToolUse');
+    expect(parsed['toolUseId']).toBeUndefined();
+    expect(parsed['subagentType']).toBeUndefined();
+  });
+
+  // ---- SubagentFinished v2 (SubagentStop) ----
+
+  it('emits a SubagentFinished v2 event for SubagentStop', async () => {
+    fs.writeFileSync(sentinelPath, '');
+    const payload = JSON.stringify({
+      hook_event_name: 'SubagentStop',
+      session_id: 'session-finished-test',
+      cwd: '/workspace',
+      agent_type: 'general-purpose',
+    });
+    const result = await runScript(pluginDataDir, payload);
+    expect(result.exitCode).toBe(0);
+
+    const eventsDir = path.join(pluginDataDir, 'events');
+    const content = fs.readFileSync(
+      path.join(eventsDir, 'session-finished-test.ndjson'),
+      'utf8'
+    );
+    const parsed = JSON.parse(content.trim()) as Record<string, unknown>;
+
+    expect(parsed['schemaVersion']).toBe(2);
+    expect(parsed['event']).toBe('SubagentFinished');
+    expect(parsed['subagentType']).toBe('general-purpose');
+    // toolUseId must NOT be present — SubagentStop does not include it
+    expect(parsed['toolUseId']).toBeUndefined();
+  });
+
+  it('SubagentFinished does not include toolUseId field', async () => {
+    fs.writeFileSync(sentinelPath, '');
+    const payload = JSON.stringify({
+      hook_event_name: 'SubagentStop',
+      session_id: 'session-no-tool-use-id',
+      cwd: '/workspace',
+      agent_type: 'researcher',
+    });
+    await runScript(pluginDataDir, payload);
+
+    const eventsDir = path.join(pluginDataDir, 'events');
+    const content = fs.readFileSync(
+      path.join(eventsDir, 'session-no-tool-use-id.ndjson'),
+      'utf8'
+    );
+    const parsed = JSON.parse(content.trim()) as Record<string, unknown>;
+
+    const keys = Object.keys(parsed).sort();
+    expect(keys).toEqual(['cwd', 'event', 'schemaVersion', 'sessionId', 'subagentType', 'ts'].sort());
+    expect(parsed['toolUseId']).toBeUndefined();
+  });
+
   // ---- Multiple writes (append) ----
 
   it('appends to existing NDJSON file', async () => {

@@ -40,6 +40,11 @@ function hookEventToStatus(
       return 'idle';
     case 'Notification':
       return 'needs-input';
+    case 'SubagentDispatch':
+    case 'SubagentFinished':
+      // Sub-agent events do not set the parent session status directly.
+      // Parent status roll-up is computed separately via computeRollupStatus.
+      return undefined;
   }
 }
 
@@ -83,6 +88,16 @@ describe('hookEventToStatus', () => {
   it('returns "needs-input" for Notification — the explicit attention signal', () => {
     expect(hookEventToStatus('Notification', false)).toBe('needs-input');
     expect(hookEventToStatus('Notification', true)).toBe('needs-input');
+  });
+
+  it('returns undefined for SubagentDispatch — roll-up handles parent status', () => {
+    expect(hookEventToStatus('SubagentDispatch', false)).toBeUndefined();
+    expect(hookEventToStatus('SubagentDispatch', true)).toBeUndefined();
+  });
+
+  it('returns undefined for SubagentFinished — roll-up handles parent status', () => {
+    expect(hookEventToStatus('SubagentFinished', false)).toBeUndefined();
+    expect(hookEventToStatus('SubagentFinished', true)).toBeUndefined();
   });
 });
 

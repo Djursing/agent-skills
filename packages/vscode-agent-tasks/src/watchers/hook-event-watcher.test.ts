@@ -24,15 +24,14 @@ type HookEventName =
   | 'Stop'
   | 'Notification'
   | 'SessionStart'
-  | 'SessionEnd';
+  | 'SessionEnd'
+  | 'SubagentDispatch'
+  | 'SubagentFinished';
 
-interface HookEvent {
-  schemaVersion?: number;
-  event: HookEventName;
-  sessionId: string;
-  cwd: string;
-  ts: number;
-}
+type HookEvent =
+  | { schemaVersion?: 1; event: Exclude<HookEventName, 'SubagentDispatch' | 'SubagentFinished'>; sessionId: string; cwd: string; ts: number }
+  | { schemaVersion: 2; event: 'SubagentDispatch'; sessionId: string; cwd: string; ts: number; toolUseId: string; subagentType: string; description: string }
+  | { schemaVersion: 2; event: 'SubagentFinished'; sessionId: string; cwd: string; ts: number; subagentType: string };
 
 const KNOWN_EVENT_NAMES = new Set<HookEventName>([
   'UserPromptSubmit',
@@ -40,26 +39,53 @@ const KNOWN_EVENT_NAMES = new Set<HookEventName>([
   'Notification',
   'SessionStart',
   'SessionEnd',
+  'SubagentDispatch',
+  'SubagentFinished',
 ]);
 
 /**
- * Mirrors the production isHookEvent() guard exactly — including the
- * schemaVersion check added in Phase 0.
+ * Mirrors the production isHookEvent() guard exactly — including schema v2 support.
+ * Accepts: absent (legacy), 1 (v1), 2 (v2). Rejects all other numeric schemaVersion values.
  */
 function isHookEvent(v: unknown): v is HookEvent {
   if (typeof v !== 'object' || v === null) return false;
   const obj = v as Record<string, unknown>;
 
-  // Schema version guard: reject events with a present schemaVersion !== 1.
-  // Missing schemaVersion is accepted for backwards compatibility with
-  // pre-0.2.0 plugin events still on disk.
-  if (typeof obj['schemaVersion'] === 'number' && obj['schemaVersion'] !== 1) {
+  // Schema version guard: accept absent, 1, or 2. Reject all other numbers.
+  const sv = obj['schemaVersion'];
+  if (typeof sv === 'number' && sv !== 1 && sv !== 2) {
     return false;
   }
 
+  if (
+    typeof obj['event'] !== 'string' ||
+    !KNOWN_EVENT_NAMES.has(obj['event'] as HookEventName)
+  ) {
+    return false;
+  }
+
+  // v2 SubagentDispatch: requires toolUseId, subagentType, description
+  if (obj['event'] === 'SubagentDispatch') {
+    return (
+      typeof obj['sessionId'] === 'string' &&
+      typeof obj['ts'] === 'number' &&
+      typeof obj['toolUseId'] === 'string' &&
+      typeof obj['subagentType'] === 'string' &&
+      typeof obj['description'] === 'string'
+    );
+  }
+
+  // v2 SubagentFinished: requires subagentType
+  if (obj['event'] === 'SubagentFinished') {
+    return (
+      typeof obj['sessionId'] === 'string' &&
+      typeof obj['ts'] === 'number' &&
+      typeof obj['subagentType'] === 'string'
+    );
+  }
+
+  // v1 event: standard fields
   return (
-    typeof obj['event'] === 'string' &&
-    KNOWN_EVENT_NAMES.has(obj['event'] as HookEventName) &&
     typeof obj['sessionId'] === 'string' &&
     typeof obj['cwd'] === 'string' &&
     typeof obj['ts'] === 'number'
@@ -82,9 +108,35 @@ describe('isHookEvent — schema version guard', () => {
     expect(isHookEvent(event)).toBe(true);
   });
 
-  it('rejects an event with schemaVersion: 2 (unknown future version)', () => {
+  it('accepts schemaVersion: 2 SubagentDispatch with required fields', () => {
     const event = {
       schemaVersion: 2,
+      event: 'SubagentDispatch',
+      sessionId: 'abc123',
+      cwd: '/workspace',
+      ts: Date.now(),
+      toolUseId: 'tu-001',
+      subagentType: 'general-purpose',
+      description: 'Do something',
+    };
+    expect(isHookEvent(event)).toBe(true);
+  });
+
+  it('accepts schemaVersion: 2 SubagentFinished with required fields', () => {
+    const event = {
+      schemaVersion: 2,
+      event: 'SubagentFinished',
+      sessionId: 'abc123',
+      cwd: '/workspace',
+      ts: Date.now(),
+      subagentType: 'general-purpose',
+    };
+    expect(isHookEvent(event)).toBe(true);
+  });
+
+  it('rejects schemaVersion: 3 (unknown future version)', () => {
+    const event = {
+      schemaVersion: 3,
       event: 'Stop',
       sessionId: 'abc123',
       cwd: '/workspace',
@@ -123,6 +175,59 @@ describe('isHookEvent — schema version guard', () => {
       ts: Date.now(),
     };
     expect(isHookEvent(event)).toBe(true);
+  });
+
+  it('rejects SubagentDispatch missing toolUseId', () => {
+    const event = {
+      schemaVersion: 2,
+      event: 'SubagentDispatch',
+      sessionId: 'abc123',
+      ts: Date.now(),
+      subagentType: 'general-purpose',
+      description: 'Do something',
+      // toolUseId intentionally absent
+    };
+    expect(isHookEvent(event)).toBe(false);
+  });
+
+  it('rejects SubagentDispatch missing subagentType', () => {
+    const event = {
+      schemaVersion: 2,
+      event: 'SubagentDispatch',
+      sessionId: 'abc123',
+      ts: Date.now(),
+      toolUseId: 'tu-001',
+      description: 'Do something',
+      // subagentType intentionally absent
+    };
+    expect(isHookEvent(event)).toBe(false);
+  });
+
+  it('rejects SubagentDispatch missing description', () => {
+    const event = {
+      schemaVersion: 2,
+      event: 'SubagentDispatch',
+      sessionId: 'abc123',
+      ts: Date.now(),
+      toolUseId: 'tu-001',
+      subagentType: 'general-purpose',
+      // description intentionally absent
+    };
+    expect(isHookEvent(event)).toBe(false);
+  });
+
+  it('accepts schemaVersion: 1 standard events without regression', () => {
+    const names = ['UserPromptSubmit', 'Stop', 'Notification', 'SessionStart', 'SessionEnd'] as const;
+    for (const name of names) {
+      const event = {
+        schemaVersion: 1,
+        event: name,
+        sessionId: 'abc',
+        cwd: '/',
+        ts: 1,
+      };
+      expect(isHookEvent(event), `expected ${name} to pass`).toBe(true);
+    }
   });
 });
 
