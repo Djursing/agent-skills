@@ -174,6 +174,22 @@ user wants to remove this gate, they should fork the skill and adjust
 `phase-1-planning.md` directly — not silently disable the gate by uninstalling
 the companion.
 
+### Agent companions (parallel to skill companions)
+
+Phase 7 introduces a second class of optional companion: an **agent** rather
+than a skill. The `reviewer` agent runs after CI green and posts a pending
+GitHub review. It uses the same graceful-skip contract as skills but a
+different invocation mechanism (`subagent_type: reviewer` via the Agent tool,
+not `Skill()`). Detection is a file-presence check across the three agent
+discovery paths (`.claude/agents/`, `~/.agents/agents/`, `~/.claude/agents/`).
+The full registry entry, dispatch contract, and rationale live in
+[`rules/companion-skills.md#agent-companions`](./rules/companion-skills.md#agent-companions)
+and [`rules/phase-7-ci-gate.md#auto-review`](./rules/phase-7-ci-gate.md#auto-review).
+
+When adding new agent companions, mirror the same pattern: file-presence
+detection, log-and-skip on miss, and a phase-rule section anchor matching the
+"Disable by" link in the registry.
+
 ---
 
 ## The `.agent/` artifact directory

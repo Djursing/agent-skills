@@ -17,6 +17,7 @@ tags:
 - [Procedure](#procedure)
 - [Auto Fix](#auto-fix)
 - [Parallel CI Fixes](#parallel-ci-fixes)
+- [Auto Review](#auto-review)
 - [Optional Post-Merge Cleanup](#optional-post-merge-cleanup)
 - [Phase 7 Checklist](#phase-7-checklist)
 - [References](#references)
@@ -168,6 +169,72 @@ Once all checks are green:
 
 Tell the user: PR URL, all checks green, and that the worktree is preserved pending their review/merge.
 
+Then proceed to [Auto Review](#auto-review) before any cleanup.
+
+## Auto Review
+
+After CI is green, automatically dispatch the `reviewer` agent in **PR Mode** so the user gets a pending GitHub review they can submit, edit, or discard. **`reviewer` is an optional agent companion**, not a skill — invocation and graceful-skip semantics differ slightly from `Skill()`-based companions.
+
+| Property                  | Value                                                                  |
+| ------------------------- | ---------------------------------------------------------------------- |
+| Runs in Full Mode         | Yes                                                                    |
+| Runs in Lite Mode         | Yes                                                                    |
+| Skips silently if missing | Yes — log one line and continue to cleanup step                        |
+| Posts comments live?      | No — `reviewer` posts a **pending** review (only the user sees it)     |
+| Disable                   | Remove this section; CI green becomes the terminal gate                |
+
+### Step 1: Detect the `reviewer` agent
+
+Check the three locations the harness loads agent definitions from. Stop at the first hit:
+
+```bash
+# Project-scoped (highest priority)
+[ -f ".claude/agents/reviewer.md" ] && REVIEWER_AVAILABLE=1
+
+# Cross-tool discovery dir (used by Codex, Cursor, OpenCode, …)
+[ -z "$REVIEWER_AVAILABLE" ] && [ -f "$HOME/.agents/agents/reviewer.md" ] && REVIEWER_AVAILABLE=1
+
+# Global Claude Code dir
+[ -z "$REVIEWER_AVAILABLE" ] && [ -f "$HOME/.claude/agents/reviewer.md" ] && REVIEWER_AVAILABLE=1
+```
+
+If none of the paths resolve, log and skip:
+
+```markdown
+- [TIMESTAMP] Phase 7: reviewer — not available, continuing (install `agents/reviewer.md` from agent-skills.git into one of: `.claude/agents/`, `~/.agents/agents/`, `~/.claude/agents/`)
+```
+
+Then proceed to [Optional Post-Merge Cleanup](#optional-post-merge-cleanup).
+
+### Step 2: Dispatch the `reviewer` sub-agent
+
+Spawn one sub-agent with `subagent_type: reviewer` and pass the PR URL. The agent's PR Mode posts a **pending** review on GitHub, which is invisible to the PR author until the user submits it from the GitHub UI — that is the validation gate, so live-comment concerns do not apply.
+
+```
+description: Auto-review PR after CI green
+subagent_type: reviewer
+prompt: |
+  <pr-url> --pr
+
+  Phase 7 of the autonomous-workflow has just turned CI green. Run a full PR
+  review and post your findings as a pending GitHub review. Follow the reviewer
+  agent's PR Mode procedure end-to-end — do not stop at the proposal, do not
+  ask for confirmation before posting (pending reviews are not visible to the
+  PR author until the user submits them).
+```
+
+Do **not** wrap the sub-agent call in a retry loop — `reviewer` owns its own validation.
+
+### Step 3: Log and hand back
+
+When the sub-agent returns, log:
+
+```markdown
+- [TIMESTAMP] Phase 7: reviewer — pending review posted (N findings)
+```
+
+Tell the user: PR URL, that a pending review is now attached, and that they need to open the PR on GitHub to submit, edit, or discard it. Then proceed to [Optional Post-Merge Cleanup](#optional-post-merge-cleanup).
+
 ## Optional Post-Merge Cleanup
 
 After the PR is merged (state `MERGED`), optionally tear the worktree down to reclaim disk and reduce branch clutter. **Skip if the user wants to keep it.**
@@ -237,6 +304,7 @@ cd "$(git rev-parse --show-toplevel)"
 - [ ] `ci-auto-fix` invoked per mechanical failure (parallel when independent, cap 2)
 - [ ] Judgment failures escalated to user with full report
 - [ ] CI is green OR user has approved stopping
+- [ ] (Optional) `reviewer` agent dispatched after CI green; pending review posted or skip logged
 - [ ] (Optional) PR merged → worktree removed with user confirmation
 - [ ] Final status reported to user
 
@@ -246,4 +314,5 @@ cd "$(git rev-parse --show-toplevel)"
 - Companion registry: [companion-skills.md](./companion-skills.md)
 - Related skill: [ci-auto-fix](../../ci-auto-fix/SKILL.md)
 - Related skill: [create-pr — Step 8 parallel pattern](../../create-pr/SKILL.md)
+- Related agent: [reviewer](../../../agents/reviewer.md) — optional Phase 7 auto-review
 - Related rule: [git-worktree-workflows cleanup](../../git-worktree-workflows/rules/cleanup.md)

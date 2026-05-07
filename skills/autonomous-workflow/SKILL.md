@@ -120,6 +120,7 @@ for the full registry, trigger conditions, and **how to disable any companion**.
 | 6     | `aw-create-walkthrough` | Full Mode only                                        | —                |
 | 6     | `create-pr`            | Always                                                 | —                |
 | 7     | `ci-auto-fix`          | CI run completes with status `failure`                 | `<run-id\|pr-url>` |
+| 7     | `reviewer` *(agent)*   | After CI green — auto-dispatch in PR Mode              | `<pr-url> --pr`    |
 
 ---
 
@@ -184,7 +185,7 @@ Phase 3 implementation is **NOT** parallelized (file-level changes share state).
 | 4     | Run tests → iterate (max 3 same area) → `confidence(bug-analysis)` then escalate to user        |
 | 5     | Update README, CHANGELOG; `Skill("update-claude")` always                                       |
 | 6     | `Skill("review-changes")` → `Skill("aw-create-walkthrough")` → `Skill("create-pr")`             |
-| 7     | Watch CI → `Skill("ci-auto-fix")` per failure (parallel) → `gw remove` after merge (optional)   |
+| 7     | Watch CI → `Skill("ci-auto-fix")` per failure (parallel) → after CI green dispatch `reviewer` agent (PR Mode, optional, skips if not installed) → `gw remove` after merge (optional) |
 
 ### Lite Mode
 
@@ -200,7 +201,7 @@ Skip artifacts and most companions. Phase 0, Phase 2, Phase 5 (`update-claude`),
 | 4     | Test, fix failures (3-iteration limit applies)  |
 | 5     | `Skill("update-claude")`                        |
 | 6     | `Skill("create-pr")`                            |
-| 7     | Watch CI, `ci-auto-fix` if needed               |
+| 7     | Watch CI, `ci-auto-fix` if needed, then auto-dispatch `reviewer` agent (skips if not installed) |
 
 ---
 
@@ -271,6 +272,14 @@ npx skills add https://github.com/mthines/agent-skills \
 bash .claude/skills/autonomous-workflow/install.sh
 ```
 
+> **Want the optional Phase 7 auto-review?** Install the `reviewer` agent
+> alongside the skill. Today the easiest path is to clone the agent
+> definition into your agents directory (`agents/reviewer.md`); the
+> workflow detects it at `.claude/agents/reviewer.md`,
+> `~/.agents/agents/reviewer.md`, or `~/.claude/agents/reviewer.md` and
+> dispatches it automatically when CI turns green. Skip the install and
+> Phase 7 logs `reviewer — not available, continuing` and proceeds.
+
 > The `--agent claude-code` flag is recommended — it scopes the install to
 > `.claude/skills/` only. Without it the CLI symlinks the skills into every
 > supported AI tool's directory at once (`.codebuddy/`, `.continue/`, `.crush/`,
@@ -300,6 +309,10 @@ and how to disable. Run `bash install.sh --help` for script options.
 - [`review-changes`](../review-changes/SKILL.md) — pre-PR review
 - [`create-pr`](../create-pr/SKILL.md) — narrative PR description + push + watch
 - [`ci-auto-fix`](../ci-auto-fix/SKILL.md) — diagnose and fix failed CI checks
+
+### Related Agents
+
+- [`reviewer`](../../agents/reviewer.md) — optional Phase 7 auto-review (PR Mode posts a pending GitHub review). Install the agent alongside the skill and the workflow will dispatch it automatically when CI turns green.
 
 ---
 

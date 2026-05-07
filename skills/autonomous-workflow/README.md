@@ -157,9 +157,16 @@ trigger registry is in
 | 6     | `aw-create-walkthrough` | Optional  | Writes `.agent/{branch}/walkthrough.md`      |
 | 6     | `create-pr`            | Optional  | Narrative PR description + push + watch       |
 | 7     | `ci-auto-fix`          | Optional  | Diagnose + fix failed CI checks               |
+| 7     | `reviewer` *(agent)*   | Optional  | After CI green: dispatches as PR Mode sub-agent and posts a pending GitHub review |
 
 **`confidence` at Phase 1 is the only non-removable companion.** Without it,
 the plan gate is gone and the workflow loses its primary safety mechanism.
+
+`reviewer` is an **agent**, not a skill — see
+[`rules/companion-skills.md#agent-companions`](./rules/companion-skills.md#agent-companions)
+for the dispatch and detection contract. Like every other companion, it
+**skips silently** if its definition file isn't present in any of
+`.claude/agents/`, `~/.agents/agents/`, or `~/.claude/agents/`.
 
 ---
 

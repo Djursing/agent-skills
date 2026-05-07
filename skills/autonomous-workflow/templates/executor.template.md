@@ -90,7 +90,9 @@ You run **Phase 3 → Phase 7**.
 
 Full registry in [`rules/companion-skills.md`](../rules/companion-skills.md).
 **Companions skip silently if not installed** — log
-`companion: <name> — not available, continuing` and proceed.
+`companion: <name> — not available, continuing` and proceed. The same
+graceful-skip rule applies to the optional **agent companions** (e.g.
+`reviewer`) listed in [`rules/companion-skills.md#agent-companions`](../rules/companion-skills.md#agent-companions).
 
 | Phase | Companion              | Trigger                                                              | Args             |
 | ----- | ---------------------- | -------------------------------------------------------------------- | ---------------- |
@@ -104,6 +106,7 @@ Full registry in [`rules/companion-skills.md`](../rules/companion-skills.md).
 | 6     | `aw-create-walkthrough` | Full Mode only                                                      | —                |
 | 6     | `create-pr`            | Always                                                               | —                |
 | 7     | `ci-auto-fix`          | CI run completes with status `failure`                               | `<run-id\|pr-url>` |
+| 7     | `reviewer` *(agent)*   | After CI green — dispatched as `subagent_type: reviewer` in PR Mode  | `<pr-url> --pr`    |
 
 ## Stuck-Loop Reminder
 

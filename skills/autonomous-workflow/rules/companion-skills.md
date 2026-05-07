@@ -8,6 +8,7 @@ to disable, swap, or add companions.
 
 - [How invocation works](#how-invocation-works)
 - [Registry](#registry)
+- [Agent Companions](#agent-companions)
 - [Stuck-Loop Protocol (Phase 4)](#stuck-loop-protocol-phase-4)
 - [Parallelization](#parallelization)
 - [Adding a New Companion](#adding-a-new-companion)
@@ -53,6 +54,18 @@ When invoking, log one line in the conversation and the `plan.md` Progress Log:
 | `aw-create-walkthrough` | 6  | Full Mode only                                                          | —                     | Switch task to Lite Mode                                                 |
 | `create-pr`          | 6     | Always (handles description + push + open + watch)                      | —                     | Remove invocation in [`phase-6-pr-creation.md`](./phase-6-pr-creation.md#pr-creation) (replace with manual `gh pr create`) |
 | `ci-auto-fix`        | 7     | CI run completes with status `failure`                                  | `<run-id\|pr-url>`    | Skip Phase 7 entirely — remove invocation in [`phase-7-ci-gate.md`](./phase-7-ci-gate.md#auto-fix) |
+
+---
+
+## Agent Companions
+
+A second class of optional companions exists: **agents** (definitions in `agents/<name>.md`) rather than skills. They are dispatched as sub-agents (`subagent_type: <name>`) and detected by file presence in `.claude/agents/`, `~/.agents/agents/`, or `~/.claude/agents/`. The graceful-skip contract is the same — log one line, continue — but the invocation mechanism differs from `Skill()`.
+
+| Agent      | Phase | Trigger condition                                            | Detection paths                                                                                  | Disable by                                                                                       |
+| ---------- | ----- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `reviewer` | 7     | CI green (after Step 4 Report Success — runs in PR Mode)     | `.claude/agents/reviewer.md`, `~/.agents/agents/reviewer.md`, `~/.claude/agents/reviewer.md`     | Remove invocation in [`phase-7-ci-gate.md`](./phase-7-ci-gate.md#auto-review)                    |
+
+The `reviewer` agent's PR Mode posts a **pending** GitHub review — invisible to the PR author until the user submits it from the GitHub UI — so the auto-dispatch never leaks unreviewed comments to the team.
 
 ---
 
