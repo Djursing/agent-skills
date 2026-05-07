@@ -1,22 +1,24 @@
 ---
 name: profile-optimizer
 description: >
-  Analyzes React DevTools Profiler exports or Chrome DevTools Performance
-  traces, identifies the highest-impact bottlenecks (long tasks, expensive
-  renders, layout thrash, wasted memoisation, blocking scripts), and proposes
-  concrete code fixes ranked by measured impact. Auto-detects the input
-  format (React `.json` profile vs Chrome trace `.json` / `.cpuprofile`).
+  Analyzes React DevTools Profiler exports, Chrome DevTools Performance
+  traces, and Chrome heap snapshots / heap-timelines / heap-profiles.
+  Identifies the highest-impact bottlenecks (long tasks, expensive renders,
+  layout thrash, wasted memoisation, blocking scripts, retained memory,
+  leaks) and proposes concrete code fixes ranked by measured impact.
+  Auto-detects the input format (React `.json` profile, Chrome trace `.json`
+  / `.cpuprofile`, or `.heapsnapshot` / `.heaptimeline` / `.heapprofile`).
   Iterates via the `/confidence` skill — if root-cause certainty is below
   90%, it digs deeper before recommending a fix. Use when handed a profile
-  file, asked "why is this slow?", or asked to optimise a hot path with
-  evidence. Triggers on "analyze profile", "react profiler", "chrome
-  performance", "optimize from profile", "profile this", "why is this slow",
-  "/profile-optimizer".
+  file, asked "why is this slow?", "why is memory growing?", or asked to
+  optimise a hot path with evidence. Triggers on "analyze profile", "react
+  profiler", "chrome performance", "optimize from profile", "profile this",
+  "why is this slow", "memory leak", "heap snapshot", "/profile-optimizer".
 license: MIT
 disable-model-invocation: true
 metadata:
   author: mthines
-  version: '1.0.0'
+  version: '1.1.0'
   workflow_type: applied
   tags:
     - performance
@@ -27,6 +29,9 @@ metadata:
     - flamegraph
     - long-tasks
     - inp
+    - memory
+    - heap
+    - leak-detection
     - measurement
     - evidence-based
 ---
@@ -50,12 +55,20 @@ The user passes one or more profile files. Accept any of:
 | React DevTools Profiler    | `.json` (often `.reactprofile`) | Top-level keys include `dataForRoots` and `rendererID` / `version` |
 | Chrome Performance trace   | `.json` / `.json.gz`     | Top-level `traceEvents` array (or NDJSON with `ph`, `ts`, `cat`)   |
 | Chrome CPU profile (legacy)| `.cpuprofile`            | Top-level `nodes`, `samples`, `timeDeltas`                        |
+| Chrome heap snapshot       | `.heapsnapshot`          | Top-level `snapshot.meta.node_fields` + `nodes`/`edges`/`strings` |
+| Chrome heap timeline       | `.heaptimeline`          | Heap snapshot shape + `samples` array                              |
+| Chrome heap profile (sampled allocations) | `.heapprofile` | Top-level `head` + `samples` (V8 sampling-allocation profile)      |
 
 If the file is gzipped, decompress with `gunzip -k` before parsing.
 
-If both formats are passed, treat them as complementary evidence (React shows
-component cost, Chrome shows where the main thread actually spent time) and
-correlate by wall-clock timestamp where possible.
+If multiple formats are passed, treat them as complementary evidence:
+
+- React profile + Chrome trace → correlate by wall-clock timestamp (React
+  shows component cost, Chrome shows where the main thread actually spent
+  time).
+- Two or three heap snapshots → diff them to find what grew (leak detection).
+- Chrome trace + heap timeline of the same interaction → CPU + memory cost
+  of one action correlated.
 
 See [`rules/input-detection.md`](./rules/input-detection.md) for the precise
 detection logic.
@@ -69,13 +82,13 @@ Six phases. Do not skip a gate.
 | Phase | Name                | Rule file                                                                | Gate                                                                     |
 | ----- | ------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
 | 0     | Intake              | [`rules/input-detection.md`](./rules/input-detection.md)                 | Format detected, file size and validity confirmed                        |
-| 1     | Measurement frame   | [`rules/measurement-methodology.md`](./rules/measurement-methodology.md) | Baseline metric chosen (TBT, INP, p95 commit, etc.) and target stated    |
-| 2     | Hotspot extraction  | [`rules/react-profile-analysis.md`](./rules/react-profile-analysis.md) or [`rules/chrome-trace-analysis.md`](./rules/chrome-trace-analysis.md) | Top-N bottlenecks listed with concrete numbers (ms, %, count)            |
+| 1     | Measurement frame   | [`rules/measurement-methodology.md`](./rules/measurement-methodology.md) | Baseline metric chosen (TBT, INP, p95 commit, retained MB, etc.) and target stated |
+| 2     | Hotspot extraction  | [`rules/react-profile-analysis.md`](./rules/react-profile-analysis.md), [`rules/chrome-trace-analysis.md`](./rules/chrome-trace-analysis.md), or [`rules/heap-snapshot-analysis.md`](./rules/heap-snapshot-analysis.md) | Top-N bottlenecks listed with concrete numbers (ms / MB / %, count)      |
 | 3     | Root-cause          | [`rules/optimization-playbook.md`](./rules/optimization-playbook.md)     | Each hotspot mapped to a code-level cause (file path / component / API)  |
 | 4     | Confidence gate     | [`rules/confidence-loop.md`](./rules/confidence-loop.md)                 | `/confidence bug-analysis` ≥ 90% — else iterate (max 2 deep-dives)        |
 | 5     | Optimisation plan   | [`templates/analysis-report.md`](./templates/analysis-report.md)         | Report written with ranked fixes, expected impact, and verification plan |
 
-Phases 2 and 3 only branch on the input format — everything else is shared.
+Phases 2 and 3 branch on the input format (CPU / memory) — everything else is shared.
 
 ---
 
@@ -87,7 +100,8 @@ Load on demand — do not preload.
 | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0     | [`rules/input-detection.md`](./rules/input-detection.md)                                                                                                             |
 | 1     | [`rules/measurement-methodology.md`](./rules/measurement-methodology.md)                                                                                             |
-| 2     | [`rules/react-profile-analysis.md`](./rules/react-profile-analysis.md), [`rules/chrome-trace-analysis.md`](./rules/chrome-trace-analysis.md)                          |
+| 2 (CPU) | [`rules/react-profile-analysis.md`](./rules/react-profile-analysis.md), [`rules/chrome-trace-analysis.md`](./rules/chrome-trace-analysis.md)                       |
+| 2 (Memory) | [`rules/heap-snapshot-analysis.md`](./rules/heap-snapshot-analysis.md) (also points to [`scripts/heap-summary.mjs`](./scripts/heap-summary.mjs) and [`scripts/heap-diff.mjs`](./scripts/heap-diff.mjs))                                |
 | 3     | [`rules/optimization-playbook.md`](./rules/optimization-playbook.md), [`references/react-optimization-patterns.md`](./references/react-optimization-patterns.md), [`references/chrome-optimization-patterns.md`](./references/chrome-optimization-patterns.md) |
 | 4     | [`rules/confidence-loop.md`](./rules/confidence-loop.md)                                                                                                             |
 | 5     | [`templates/analysis-report.md`](./templates/analysis-report.md)                                                                                                     |
@@ -154,16 +168,43 @@ the `/confidence` iteration protocol applied to performance work — see
 
 ---
 
+## Memory-profiling quickstart
+
+When the input is a heap snapshot / timeline / profile:
+
+1. **Validate capture.** A single snapshot is only good for a baseline
+   analysis — refuse to diagnose a leak from one. Leak diagnosis needs
+   ≥ 2 snapshots, ideally 3 (baseline → after-action → after-cleanup).
+2. **Run `heap-summary` on the most recent snapshot** for top constructors
+   and node-type breakdown:
+   ```bash
+   node --max-old-space-size=4096 \
+     <skill_dir>/scripts/heap-summary.mjs <snapshot.heapsnapshot>
+   ```
+3. **Run `heap-diff` for the leak case** to find what grew between two
+   snapshots:
+   ```bash
+   node --max-old-space-size=4096 \
+     <skill_dir>/scripts/heap-diff.mjs <before.heapsnapshot> <after.heapsnapshot>
+   ```
+4. **Map suspects to source.** Use [`rules/heap-snapshot-analysis.md`](./rules/heap-snapshot-analysis.md)
+   Phases 3–4 to go from constructor name → source file → retainer pattern.
+
+The full methodology (capture protocol, how to interpret the diff, common
+leak shapes) is in [`rules/heap-snapshot-analysis.md`](./rules/heap-snapshot-analysis.md).
+Don't preload it — only when an input is detected as a heap format.
+
 ## Definition of Done
 
 - [ ] Input format detected and stated.
-- [ ] Baseline metric and target chosen (Phase 1).
-- [ ] Top-N hotspots listed with measured cost (ms, %, count).
-- [ ] Each hotspot mapped to a file/component/API with line references where
-      possible.
+- [ ] Baseline metric and target chosen (Phase 1) — ms for CPU work, MB
+      retained for memory work.
+- [ ] Top-N hotspots listed with measured cost (ms / MB / %, count).
+- [ ] Each hotspot mapped to a file/component/API/constructor with line or
+      retainer references where possible.
 - [ ] `/confidence bug-analysis` reached ≥ 90% (or two deep-dives recorded
       with the remaining uncertainty surfaced to the user).
 - [ ] Optimisation plan written using
       [`templates/analysis-report.md`](./templates/analysis-report.md), with
-      ranked fixes, expected ms saved, and a re-profile verification step.
+      ranked fixes, expected ms / MB saved, and a re-profile verification step.
 - [ ] User has the next concrete action (apply fix N, re-profile, compare).
