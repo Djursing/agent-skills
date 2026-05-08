@@ -143,6 +143,7 @@ User-invoked only — the model can't auto-trigger these. **Zero baseline contex
 | **[/implement-suggestion](./skills/implement-suggestion/SKILL.md)** | Takes review comments or suggestions and implements the fixes — simple ones directly, complex ones with a plan for approval.                                                                                                                                             |
 | **[/init-claude](./skills/init-claude/SKILL.md)**                   | Analyzes your project and generates a tailored `CLAUDE.md` + `.claude/rules/` setup. Detects tech stack, project size, and conventions automatically.                                                                                                                    |
 | **[/profile-optimizer](./skills/profile-optimizer/SKILL.md)**       | Analyses React DevTools Profiler exports or Chrome DevTools Performance traces. Auto-detects the format, frames the right metric (INP, TBT, LCP, commit duration), extracts ranked hotspots with measured cost, maps each to a file/component, and emits a ranked optimisation plan. Iterates via `confidence(bug-analysis)` — digs deeper if root-cause certainty is below 90%, instead of guessing. |
+| **[/playwright-trace-analyzer](./skills/playwright-trace-analyzer/SKILL.md)** | Analyses Playwright `trace.zip` files (or downloads them straight from a GitHub Actions run URL via `gh run download`). Auto-detects the input, extracts the action timeline, network waterfall, and console errors, names the race behind a flake, and emits a ranked fix plan. Confidence-gated via `confidence(bug-analysis)`. |
 | **[/resolve-conflicts](./skills/resolve-conflicts/SKILL.md)**       | Detects merge/rebase conflicts, shows both sides with context, proposes resolution strategies, and asks clarifying questions for ambiguous cases.                                                                                                                        |
 | **[/review-changes](./skills/review-changes/SKILL.md)**             | Reviews branch changes or a PR for quality, correctness, tests, and commit hygiene. Dispatches to the reviewer skill.                                                                                                                                                    |
 | **[/update-claude](./skills/update-claude/SKILL.md)**               | Diffs your branch against main and incrementally updates Claude docs to match code changes. Finds stale references, dead paths, and drift.                                                                                                                               |
@@ -474,6 +475,8 @@ skills/
   init-claude/           SKILL.md                            (slash command)
   profile-optimizer/     SKILL.md + rules/ + references/ +
                          templates/                          (slash command)
+  playwright-trace-analyzer/ SKILL.md + rules/ + references/ +
+                         scripts/ + templates/               (slash command)
   resolve-conflicts/     SKILL.md                            (slash command)
   review-changes/        SKILL.md                            (slash command)
   update-claude/         SKILL.md                            (slash command)

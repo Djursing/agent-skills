@@ -44,6 +44,7 @@ Agents live in `agents/` since they require their own model and tool configurati
 - `implement-suggestion` — Implement fixes from review comments
 - `init-claude` — Initialize Claude Code configuration for a project
 - `profile-optimizer` — Analyse React DevTools Profiler exports or Chrome Performance traces; auto-detects the format, extracts hotspots, maps them to source, and emits a ranked optimisation plan. Confidence-gated via `confidence(bug-analysis)` — iterates if root-cause certainty is below 90%
+- `playwright-trace-analyzer` — Analyse Playwright `trace.zip` files; accepts a GitHub Actions run URL and uses `gh run download` to fetch artifacts, then extracts the action timeline, network waterfall, and console errors. Names the race behind a flake and emits a ranked fix plan. Confidence-gated via `confidence(bug-analysis)`
 - `resolve-conflicts` — Analyze and resolve Git merge/rebase conflicts
 - `review-changes` — Review branch changes or PR (dispatches to reviewer)
 - `update-claude` — Update CLAUDE.md and rules based on code changes
