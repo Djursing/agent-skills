@@ -23,10 +23,11 @@ Skills live in `skills/` as standard SKILL.md files.
 Agents live in `agents/` since they require their own model and tool configuration.
 
 ### Agent-invokable skills (model can `Skill()`-invoke without a slash command)
-- `autonomous-workflow` — Phase-based orchestrator (0–7) for end-to-end feature development. **Installs two agents** under the `aw-` namespace (`aw-` = "autonomous-workflow"): `aw-planner` for phases 0–2, `aw-executor` for phases 3–7, connected by `plan.md`. See [`skills/autonomous-workflow/CLAUDE.md`](./skills/autonomous-workflow/CLAUDE.md) for design intent before editing
+- `autonomous-workflow` — Phase-based orchestrator (0–7) for end-to-end feature development. **Installs two agents** under the `aw-` namespace (`aw-` = "autonomous-workflow"): `aw-planner` for phases 0–2, `aw-executor` for phases 3–7, connected by `plan.md`. Supports a retrospective `--diagnose` mode that classifies a failed run, walks the phase matrix, and emits an applyable unified diff that hardens the skill against the same failure class (`--apply` to apply locally, `--pr` to share upstream). See [`skills/autonomous-workflow/CLAUDE.md`](./skills/autonomous-workflow/CLAUDE.md) for design intent before editing
 - `confidence` — Confidence assessment for plans, code, and bug analysis. **Plan mode is multi-signal** (LLM dimensional scoring + deterministic rule checks; a failed rule caps the gate at 89% regardless of LLM score)
 - `holistic-analysis` — Full execution path analysis for stuck bugs/refactors
 - `tdd` — Test-Driven Development with strict RED-GREEN-REFACTOR cycles
+- `test-provenance-guard` — Detects tests that pass by construction (private copy of the SUT instead of an import) via static + mutation checks; self-heals by extracting inline logic, rewiring callers, and rewriting the test. Runs autonomously inside `autonomous-workflow` Phase 4
 - `ux` — UX design review for web and React Native apps
 
 ### Workflow companions (`disable-model-invocation: true`, called by orchestrators via `Skill()`)

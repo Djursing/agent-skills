@@ -174,6 +174,14 @@ describe('DarkModeToggle', () => {
 });
 ```
 
+#### Step 5a: Test Provenance Guard
+
+After any new `*.test.*` / `*.unit.*` / `*.spec.*` file has been written
+(or an existing one extended), invoke the test-provenance-guard companion
+to catch tests-by-construction *before* the loop declares Phase 4 done.
+See [Test Provenance Trigger](#test-provenance-trigger) below for the full
+invocation contract.
+
 ### Step 6: Final Validation
 
 Run the full suite per `plan.md`'s pre-PR verification commands:
@@ -423,6 +431,58 @@ catalogue.
 
 ---
 
+## Test Provenance Trigger
+
+This section is the anchor referenced from [`companion-skills.md`](./companion-skills.md#registry).
+It defines when and how to invoke the `test-provenance-guard` companion to
+catch tests-by-construction in the autonomous loop.
+
+**When:** any new `*.test.*` / `*.unit.*` / `*.spec.*` file has been written
+or extended in this Phase 4 iteration.
+
+```bash
+Skill("test-provenance-guard", "--diff --base $(git merge-base HEAD main) --fix")
+```
+
+> **Autofix is allowed inside the autonomous loop, but only behind a
+> pre-heal confidence gate.** The skill MUST run `Skill("confidence", "code")`
+> on its own proposed extract-and-rewrite **before** touching any file. The
+> autofix proceeds only when **both** of these are true:
+>
+> 1. **Pre-heal:** `confidence(code) ≥ 90 %` on the proposed extraction.
+> 2. **Post-heal:** the three existing mechanical gates in
+>    `test-provenance-guard/rules/self-heal.md` Step 4 (build passes,
+>    target test passes, mutation re-verifies) all pass.
+>
+> If pre-heal confidence is < 90 %, the skill **does not write any files**
+> and emits the finding as `heal-skipped-low-confidence`. If a post-heal
+> gate fails, the heal is reverted with `git restore` and the finding is
+> emitted as `heal-failed`. In both cases, the autonomous-workflow
+> stuck-loop protocol takes over (per-iteration self-check →
+> `confidence(bug-analysis)` → `holistic-analysis` auto-replan → user escalation).
+
+| Behavior                       | Detail                                                              |
+| ------------------------------ | ------------------------------------------------------------------- |
+| Frequency                      | Once per Phase 4 iteration after new tests are committed            |
+| What it checks                 | (1) static — test file imports the SUT and does not shadow exported names. (2) mutation — sabotaging the SUT body makes the test FAIL |
+| Self-heal authority            | **Confidence-gated autofix.** `--fix` is allowed in the autonomous loop, but the skill must clear `confidence(code) ≥ 90 %` before mutating files and the three post-heal mechanical gates after. Either failure ⇒ no autonomous refactor; the finding is reported to the Progress Log and the stuck-loop protocol handles it |
+| If pre-heal confidence < 90 %  | Emit `heal-skipped-low-confidence`; do not write any files. Stuck-loop protocol takes over |
+| If a post-heal gate fails      | Revert the heal with `git restore`; emit `heal-failed`. Stuck-loop protocol takes over     |
+| If skill missing               | Log `test-provenance-guard() — not available, continuing` and proceed |
+| Progress Log entry             | `[TIMESTAMP] Phase 4: test-provenance-guard — N file(s), M finding(s), K healed (confidence X%), L skipped-low-confidence` |
+
+The skill addresses the failure mode where an LLM-authored test re-implements
+the function under test as a local copy and asserts against that copy — tests
+pass, CI is green, but no regression protection exists.
+See the skill's [PR #12340 post-mortem](../../test-provenance-guard/references/pr-12340-postmortem.md)
+for the origin case.
+
+Disable: remove the `Skill("test-provenance-guard", ...)` invocation from
+[Step 5a](#step-5a-test-provenance-guard) and from this section.
+Registry: [`companion-skills.md`](./companion-skills.md#registry).
+
+---
+
 ## Testing Checklist
 
 - [ ] Test strategy chosen per change type
@@ -437,6 +497,7 @@ catalogue.
 - [ ] One-shot guard respected — auto_replan_used not bypassed
 - [ ] User escalation triggered when confidence >= 90% OR auto-replan exhausted
 - [ ] New tests added for new functionality
+- [ ] `test-provenance-guard` invoked after new test files written; findings healed or escalated
 - [ ] Full suite + lint + build all green
 - [ ] Progress Log updated in `.agent/{branch}/plan.md` (Full Mode)
 - [ ] Ready for Phase 5 documentation

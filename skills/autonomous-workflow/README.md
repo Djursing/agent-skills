@@ -290,6 +290,34 @@ You can also invoke explicitly: `@autonomous-workflow implement X`.
 
 ---
 
+## Diagnose Mode (`--diagnose`)
+
+If the workflow ships incorrect code despite all gates passing — or a
+post-merge bug traces back to a missed check — invoke Diagnose Mode **while
+the failing session is still in context**. It does not run the phases. It
+analyses the failed run, classifies the failure against a taxonomy, walks
+every phase to find the earliest gate that could have caught it, and emits a
+unified diff against **this skill's source** so the same failure class cannot
+recur.
+
+```
+/autonomous-workflow --diagnose
+/autonomous-workflow --diagnose --symptom "tests passed but didn't import the SUT"
+/autonomous-workflow --diagnose --apply        # apply the proposed diff locally (asks first)
+/autonomous-workflow --diagnose --pr           # open a PR upstream against agent-skills.git
+```
+
+Output lands at `.agent/{branch}/diagnose-{YYYYMMDD-HHMMSS}.md` and is
+self-contained — another user can read the report, run `git apply` on the
+embedded diff, and inherit the improvement without access to the original
+session.
+
+Full procedure, failure taxonomy (F1–F10 + `F-novel`), and report format live
+in [`rules/diagnose-mode.md`](./rules/diagnose-mode.md). Diagnose Mode never
+modifies user product code — it only proposes changes to this skill itself.
+
+---
+
 ## When to Use This Skill
 
 **Use when:**

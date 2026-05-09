@@ -11,7 +11,7 @@ description: >
 license: MIT
 metadata:
   author: mthines
-  version: '3.5.0'
+  version: '3.6.0'
   workflow_type: orchestrator
   tags:
     - autonomous
@@ -30,6 +30,28 @@ companions skip silently if not installed.
 > **Source of truth.** This `SKILL.md` is a thin index. Detailed procedures
 > live in `rules/*.md` and load on demand. Companion-skill triggers and
 > disable instructions live in [`rules/companion-skills.md`](./rules/companion-skills.md).
+
+---
+
+## Special Modes
+
+Diagnose Mode is invoked **after** a workflow run has produced an unsatisfactory
+result. It does not run phases — it analyses the failed session, identifies
+which phase / gate / companion should have caught the problem, and emits a
+concrete proposed change to **this skill itself** so the same failure class
+cannot recur.
+
+| Flag             | Use when                                                                    | Output                                                                       |
+| ---------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `--diagnose`     | The workflow shipped wrong code despite all gates passing (or post-merge bug traces back to a missed check) | `.agent/{branch}/diagnose-{ts}.md` with a confidence-gated unified-diff proposal |
+| `--diagnose --apply` | After reviewing the diagnosis, apply the proposed diff to the local skill checkout. **Refused if `confidence(bug-analysis) < 90 %`** and always asks for confirmation | Edited skill files + report                                                  |
+| `--diagnose --pr`    | Share the improvement upstream with `agent-skills.git`. Same confidence gate applies | Draft PR with the diagnosis as description and the diff as the commit        |
+
+Full procedure, taxonomy of failure classes, and report format live in
+[`rules/diagnose-mode.md`](./rules/diagnose-mode.md).
+Run Diagnose Mode **while the failing session is still in context** — that is
+when the agent has the maximum amount of evidence to attribute the failure to
+a specific gate.
 
 ---
 
@@ -113,6 +135,7 @@ for the full registry, trigger conditions, and **how to disable any companion**.
 | 3     | `tdd`                  | Pure logic / business rules / "test-driven"            | —                |
 | 3     | `ux`                   | UI files touched (`*.tsx`, `*.jsx`, `*.vue`, RN)       | —                |
 | 3     | `code-quality`         | Once at end of Phase 3 (not per-file)                  | `code`           |
+| 4     | `test-provenance-guard` | After Step 5 — any new `*.test.*` / `*.unit.*` / `*.spec.*` file written | `--diff --base $(git merge-base HEAD main) --fix` *(autofix gated by `confidence(code) ≥ 90 %`)* |
 | 4     | `confidence`           | At iteration cap (3 Lite / 5 Full) on same failing area | `bug-analysis`   |
 | 4     | `holistic-analysis`    | After confidence at Phase 4 if user asks for retry     | —                |
 | 5     | `update-claude`        | Always (self-improving doc loop)                       | —                |
@@ -186,6 +209,21 @@ Phase 3 implementation is **NOT** parallelized (file-level changes share state).
 | 5     | Update README, CHANGELOG; `Skill("update-claude")` always                                       |
 | 6     | `Skill("review-changes")` → `Skill("aw-create-walkthrough")` → `Skill("create-pr")`             |
 | 7     | Watch CI → `Skill("ci-auto-fix")` per failure (parallel) → after CI green dispatch `reviewer` agent (PR Mode, optional, skips if not installed) → `gw remove` after merge (optional) |
+
+### Diagnose Mode
+
+Retrospective only — does not produce a PR. See
+[`rules/diagnose-mode.md`](./rules/diagnose-mode.md) for the full procedure.
+
+| Step | Action                                                                                                  |
+| ---- | ------------------------------------------------------------------------------------------------------- |
+| 1    | Collect evidence: `plan.md`, `walkthrough.md`, Progress Log, failing diff, user symptom                 |
+| 2    | Classify against the failure taxonomy (F1 or `F-novel`)                                                 |
+| 3    | Walk every phase via the Phase-Attribution Matrix; identify the earliest phase that could have caught it |
+| 4    | Construct exactly **one** proposal — concrete edit + unified diff + validation plan                      |
+| 5    | **Confidence gate** — `Skill("confidence", "bug-analysis")` ≥ 90 %, else `--apply` is refused           |
+| 6    | Write `.agent/{branch}/diagnose-{ts}.md` (or stdout with `--no-write`)                                  |
+| 7    | If `--apply` and gate passed: confirm, then `git apply` against `skills/autonomous-workflow/`. If `--pr`: open upstream PR |
 
 ### Lite Mode
 
