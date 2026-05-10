@@ -3,32 +3,17 @@ name: code-quality
 description: >
   Language-agnostic skill for authoring and reviewing code with low
   cognitive complexity, readability, and long-term maintainability.
-  Core rules cover guard clauses, early returns, single-responsibility
-  functions, type-driven design (illegal states unrepresentable,
-  branded primitives, discriminated unions), schema-first validation
-  with type inference (Zod / Pydantic), single source of truth for
-  union-type metadata, functional core + imperative shell, total
-  functions, idempotency for retryable ops, money in minor units, and
-  neighbour-pattern symmetry. Pairs with `tdd` for new code (drives
-  RED-GREEN-REFACTOR; rules apply in GREEN/REFACTOR).
-
-  Stack-specific extensions live under `rules/stacks/<stack>/` and
-  load only when the code in front of you is in that stack:
-  React (component composition with deep-namespace compound
-  components, client data fetching with TanStack Query / SWR,
-  autosave, app-wide offline + sync), Next.js (Route Handlers /
-  Server Actions, shared Zod schemas inferred for FE + BE, OTel
-  server-span wrap with semantic conventions — defers to
-  /otel-instrumentation, /otel-semantic-conventions, and /ux). Easy
-  to extend: drop a new subdirectory into `rules/stacks/` for any
-  language or framework (Go, Python, Rails, etc.) — see
-  `rules/stacks/README.md`.
-
-  Use during PR review, after writing new code, the GREEN/REFACTOR
-  phases of TDD, or when asked to "improve quality", "make this
-  readable", "reduce complexity", "deduplicate", "clean this up", or
-  "/code-quality". Citations and research grounding in
-  `references/citations.md`.
+  Covers guard clauses, single-responsibility functions, type-driven
+  design (illegal states unrepresentable, branded primitives,
+  discriminated unions), schema-first validation, single source of
+  truth for union metadata, functional core + imperative shell,
+  idempotency, and neighbour-pattern symmetry. Pairs with `tdd` for
+  new code (rules apply in GREEN/REFACTOR). Stack-specific extensions
+  live under `rules/stacks/<stack>/` (React, Next.js today; drop a
+  subdirectory for any other language or framework). Use during PR
+  review, after writing new code, in TDD GREEN/REFACTOR, or when
+  asked to "improve quality", "make this readable", "reduce
+  complexity", "deduplicate", "clean this up", or "/code-quality".
 disable-model-invocation: true
 license: MIT
 metadata:
@@ -39,29 +24,13 @@ metadata:
     - code-quality
     - cognitive-complexity
     - maintainability
-    - single-source-of-truth
     - type-driven-design
     - functional-core
     - testability
-    - idempotency
-    - api-design
     - tdd-companion
     - language-agnostic
-    - stack-extensions
     - react
-    - react-components
-    - compound-components
-    - client-data-fetching
-    - optimistic-updates
-    - autosave
-    - offline-first
-    - conflict-resolution
-    - mutation-queue
-    - multi-tab
     - nextjs
-    - server-endpoints
-    - shared-schemas
-    - telemetry
 ---
 
 # Code Quality Skill
@@ -177,107 +146,9 @@ when working in that stack.
 
 ## Procedure
 
-### Authoring Mode
+The skill operates in two modes — authoring (writing new code) and review (refactoring or auditing existing code). Detect the mode from context: if the user says "review" or "audit" or references existing code, use review mode. Otherwise default to authoring and apply principles silently while you write.
 
-While writing code, apply these in order of impact:
-
-1. **Compose with the `tdd` skill for new code** — when authoring a new
-   function, module, or behaviour from scratch, invoke the `tdd` skill
-   (`Skill('tdd')`) to drive the implementation through a strict
-   RED → GREEN → REFACTOR cycle. Apply the rules below in GREEN and
-   REFACTOR. Skip the handoff for trivial edits (typos, config tweaks),
-   refactors of existing code (no new behaviour), or when the user
-   explicitly opts out. See `rules/testability.md` for the integration.
-2. **Compose with the `ux` skill for UI files** — when authoring
-   `*.tsx`, `*.jsx`, `*.vue`, `*.svelte`, or React Native screens,
-   invoke the `ux` skill (`Skill('ux')`) for WCAG 2.2, semantic HTML,
-   and platform guidelines (Apple HIG, Material Design 3). Accessibility
-   lives in `ux`. The subset that affects E2E locator stability lives
-   in `rules/testability.md` (UI Testability section). Skip only for
-   non-UI files. When this skill is invoked under `autonomous-workflow`
-   Phase 3, do **not** call `ux` from here — Phase 3 already invokes
-   `ux` once at the right moment.
-3. **Match the neighbours** — before writing a new file in an existing
-   module, read 2–3 sibling files and mimic their structure (folder
-   layout, error shape, import order, test style, naming convention).
-   Outlier code forces every reader to context-switch. See
-   `rules/collaboration.md` §1.
-4. **Reuse before creating** — before writing a helper, type, constant,
-   formatter, or hook, search the codebase for one that already exists.
-   Grep the domain noun and a synonym; check neighbour files; check the
-   standard library and existing dependencies. A second implementation of
-   the same concept is worse than the first. See
-   `rules/maintainability.md` §1.
-5. **Naming first** — before writing the body, name the function and its
-   parameters so they describe *what* it does and *what* it returns. If
-   you can't name it crisply, the responsibility is unclear; rethink the
-   boundary, not the implementation.
-6. **Design the type before the body** — model the inputs and outputs so
-   illegal states cannot be represented (discriminated unions, branded
-   primitives, total return types, `Result<T, E>` for expected failures).
-   The cheapest place to catch a bug is the place the bug cannot exist.
-   See `rules/abstraction.md` §2 and `rules/api-design.md` §4–§5.
-7. **Guard clauses up top** — handle errors, edge cases, and early-exit
-   conditions at the start of the function. Reserve the indented body for
-   the happy path.
-8. **One job per function, one level of abstraction per body** — if you
-   find yourself writing "and" in a docstring or mixing orchestration
-   sentences with low-level mechanics, split. See
-   `rules/abstraction.md` §1.
-9. **Limit nesting to 2 levels** — beyond that, extract a helper or
-   invert a condition.
-10. **Keep parameter count low (≤3 ideally, ≤5 hard cap)** — past that,
-    group into an object/struct.
-11. **One source of truth for union-type metadata** — when a union has
-    associated data (labels, colours, icons, flags), use one record keyed
-    by the union with structured values, not N parallel maps. Adding a
-    variant must be a single edit. See `rules/maintainability.md` §2.
-12. **Push impurity outward** — keep decision logic pure; push I/O, time,
-    randomness, and ID generation to the edges. Inject the clock / RNG /
-    fetcher; do not call them directly from core logic. See
-    `rules/architecture.md` §3 and `rules/correctness.md` §7.
-13. **Defer *generic* abstraction, not reuse** — wait for a third real
-    use case before extracting a flag-driven generic helper. Always reuse
-    utilities that already exist, and always consolidate parallel maps
-    over the same union the moment they appear — those are not
-    "premature".
-
-Cross-references: `rules/cognitive-complexity.md` and
-`rules/control-flow.md` for 7 and 9; `rules/naming.md` for 5;
-`rules/functions.md` for 8 and 10; `rules/maintainability.md` for 4, 11,
-and 13; `rules/abstraction.md`, `rules/architecture.md`,
-`rules/api-design.md`, `rules/correctness.md`, `rules/testability.md`,
-`rules/collaboration.md`, and `rules/refactor-recipes.md` for the deeper
-patterns.
-
-### Review Mode
-
-When asked to review or refactor:
-
-1. **Read all of the target code first** — don't critique what you
-   haven't read.
-2. **Score by cognitive load, not style** — pick the function that took
-   you the longest to understand, that's your highest-priority refactor.
-3. **Score by change footprint** — for each new concept (a union, a
-   constant, a piece of metadata), count how many files would need to
-   change if a new variant were added. Anything beyond ~3 files, or
-   that the type system cannot enforce, is a maintainability finding.
-4. **Check for existing utilities** — grep for similar helpers,
-   formatters, or constants that the new code could have reused instead
-   of duplicating.
-5. **Cite recipes by name** — use `rules/refactor-recipes.md` so reviews
-   read as "apply R1 (Consolidate Parallel Maps)" rather than free-form
-   prose.
-6. **Suggest changes with the diff inline** — don't just say "this is
-   complex"; show the before/after.
-7. **Prioritize by impact** — fix the thing that hurts readers and
-   future maintainers most, not the thing that's easiest to nitpick.
-   Ignore stylistic preferences if a linter would catch them.
-8. **Stop when good enough** — perfect is a moving target. If the
-   function reads top-to-bottom, names match the domain, and the change
-   footprint for the next variant is small, leave it.
-
-Load `rules/review-checklist.md` for the structured review pass.
+Load [`rules/procedure.md`](./rules/procedure.md) for the full mode procedures: the 13-step authoring checklist (compose with `tdd` and `ux`, naming-first, design-the-type-before-body, guard clauses, push impurity outward) and the 8-step review pass (cognitive-load scoring, change-footprint scoring, recipe citations).
 
 ---
 
@@ -436,72 +307,12 @@ do not double-invoke; rely on the phase-level call.
 
 ## When Things Conflict
 
-These principles will sometimes pull against each other. Defaults:
-
-- **Readability vs. performance** → readability wins until a profile says
-  otherwise.
-- **DRY vs. clarity** → clarity wins **for code shapes that happen to look
-  alike**: two slightly-different 5-line blocks beat one 12-line generic
-  helper that takes flags. But DRY wins **for the same concept** —
-  duplicated constants, parallel maps over the same union, and
-  re-implementations of an existing utility must be consolidated. The test
-  is *meaning*, not *appearance*: if the two pieces must always change
-  together to stay correct, they are one thing; if they merely share a
-  shape, they are two.
-- **Reuse vs. premature abstraction** → reuse existing utilities always;
-  extract a *new* generic helper only on the third real caller. See the
-  decision tree in `rules/maintainability.md` §4.
-- **Short name vs. clear name** → clear name. `userPendingApproval` beats
-  `usr`.
-- **Guard clause vs. single-return-style** → guard clauses, unless the
-  language/team strongly enforces single-return (e.g., some functional
-  styles).
-- **Co-location vs. layered folders** → co-locate the type, its metadata,
-  and the functions that operate on it. A reader who lands on a union
-  should not have to grep across `types/`, `constants/`, and `utils/` to
-  understand it.
+When principles pull against each other, load [`rules/tradeoffs.md`](./rules/tradeoffs.md) for the tiebreakers (readability vs. performance, DRY vs. clarity, reuse vs. premature abstraction, short vs. clear naming, guard clause vs. single-return, co-location vs. layered folders).
 
 ---
 
 ## Output Contract
 
-When invoked in review mode, structure findings as:
+In review mode, structure findings as a `## Code Quality Review: [target]` block with sections for High / Medium / Low impact, plus required Maintainability findings whenever the reviewed code introduces or extends union types, enums, shared constants, or utilities, and required Correctness / Testability findings whenever it involves retryable operations, money, dates, async I/O, resource handles, or non-trivial pure logic. Load [`rules/output-contract.md`](./rules/output-contract.md) for the full template.
 
-```
-## Code Quality Review: [target]
-
-### High Impact (fix these)
-- [file:line] [issue] → [proposed change, citing recipe ID where applicable: R1, R6, etc.]
-
-### Medium Impact (consider)
-- [file:line] [issue] → [proposed change]
-
-### Low Impact / Style (optional)
-- [file:line] [issue]
-
-### Maintainability findings
-- [file:line] [duplicated concept / parallel maps / shotgun-surgery risk] → [proposed consolidation, e.g., R1 Consolidate Parallel Maps]
-- [estimated change footprint for the next obvious variant: N files, type-checked? yes/no]
-
-### Correctness findings (when relevant)
-- [file:line] [idempotency / money / dates / determinism / async / resources]
-- [proposed fix, citing recipe ID]
-
-### Testability findings (when relevant)
-- [file:line] [hard-to-test surface, missing injection, coupled to global state]
-- [proposed fix, e.g., R9 Inject the Clock / RNG / IDs]
-
-### What's already good
-- [brief notes on what to preserve]
-```
-
-The Maintainability findings section is required when the reviewed code
-introduces or extends union types, enums, shared constants, or new
-utilities. Correctness and Testability sections are required when the
-reviewed code involves retryable operations, money, dates, async I/O,
-resource handles, or non-trivial pure logic. Skip them when not
-applicable — do not manufacture findings to look thorough.
-
-When invoked in authoring mode, just write the code (or hand off to the
-`tdd` skill first for new code). Apply the principles silently. Don't
-narrate every guard clause — the user will see clean code in the diff.
+In authoring mode, just write the code (or hand off to `tdd` first for new code). Apply the principles silently. Don't narrate every guard clause — the user sees clean code in the diff.

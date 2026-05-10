@@ -1,21 +1,16 @@
 ---
 name: ai-engineering
 description: >
-  Reviews and guides LLM/AI application engineering: prompt writing,
-  system-prompt design, prompt caching and token cost, multimodal
-  inputs (vision/audio/PDFs), RAG, agent loops and tool design,
-  resilience (rate limits, retries, fallbacks), memory and long-running
-  state, model migration and version pinning, evals, testing (mocks,
-  VCR, snapshots), safety and prompt-injection defence, and
-  observability. Synthesises 2025-2026 practices from primary provider
-  docs (Anthropic, OpenAI, Google), OWASP LLM Top 10, and practitioners
-  (Hamel Husain, Eugene Yan, Chip Huyen). Use when designing prompts,
-  structuring system prompts, optimising token cost, building RAG or
-  agents, writing evals or tests, hardening for rate limits and outages,
-  migrating models, or auditing existing AI code. Triggers on "review my
-  prompt", "design a system prompt", "optimise tokens", "set up RAG",
-  "build an agent", "handle rate limits", "migrate to a new model",
-  "write evals", "test my prompt", "audit AI code", "/ai-engineering".
+  Reviews and guides LLM/AI application engineering: prompt design,
+  prompt caching, multimodal inputs, RAG, agent loops and tool design,
+  resilience (rate limits, retries, fallbacks), memory, model migration,
+  evals, testing, prompt-injection defence, and observability.
+  Synthesises practices from Anthropic, OpenAI, Google, OWASP LLM Top
+  10, and practitioners (Hamel Husain, Eugene Yan, Chip Huyen). Triggers
+  on "review my prompt", "design a system prompt", "optimise tokens",
+  "set up RAG", "build an agent", "handle rate limits", "migrate to a
+  new model", "write evals", "test my prompt", "audit AI code",
+  "/ai-engineering".
 disable-model-invocation: true
 license: MIT
 metadata:

@@ -9,6 +9,7 @@ description: >
   "ux feedback", "review the design", "improve usability", "check contrast",
   "review navigation", "ux writing", "improve copy", "review microcopy",
   "make this more intuitive", "ux best practices", "/ux".
+disable-model-invocation: false
 license: MIT
 metadata:
   author: mthines

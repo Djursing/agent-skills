@@ -1,20 +1,16 @@
 ---
 name: create-skill
 description: >
-  Scaffold, review, upgrade, or diagnose agent skills against best-practice
-  frontmatter, progressive disclosure, token-aware structure, optional
-  multi-mode support, and the agent-skills.git symlink + inventory wiring.
-  Walks through requirements, picks single-file vs multi-file layout,
-  generates `SKILL.md` plus optional `rules/`, `references/`, and
-  `templates/`, then runs a quality checklist. Diagnose mode performs
-  retrospective self-improvement on any skill that declares a diagnostic
-  surface — emits a confidence-gated unified diff that hardens the target
-  skill against a failure class. Modes: `scaffold` (default — new skill),
-  `review` (audit existing skill), `upgrade` (split a single-file skill
-  into multi-file), `diagnose` (retrospective failure analysis on a target
-  skill). Triggers on "create a skill", "scaffold a skill", "make a new
-  skill", "new SKILL.md", "review this skill", "audit my skill", "upgrade
-  this skill", "split this skill", "diagnose this skill", "why did <skill>
+  Scaffold, review, upgrade, or diagnose agent skills against
+  best-practice frontmatter, progressive disclosure, token-aware
+  structure, and the agent-skills.git symlink + inventory wiring.
+  Modes: `scaffold` (default — new skill), `review` (audit existing
+  skill), `upgrade` (split a single-file skill into multi-file),
+  `diagnose` (retrospective failure analysis that emits a
+  confidence-gated unified diff against any skill declaring a
+  diagnostic surface). Triggers on "create a skill", "scaffold a skill",
+  "new SKILL.md", "review this skill", "audit my skill", "upgrade this
+  skill", "split this skill", "diagnose this skill", "why did <skill>
   miss this", "/create-skill".
 disable-model-invocation: true
 license: MIT

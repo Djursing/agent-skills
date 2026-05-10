@@ -8,6 +8,7 @@ description: >
   committing to autonomous execution, after implementation, or during
   investigation. Triggers on "confidence check", "validate plan", "rate
   confidence", "quality gate", "/confidence".
+disable-model-invocation: false
 license: MIT
 metadata:
   author: mthines

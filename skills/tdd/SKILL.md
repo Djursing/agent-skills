@@ -9,6 +9,7 @@ description: >
   output, and cites refactor recipes (R1–R20) by ID when reporting changes.
   Triggers on: "tdd", "write tests", "test this", "add test coverage",
   "test driven", "red green refactor", "/tdd".
+disable-model-invocation: false
 license: MIT
 metadata:
   author: mthines
