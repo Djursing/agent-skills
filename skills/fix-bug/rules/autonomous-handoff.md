@@ -51,7 +51,22 @@ Execute the plan at .agent/<branch>/plan.md in the current worktree.
 The executor runs autonomous-workflow Phases 3–7 (implement, test, document, draft PR, watch CI).
 Do not wait for CI to finish before reporting back — the executor owns CI watching.
 
-## Step 6c — Report back
+## Step 6c — CEGIS refinement contract
+
+The Bug Fix Pack ([`templates/bug-fix-pack.md`](../templates/bug-fix-pack.md)) requires the plan
+to include a counterexample-guided refinement loop. After each executor edit:
+
+1. Run the repro. If it passes, continue to other test runs.
+2. If it fails: capture the failing input/output verbatim, append to
+   `.agent/<branch>/bug-notes.md` under `Counterexamples`, then refine the patch using the
+   captured input as concrete evidence.
+3. Cap at **3 refinement rounds**. After the third failure, stop refining and return to
+   `confidence(bug-analysis fix)` for re-analysis rather than guessing further.
+
+Source: [LLM-CEGIS-Repair (AAAI 2025)](https://github.com/pmorvalho/LLM-CEGIS-Repair). Reports
++15-30% on Defects4J vs single-shot generation.
+
+## Step 6d — Report back
 
 Print the final status block:
 
@@ -64,11 +79,14 @@ Print the final status block:
 | Root cause | <one line> |
 | Confidence (bug-analysis) | <X%> |
 | Plan confidence | <Y%> |
-| PR | <url> (draft) |
+| PR | <url> (draft — verifier pending) |
 | Branch | fix/<slug> |
 | Worktree | .agent/fix/<slug>/ |
 | CI | watching (aw-executor still running) |
 ```
+
+Do **not** undraft the PR here — that is Phase 7 (independent verification)'s decision after the
+executor completes.
 
 ## Failure modes
 
