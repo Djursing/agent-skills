@@ -145,6 +145,7 @@ User-invoked only — the model can't auto-trigger these. **Zero baseline contex
 | **[/dx](./skills/dx/SKILL.md)**                                     | Reviews CLI tools, shell scripts, and developer tooling against established guidelines ([clig.dev](https://clig.dev), 12 Factor CLI, Heroku CLI Style Guide).                                                                                                            |
 | **[/e2e-testing](./skills/e2e-testing/SKILL.md)**                   | Drives a spec-first E2E loop on top of Playwright Test Agents (Planner / Generator / Healer, v1.56) and `@playwright/mcp`. Halts Phase 0 to ask before installing Playwright. Enforces the role → label → `data-testid` locator ladder, proposes `data-testid` as a source diff, runs in snapshot mode, and caps the heal loop at 3 attempts. |
 | **[/e2e-testing-mobile](./skills/e2e-testing-mobile/SKILL.md)**     | Mobile counterpart to `/e2e-testing`. Drives a spec-first Maestro YAML-flow loop for Expo / React Native, halts Phase 0 to ask before installing Maestro CLI / EAS or scaffolding `.maestro/`, enforces a `testID`-first locator ladder (with a hard rule that `accessibilityLabel` must NOT double as a test selector), proposes `testID` source diffs via a `setTestId` helper, runs on Maestro Cloud as an EAS Workflow `maestro-cloud` job, and caps the heal loop at 3 attempts. Composes with `/e2e-testing` for hybrid apps (Maestro for native chrome, Playwright for the WebView). |
+| **[/fix-bug](./skills/fix-bug/SKILL.md)**                           | Resolve a single bug from any starting evidence — Dash0 telemetry (span / log / web event URL), raw stack trace, error message, code pointer (`file:line`), screen recording, or free-text symptom. Classifies the input, resolves it (Dash0 MCP, delegates videos to `/video-analyser`, parses stack frames, or greps the codebase), maps it to source, delegates root-cause analysis to `holistic-analysis`, and gates the proposed fix on `confidence(bug-analysis)`. At >= 90% confidence it hands off to `aw-planner` + `aw-executor` to ship a draft PR; below 90% it returns a proposal for review. Documents the future shape where `linear-ticket-investigator` becomes an input adapter and `/batch-linear-tickets` becomes a thin batching wrapper around `/fix-bug`. |
 | **[/implement-suggestion](./skills/implement-suggestion/SKILL.md)** | Takes review comments or suggestions and implements the fixes — simple ones directly, complex ones with a plan for approval.                                                                                                                                             |
 | **[/init-claude](./skills/init-claude/SKILL.md)**                   | Analyzes your project and scaffolds a tiered docs setup: `CLAUDE.md` + `.claude/rules/` for the agent hot path, plus a `docs/` tree (root + nested for monorepos) for narrative content humans also use. Routes each piece of content by kind — rules to the hot path, rationale and onboarding to `docs/`.   |
 | **[/profile-optimizer](./skills/profile-optimizer/SKILL.md)**       | Analyses React DevTools Profiler exports or Chrome DevTools Performance traces. Auto-detects the format, frames the right metric (INP, TBT, LCP, commit duration), extracts ranked hotspots with measured cost, maps each to a file/component, and emits a ranked optimisation plan. Iterates via `confidence(bug-analysis)` — digs deeper if root-cause certainty is below 90%, instead of guessing. |
@@ -411,6 +412,7 @@ Everything else is invoked with a slash:
 
 ```
 /batch-linear-tickets SUP-123 SUP-456
+/fix-bug https://app.dash0.com/.../trace?spanId=...
 /dx review my CLI tool
 /profile-optimizer ./trace.json
 /video-analyser ./bug-recording.mp4
@@ -468,6 +470,7 @@ skills/
                          templates/                          (slash command)
   e2e-testing-mobile/    SKILL.md + rules/ + references/ +
                          templates/                          (slash command)
+  fix-bug/               SKILL.md                            (slash command)
   holistic-analysis/     SKILL.md                            (agent-invokable)
   tdd/                   SKILL.md + rules/                   (agent-invokable)
   test-provenance-guard/ SKILL.md + rules/ + references/     (agent-invokable, applied)
