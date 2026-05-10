@@ -334,17 +334,29 @@ Runs only when the original input was a Dash0 / telemetry URL and the PR has bee
 deployed.
 
 The fix is not done at merge — it is done when the originating signal **stops firing in
-production**. Phase 8 polls the originating query filtered by the new release tag for up to 30
-minutes; if the rate decays below 5% of the pre-fix baseline, the bug is closed; otherwise it is
-reopened.
+production**. What "stops firing" means depends on how often the bug fires. Phase 8 classifies
+the bug's observability shape (baseline rate, crash-class, cohort, release attribution) and
+picks one of five modes:
+
+| Mode | When |
+|------|------|
+| **Rate-decay** | High-frequency bugs (≥ 10 events / 30 min baseline) — poll for 30 min; pass at ≤ 5% of baseline |
+| **Extended watch** | Low-frequency bugs (1–9 events / 30 min, or sparse over hours) — watch for 24 h–7 d; pass on absence |
+| **Cohort absence** | One-shot bugs with a known cohort (user / tenant / device) — watch the cohort for 7 d |
+| **Build-version absence** | Crash-class bugs with release attribution (Crashlytics-style) — pass at N crash-free sessions or 7 d |
+| **Deferred-watch** | One-shot bugs with no cohort and no release attribution, **or** MCP capability gate failed — register a manual watch (default 14 d), close provisionally, reopen on recurrence |
+
+Deferred-watch is the honest answer for app crashes that fired once with no cohort information.
+The skill does not pretend to verify in that mode — it registers the watch on the Linear ticket
+and PR, closes the bug as "deployed; watching for recurrence", and reopens if the originating
+query produces a match on the new release tag.
 
 See [`rules/telemetry-verification.md`](./rules/telemetry-verification.md) for the full
-procedure. The phase has an explicit MCP capability gate: if Dash0 MCP cannot run a saved query
-filtered by `service.version`, Phase 8 is skipped with a message rather than failing silently.
+classification procedure and per-mode operations.
 
-Default mode is **deferred** — emit a follow-up task to be re-invoked once the deploy lands
-(`/fix-bug --verify-deploy <PR>`). The `--inline-verify` flag opts into running synchronously
-when the project auto-deploys on merge.
+Default operating mode is **deferred** — emit a follow-up task to be re-invoked once the deploy
+lands (`/fix-bug --verify-deploy <PR>`). The `--inline-verify` flag opts into running
+synchronously when the project auto-deploys on merge.
 
 ---
 
