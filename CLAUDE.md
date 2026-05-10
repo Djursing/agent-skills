@@ -42,6 +42,7 @@ Agents live in `agents/` since they require their own model and tool configurati
 - `create-pr` — Generate a narrative PR description, push, then watch CI and auto-fix simple failures (lint, format, lockfiles); escalates judgment-required failures via `/confidence`
 - `create-skill` — Scaffold or review agent skills (SKILL.md + rules/ + references/ + templates/) against best-practice frontmatter, progressive disclosure, token-aware structure, and the agent-skills.git symlink + inventory wiring. Modes: `scaffold` (default), `review`, `upgrade`
 - `dx` — Developer Experience review for CLI tools and shell scripts
+- `e2e-testing` — Spec-first E2E loop on top of Playwright Test Agents (Planner / Generator / Healer, v1.56) and `@playwright/mcp`. Phase 0 preflight halts and asks before installing Playwright or running `init-agents`. Enforces the locator ladder (role → label → `data-testid`), proposes `data-testid` as a source diff (never a brittle CSS selector), runs in snapshot mode by default, and caps the heal loop at three attempts before escalating via `confidence(bug-analysis)`
 - `implement-suggestion` — Implement fixes from review comments
 - `init-claude` — Initialize Claude Code configuration for a project
 - `profile-optimizer` — Analyse React DevTools Profiler exports or Chrome Performance traces; auto-detects the format, extracts hotspots, maps them to source, and emits a ranked optimisation plan. Confidence-gated via `confidence(bug-analysis)` — iterates if root-cause certainty is below 90%

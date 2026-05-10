@@ -141,6 +141,7 @@ User-invoked only — the model can't auto-trigger these. **Zero baseline contex
 | **[/create-pr](./skills/create-pr/SKILL.md)**                       | Generates a narrative PR description, pushes the branch, opens the PR, then watches CI and auto-fixes simple failures (lint, format, lockfiles). Escalates judgment-required failures via `/confidence` rather than guessing.                                            |
 | **[/create-skill](./skills/create-skill/SKILL.md)**                 | Scaffolds new agent skills — or reviews existing ones — against best-practice frontmatter, progressive disclosure, token-aware structure, and this repo's symlink + inventory wiring. Modes: `scaffold` (default), `review`, `upgrade`.                                  |
 | **[/dx](./skills/dx/SKILL.md)**                                     | Reviews CLI tools, shell scripts, and developer tooling against established guidelines ([clig.dev](https://clig.dev), 12 Factor CLI, Heroku CLI Style Guide).                                                                                                            |
+| **[/e2e-testing](./skills/e2e-testing/SKILL.md)**                   | Drives a spec-first E2E loop on top of Playwright Test Agents (Planner / Generator / Healer, v1.56) and `@playwright/mcp`. Halts Phase 0 to ask before installing Playwright. Enforces the role → label → `data-testid` locator ladder, proposes `data-testid` as a source diff, runs in snapshot mode, and caps the heal loop at 3 attempts. |
 | **[/implement-suggestion](./skills/implement-suggestion/SKILL.md)** | Takes review comments or suggestions and implements the fixes — simple ones directly, complex ones with a plan for approval.                                                                                                                                             |
 | **[/init-claude](./skills/init-claude/SKILL.md)**                   | Analyzes your project and generates a tailored `CLAUDE.md` + `.claude/rules/` setup. Detects tech stack, project size, and conventions automatically.                                                                                                                    |
 | **[/profile-optimizer](./skills/profile-optimizer/SKILL.md)**       | Analyses React DevTools Profiler exports or Chrome DevTools Performance traces. Auto-detects the format, frames the right metric (INP, TBT, LCP, commit duration), extracts ranked hotspots with measured cost, maps each to a file/component, and emits a ranked optimisation plan. Iterates via `confidence(bug-analysis)` — digs deeper if root-cause certainty is below 90%, instead of guessing. |
@@ -460,6 +461,8 @@ skills/
                          install.sh                          (orchestrator, agent-invokable)
   batch-linear-tickets/  SKILL.md + rules/                   (orchestrator, slash command)
   confidence/            SKILL.md                            (agent-invokable)
+  e2e-testing/           SKILL.md + rules/ + references/ +
+                         templates/                          (slash command)
   holistic-analysis/     SKILL.md                            (agent-invokable)
   tdd/                   SKILL.md + rules/                   (agent-invokable)
   test-provenance-guard/ SKILL.md + rules/ + references/     (agent-invokable, applied)
