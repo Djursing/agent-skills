@@ -23,6 +23,7 @@ frontmatter, the layout, and what makes the shape worth using.
 - A7 — Multi-mode skill (modes share a body)
 - A8 — Forked subagent skill (`context: fork`)
 - A9 — Background-knowledge skill (`user-invocable: false`)
+- A10 — Confidence-gated trace analyser
 
 ---
 
@@ -336,6 +337,79 @@ auto-load only when the agent is working in the relevant directories.
 
 ---
 
+## A10 — Confidence-gated trace analyser
+
+**Examples in this repo:** `profile-optimizer` (React DevTools / Chrome
+performance traces), `playwright-trace-analyzer` (Playwright `trace.zip`).
+
+**Shape:**
+
+```text
+my-trace-analyser/
+├── SKILL.md
+└── rules/
+    ├── input-detection.md          # auto-detect input format and shape
+    ├── measurement-methodology.md  # baseline + target metric extraction
+    ├── confidence-loop.md          # 90% gate, ≤2 deep-dive iterations
+    └── ... (domain-specific rules)
+```
+
+**Frontmatter:**
+
+```yaml
+---
+name: my-trace-analyser
+description: >
+  Analyse <input artefact> for <target failure class>; auto-detects the
+  format, extracts hotspots, maps them to source, and emits a ranked
+  fix plan. Confidence-gated via `confidence(bug-analysis)` — iterates
+  if root-cause certainty is below 90%.
+metadata:
+  workflow_type: advisory
+---
+```
+
+**The defining shape — five phases the analyser always walks:**
+
+| Phase | Job                                                   |
+| ----- | ----------------------------------------------------- |
+| 1     | Intake / format detection (load `input-detection.md`) |
+| 2     | Hotspot extraction (`measurement-methodology.md`)     |
+| 3     | Source mapping + root-cause hypothesis                |
+| 4     | **Confidence gate** (`confidence(bug-analysis)`) — 90% to proceed; 70–89% does up to 2 deep-dive iterations; <70% surfaces the gap and stops |
+| 5     | Ranked fix plan with citations back to the trace      |
+
+**Why a dedicated archetype:** trace analysers fail in a predictable
+shape — symptom mistaken for cause, frame resolved to the wrong file,
+fix recommended without checking the call stack. The Phase 4 confidence
+gate (capped at two deep-dive iterations) catches the failures
+deterministically. Re-deriving the shape per analyser produces drift;
+following the archetype keeps every analyser interchangeable.
+
+**Domain-specific bits per analyser:**
+
+- The set of file formats `input-detection.md` recognises (e.g.,
+  `.cpuprofile`, `.json` profiler exports, `trace.zip`, Lighthouse
+  reports, bundler stats).
+- The metrics `measurement-methodology.md` extracts (e.g., total task
+  duration, slowest commit, network waterfall gaps).
+- The deep-dive levers `confidence-loop.md` documents (e.g., expand
+  call stack, cross-correlate React + Chrome, diff against a passing
+  trace, re-read the network log).
+
+**Cloning the archetype for a new analyser:**
+
+1. Copy the four-file `rules/` structure verbatim.
+2. Replace input-detection.md with the formats your analyser
+   accepts.
+3. Replace measurement-methodology.md with your metric definitions.
+4. Keep confidence-loop.md's 90% / 70–89% / <70% gate and the
+   "≤2 iterations" cap unchanged — those are the load-bearing parts.
+5. Add domain-specific rules (e.g., `react-fiber-mapping.md`,
+   `network-waterfall.md`) as siblings.
+
+---
+
 ## Choosing an archetype
 
 | If you are...                                              | Use            |
@@ -349,3 +423,4 @@ auto-load only when the agent is working in the relevant directories.
 | Doing several similar things based on an argument          | A7 (multi-mode) |
 | Researching without polluting the main thread              | A8 (forked)     |
 | Adding domain knowledge the model should silently apply    | A9 (background) |
+| Analysing a trace / profile / artefact and ranking fixes   | A10 (trace-analyser) |

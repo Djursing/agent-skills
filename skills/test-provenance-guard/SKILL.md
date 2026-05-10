@@ -16,6 +16,7 @@ description: >
   by construction", "verify tests cover real code", "tests duplicate
   logic", "mutation sanity check", "are these tests fake",
   "/test-provenance-guard".
+disable-model-invocation: false
 license: MIT
 metadata:
   author: mthines

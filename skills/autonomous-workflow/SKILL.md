@@ -8,6 +8,7 @@ description: >
   if not installed. Triggers on "implement autonomously", "end-to-end", "in
   isolation", "in a worktree", or independent feature work. Invoke with
   /autonomous-workflow.
+disable-model-invocation: false
 license: MIT
 metadata:
   author: mthines

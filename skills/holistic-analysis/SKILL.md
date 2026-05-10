@@ -10,6 +10,7 @@ description: >
   "analyze the whole thing", "zoom out", "look at the bigger picture", "rethink this",
   or when an attempt has failed and the user wants a fresh, thorough analysis.
   Also triggers on "/holistic", "/step-back", "/rethink", "/zoom-out".
+disable-model-invocation: false
 license: MIT
 metadata:
   author: mthines
