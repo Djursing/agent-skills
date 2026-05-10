@@ -1,24 +1,39 @@
 ---
 name: code-quality
 description: >
-  Authors and reviews code for low cognitive complexity, readability, and
-  long-term maintainability. Applies guard clauses, early returns,
-  single-responsibility functions, type-driven design (illegal states
-  unrepresentable, branded primitives, discriminated unions), schema-first
-  validation with type inference (Zod / Pydantic), single source of truth
-  for union-type metadata, functional core + imperative shell, total
+  Language-agnostic skill for authoring and reviewing code with low
+  cognitive complexity, readability, and long-term maintainability.
+  Core rules cover guard clauses, early returns, single-responsibility
+  functions, type-driven design (illegal states unrepresentable,
+  branded primitives, discriminated unions), schema-first validation
+  with type inference (Zod / Pydantic), single source of truth for
+  union-type metadata, functional core + imperative shell, total
   functions, idempotency for retryable ops, money in minor units, and
   neighbour-pattern symmetry. Pairs with `tdd` for new code (drives
-  RED-GREEN-REFACTOR; rules apply in GREEN/REFACTOR). Use during PR
-  review, after writing new code, the GREEN/REFACTOR phases of TDD, or
-  when asked to "improve quality", "make this readable", "reduce
-  complexity", "deduplicate", "clean this up", or "/code-quality".
-  Citations and research grounding in `references/citations.md`.
+  RED-GREEN-REFACTOR; rules apply in GREEN/REFACTOR).
+
+  Stack-specific extensions live under `rules/stacks/<stack>/` and
+  load only when the code in front of you is in that stack:
+  React (component composition with deep-namespace compound
+  components, client data fetching with TanStack Query / SWR,
+  autosave, app-wide offline + sync), Next.js (Route Handlers /
+  Server Actions, shared Zod schemas inferred for FE + BE, OTel
+  server-span wrap with semantic conventions — defers to
+  /otel-instrumentation, /otel-semantic-conventions, and /ux). Easy
+  to extend: drop a new subdirectory into `rules/stacks/` for any
+  language or framework (Go, Python, Rails, etc.) — see
+  `rules/stacks/README.md`.
+
+  Use during PR review, after writing new code, the GREEN/REFACTOR
+  phases of TDD, or when asked to "improve quality", "make this
+  readable", "reduce complexity", "deduplicate", "clean this up", or
+  "/code-quality". Citations and research grounding in
+  `references/citations.md`.
 disable-model-invocation: true
 license: MIT
 metadata:
   author: mthines
-  version: '1.3.0'
+  version: '1.4.0'
   workflow_type: advisory
   tags:
     - code-quality
@@ -31,6 +46,22 @@ metadata:
     - idempotency
     - api-design
     - tdd-companion
+    - language-agnostic
+    - stack-extensions
+    - react
+    - react-components
+    - compound-components
+    - client-data-fetching
+    - optimistic-updates
+    - autosave
+    - offline-first
+    - conflict-resolution
+    - mutation-queue
+    - multi-tab
+    - nextjs
+    - server-endpoints
+    - shared-schemas
+    - telemetry
 ---
 
 # Code Quality Skill
@@ -125,6 +156,22 @@ before adding the variant. See `rules/maintainability.md`.
 | Refactor PR mixed with feature PR | Split into two PRs | Mixed PRs get rubber-stamped or rejected on the wrong grounds |
 | Helpers at the top of the file, public function 200 lines down | Public surface first; helpers below in call order | Files read top to bottom |
 | Reaching `a.b.c.d.method()` to act on `a` | Tell, don't ask: put the operation on `a` | Callers shouldn't walk private structure |
+
+### Stack-flagship patterns
+
+A few of the highest-leverage stack-specific rules. Each rule file under
+`rules/stacks/` carries its own Common Mistakes section — load the file
+when working in that stack.
+
+| Smell | Refactor To | Where |
+|---|---|---|
+| React component with 6+ props (especially booleans) controlling visual variations | Compound component with deep dot-notation (`Combobox.Content.List.Item`) + namespaced control hook (`Combobox.useCombobox`); shared state via Context | `stacks/react/components.md` |
+| `useEffect(() => { fetch(...).then(setData) }, [id])` for server data | `useQuery({ queryKey, queryFn })` (TanStack Query / SWR) | `stacks/react/data-fetching.md` |
+| Mutation waits for the server before updating the UI | Optimistic update in `onMutate`, rollback in `onError`, invalidate in `onSettled` | `stacks/react/data-fetching.md` |
+| Form saves on every keystroke | Debounce ~1000 ms + max-wait ~5 s flush + on-blur + on-visibility-hidden; never block input | `stacks/react/autosave.md` |
+| Two tabs autosave the same record and one silently overwrites the other | ETag + `If-Match`; on 412 surface "edited elsewhere — Reload / Keep mine" | `stacks/react/autosave.md` |
+| Mutations lost on reload, ad-hoc retries scattered across components | Durable mutation queue in IndexedDB + idempotency key per entry; multi-tab single-writer via `navigator.locks` | `stacks/react/offline-sync.md` |
+| Route handler trusts `req.json()` body without validation | `safeParse` with a shared Zod schema (FE + BE import the same module); one error envelope mapped from a discriminated `AppError` union | `stacks/nextjs/endpoints.md` |
 
 ---
 
@@ -228,7 +275,12 @@ Load `rules/review-checklist.md` for the structured review pass.
 ## Rule Files
 
 Load only what's relevant to the code in front of you. Reading every rule
-file every time is wasted context.
+file every time is wasted context. The skill is **language-agnostic at
+its core** — the table below splits into framework-neutral rules and
+stack-specific extensions. Load a stack file only when the code is in
+that stack.
+
+### Language-agnostic rules
 
 | When the code involves... | Load |
 |---|---|
@@ -248,6 +300,19 @@ file every time is wasted context.
 | Hard-to-test code, dependency injection of clock / RNG / IDs, when to invoke the `tdd` skill | `rules/testability.md` |
 | PR scope, neighbour-pattern symmetry, migration & evolution, working with legacy code, diff hygiene | `rules/collaboration.md` |
 | Naming a refactor in review output (R1 Consolidate Parallel Maps, R6 Replace Type Declaration with Inferred Type, etc.) | `rules/refactor-recipes.md` |
+
+### Stack-specific rules
+
+See `rules/stacks/README.md` for the index and the convention for adding
+a new stack.
+
+| Stack | When the code involves... | Load |
+|---|---|---|
+| **React** | Splitting components, compound / namespace components (`Component.List.Item`, `Component.useComponent`), slots, RSC boundaries | `rules/stacks/react/components.md` |
+| **React** | Client-side data fetching, server state, query caches, optimistic updates, cache surgery (create/update/delete), query keys, request waterfalls, TanStack Query / React Query / SWR, Next.js App Router prefetch, HydrationBoundary, dehydrate, initialData, per-request QueryClient | `rules/stacks/react/data-fetching.md` |
+| **React** | Autosave forms, debounce + max-wait flush, on-blur / visibility / pagehide triggers, local-first draft buffer (localStorage / IndexedDB), status indicator with ARIA live regions, ETag / `If-Match` conflict detection, offline retry with idempotent PATCH (defers to `/ux` for form fundamentals) | `rules/stacks/react/autosave.md` |
+| **React** | App-wide offline + sync, durable mutation queue / outbox in IndexedDB, foreground queue vs Background Sync, TanStack Query `networkMode` + persistence + `resumePausedMutations`, idempotency keys, reconnection flow, conflict resolution, multi-tab coordination (`navigator.locks` + `BroadcastChannel`) | `rules/stacks/react/offline-sync.md` |
+| **Next.js** | Server endpoints, Route Handlers / Server Actions, Zod boundary validation, shared schemas / contracts (FE + BE), API error envelope, HTTP status mapping, auth + rate-limit ordering, request IDs, span the handler with semconv attributes (defers to `/otel-instrumentation` + `/otel-semantic-conventions` for depth) | `rules/stacks/nextjs/endpoints.md` |
 
 ---
 
