@@ -44,12 +44,12 @@ Agents live in `agents/` since they require their own model and tool configurati
 - `dx` — Developer Experience review for CLI tools and shell scripts
 - `e2e-testing` — Spec-first E2E loop on top of Playwright Test Agents (Planner / Generator / Healer, v1.56) and `@playwright/mcp`. Phase 0 preflight halts and asks before installing Playwright or running `init-agents`. Enforces the locator ladder (role → label → `data-testid`), proposes `data-testid` as a source diff (never a brittle CSS selector), runs in snapshot mode by default, and caps the heal loop at three attempts before escalating via `confidence(bug-analysis)`
 - `implement-suggestion` — Implement fixes from review comments
-- `init-claude` — Initialize Claude Code configuration for a project
+- `init-claude` — Initialize Claude Code configuration for a project. Routes content by tier: hard rules and decision tables to `CLAUDE.md` (auto-loaded hot path) and `.claude/rules/` (path-scoped); narrative, rationale, and onboarding to a `docs/` tree (root + nested for monorepos) that humans also benefit from. CLAUDE.md `@imports` give the agent a fallback path into `docs/`
 - `profile-optimizer` — Analyse React DevTools Profiler exports or Chrome Performance traces; auto-detects the format, extracts hotspots, maps them to source, and emits a ranked optimisation plan. Confidence-gated via `confidence(bug-analysis)` — iterates if root-cause certainty is below 90%
 - `playwright-trace-analyzer` — Analyse Playwright `trace.zip` files; accepts a GitHub Actions run URL and uses `gh run download` to fetch artifacts, then extracts the action timeline, network waterfall, and console errors. Names the race behind a flake and emits a ranked fix plan. Confidence-gated via `confidence(bug-analysis)`
 - `resolve-conflicts` — Analyze and resolve Git merge/rebase conflicts
 - `review-changes` — Review branch changes or PR (dispatches to reviewer)
-- `update-claude` — Update CLAUDE.md and rules based on code changes
+- `update-claude` — Update `CLAUDE.md`, `.claude/rules/`, **and `docs/`** based on code changes. Detects drift across all three tiers (dead `@imports`, stale narrative, hot-path leakage), and routes new updates by content kind — rules to the hot path, rationale and narrative to `docs/`
 - `video-analyser` — Analyse a screen recording for bugs: resolves input from a Linear ticket URL, local path, or direct URL; extracts keyframes with ffmpeg; runs optional Tesseract OCR and Whisper transcription; returns structured findings (errors, UI state, repro steps)
 
 ### Agents
