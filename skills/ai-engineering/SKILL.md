@@ -87,6 +87,20 @@ Load **only** the rules listed for the matched area(s).
 `testing.md` covers engineering-correctness tests (mocks, VCR, snapshots).
 Load both when the user asks "how do I test this?" without specifying.
 
+**Observability composition.**
+When the area is `Observability & versioning` and the task involves OTEL
+wiring or attribute naming, invoke the dash0 OTEL skills via `Skill()`
+**before** answering — they hold the source of truth for spans and
+`gen_ai.*` semconv:
+
+- `Skill("otel-instrumentation", ...)` — SDK setup, exporters, span shape.
+- `Skill("otel-semantic-conventions", ...)` — attribute naming and
+  spec validation.
+
+If neither skill is in the available-skills list, fall back to the
+inline guidance in `rules/observability-and-versioning.md` and the OTEL
+spec.
+
 If the user does not name an area, ask one batched clarifying question
 listing the nine options before loading rules.
 

@@ -167,7 +167,7 @@ Reserve them for:
 For low-risk paths (UI rendering, summarisation), use deterministic
 checks (regex, schema, length) — they're free.
 
-Source: [Datadog — LLM Guardrails Best Practices](https://www.datadoghq.com/blog/llm-guardrails-best-practices/).
+Source: [OWASP LLM Prompt Injection Prevention Cheat Sheet — defence in depth](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html).
 
 ## Quote untrusted content; never paraphrase it into instructions
 

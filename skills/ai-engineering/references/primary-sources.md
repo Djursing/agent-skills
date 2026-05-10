@@ -20,7 +20,8 @@ Provider docs win over blog summaries.
 - Practitioners — Hamel Husain, Eugene Yan, Chip Huyen
 - Research / surveys — CoT regression, few-shot dilemma, JSON schema
 - Safety — OWASP LLM Top 10, prompt-injection cheat sheet
-- Observability — Langfuse, OTEL, PromptLayer
+- Observability — OTEL spec + Dash0 (companion skills)
+- Prompt versioning — PromptLayer
 - RAG — chunking, hybrid search, HyDE
 
 ---
@@ -78,25 +79,30 @@ Provider docs win over blog summaries.
 
 - [OWASP LLM01:2025 — Prompt Injection](https://genai.owasp.org/llmrisk/llm01-prompt-injection/)
 - [OWASP LLM Prompt Injection Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html)
-- [Datadog — LLM Guardrails Best Practices](https://www.datadoghq.com/blog/llm-guardrails-best-practices/)
 - [Lakera — Indirect Prompt Injection](https://www.lakera.ai/blog/indirect-prompt-injection)
 
-## Observability / tooling
+## Observability
 
 - [OpenTelemetry — GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/)
-- [OpenTelemetry — Tracing API](https://opentelemetry.io/docs/concepts/signals/traces/)
-- [Langfuse — Observability overview](https://langfuse.com/docs/observability/overview)
-- [Langfuse — Get started with tracing](https://langfuse.com/docs/observability/get-started)
-- [Langfuse — Native OpenTelemetry integration](https://langfuse.com/integrations/native/opentelemetry)
-- [PromptLayer — Prompt Versioning](https://www.promptlayer.com/glossary/prompt-versioning/)
-- [PromptLayer — A/B releases](https://docs.promptlayer.com/why-promptlayer/ab-releases)
+- [OpenTelemetry — Tracing concepts](https://opentelemetry.io/docs/concepts/signals/traces/)
 
-### Companion skills (invoke from the observability rule)
+### Companion skills (invoked from the observability rule via `Skill()`)
 
 - `/otel-instrumentation` (dash0) — wires OTEL into a service or
-  refactors existing tracing.
+  refactors existing tracing. Source of truth for SDK setup, exporters,
+  span shape, resource attributes.
 - `/otel-semantic-conventions` (dash0) — validates span attributes
-  against the spec, including `gen_ai.*`.
+  against the spec, including `gen_ai.*`. Source of truth for attribute
+  naming.
+
+The ai-engineering observability rule must invoke both before answering
+OTEL questions (see `rules/observability-and-versioning.md`).
+Backend: Dash0.
+
+## Prompt versioning
+
+- [PromptLayer — Prompt Versioning](https://www.promptlayer.com/glossary/prompt-versioning/)
+- [PromptLayer — A/B releases](https://docs.promptlayer.com/why-promptlayer/ab-releases)
 
 ## RAG
 
