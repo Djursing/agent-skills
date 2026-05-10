@@ -6,10 +6,10 @@ description: >
   free-text symptom — by classifying the input, resolving evidence, mapping it to source,
   delegating root-cause analysis to holistic-analysis, and gating the fix on confidence(bug-analysis).
   At >= 90% confidence the skill hands off to autonomous-workflow (aw-planner + aw-executor) to
-  ship a draft PR; below 90% it returns the proposal for human review. Video inputs delegate to
-  /video-analyser. Linear-ticket integration is documented as a follow-up. Triggers on "fix this
-  bug", "investigate this error", "this Dash0 span shows a failure", "this stack trace looks
-  wrong", "/fix-bug".
+  ship a draft PR; below 90% it returns the proposal for human review. Pass --analyse-only to stop
+  after the proposal regardless of confidence (read-only analysis). Video inputs delegate to
+  /video-analyser. Triggers on "fix this bug", "investigate this error", "this Dash0 span shows a
+  failure", "this stack trace looks wrong", "/fix-bug".
 license: MIT
 user-invocable: true
 disable-model-invocation: true
@@ -74,6 +74,17 @@ Fix Pack, produces `plan.md` gated by its own internal `confidence(plan) >= 90%`
 
 ---
 
+## Modes
+
+| Flag | Default | Behaviour |
+|------|---------|-----------|
+| (none) | **yes** | Full pipeline. Phase 5 dispatches `aw-planner` + `aw-executor` when confidence >= 90%. |
+| `--analyse-only` | | Read-only analysis. Phases 0–4 run as normal; Phase 5 **always** returns the proposal regardless of confidence; Phase 6 is skipped. Use when you want findings without shipping a PR — e.g. triage, second opinion, or as the analysis primitive `/batch-linear-tickets` calls per ticket. |
+
+The flag is detected in Phase 0 and stripped from `$ARGUMENTS` before input classification.
+
+---
+
 ## Prerequisites
 
 | Dependency | Purpose | Required? |
@@ -85,7 +96,7 @@ Fix Pack, produces `plan.md` gated by its own internal `confidence(plan) >= 90%`
 | `gw` CLI | Worktree management (planner) | Recommended |
 | `video-analyser` skill | Resolve video / screen-recording inputs | If video input |
 | Dash0 MCP server (`mcp__dash0__*` or equivalent) | Resolve span / log / web event URLs | If Dash0 input |
-| Linear MCP (`mcp__claude_ai_Linear__*`) | Future Linear-ticket adapter (see [future-linear-integration](./rules/future-linear-integration.md)) | Optional today |
+| Linear MCP (`mcp__claude_ai_Linear__*`) | Linear-ticket input adapter (when invoked from `/batch-linear-tickets` or with a Linear URL) | If Linear input |
 
 If a required-conditional dependency is missing, surface it at Phase 1 and ask the user how to
 proceed.
@@ -98,7 +109,6 @@ proceed.
 |------|---------------|
 | [evidence-resolution](./rules/evidence-resolution.md) | Phase 1 — per-input procedures (Dash0, stack, error, code pointer, multi-input merging) |
 | [autonomous-handoff](./rules/autonomous-handoff.md)   | Phase 6 — `aw-planner` + `aw-executor` dispatch |
-| [future-linear-integration](./rules/future-linear-integration.md) | Documentation only — planned shape when Linear becomes an input adapter |
 
 ## Templates
 
@@ -110,8 +120,22 @@ proceed.
 
 ## Phase 0 — Intake & Input Classification
 
-Parse `$ARGUMENTS`. The argument may be empty, a single token (URL or path), free text, or a
-multi-line block (e.g. a pasted stack trace).
+### Step 0a — Detect mode flag
+
+Scan `$ARGUMENTS` for `--analyse-only` (also accept `--analyze-only`). If present, set
+`ANALYSE_ONLY=true`, remove the flag from the argument string, and state the detected mode in one
+line before continuing:
+
+```text
+Mode: analyse-only
+```
+
+If the flag is absent, do not print a mode line.
+
+### Step 0b — Classify the input
+
+Parse the remaining `$ARGUMENTS`. The argument may be empty, a single token (URL or path), free
+text, or a multi-line block (e.g. a pasted stack trace).
 
 Walk the table top-to-bottom. The first matching row wins.
 
@@ -223,6 +247,13 @@ Otherwise the score from Phase 3 is authoritative — do not re-evaluate.
 
 ## Phase 5 — Branch Decision
 
+If `ANALYSE_ONLY=true`, **always return the proposal** regardless of confidence. Skip the
+auto-implement row below and skip Phase 6. Surface the confidence score and what would raise it,
+but do not offer to dispatch `aw-planner`. The output's `Outcome` line indicates `analyse-only
+(no PR)`.
+
+Otherwise (default mode):
+
 | Confidence | Action |
 |------------|--------|
 | **>= 90%** | Proceed to Phase 6. Inform the user before dispatching: one-line summary of root cause + proposed fix + confidence score, and that a draft PR will follow. |
@@ -236,7 +267,10 @@ deliberately so the two skills compose without surprise.
 
 ## Phase 6 — Autonomous Handoff
 
-Runs only when Phase 5 cleared at >= 90% (or the user force-proceeded after 70–89%).
+Runs only when **all** of the following are true:
+
+- `ANALYSE_ONLY` is not set.
+- Phase 5 cleared at >= 90% (or the user force-proceeded after 70–89%).
 
 See [`rules/autonomous-handoff.md`](./rules/autonomous-handoff.md) for the dispatch procedure and
 [`templates/bug-fix-pack.md`](./templates/bug-fix-pack.md) for the literal pack passed to
@@ -270,6 +304,7 @@ structure regardless of whether the fix shipped; only the tail varies.
 ### Outcome
 <one of:>
 - Auto-implemented: PR <url> on branch <name>. CI watching.
+- Analyse-only (no PR): proposal returned at X% confidence. To ship a fix, re-run without --analyse-only.
 - Below gate (X%): proposal returned for review. To raise the score, collect: <specific evidence>.
 - Stopped: <reason>.
 ```
@@ -302,6 +337,8 @@ structure regardless of whether the fix shipped; only the tail varies.
    re-run it in Phase 4 unless evidence has materially changed.
 5. **No force-proceed under 70%.** Below 70% the skill stops and hands back to the user. No escape
    hatch.
-6. **Linear is a future input adapter, not a separate orchestrator.** See
-   [`rules/future-linear-integration.md`](./rules/future-linear-integration.md). Until that lands,
-   `/fix-bug` does not duplicate Linear logic.
+6. **Linear is one input adapter among several.** A Linear URL routes through
+   `linear-ticket-investigator` to produce an Evidence Record, then continues at Phase 2 like any
+   other input. `/batch-linear-tickets` is a thin wrapper that fans out `/fix-bug --analyse-only`
+   per ticket, runs cross-ticket correlation, then fans out `/fix-bug` (without the flag) for
+   approved tickets.

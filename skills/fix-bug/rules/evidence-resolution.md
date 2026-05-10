@@ -42,27 +42,49 @@ analysis phase can consume. Walk only the procedures that match the classified i
    - Trace / span: `traceId`, `spanId` query parameters or path components.
    - Log: log entry ID or query expression.
    - Web event: RUM event ID, session replay ID.
-4. Call the appropriate Dash0 MCP tool to fetch the artefact. Capture:
+4. **Compensate for time zones when constructing time-range queries.** Dash0 stores timestamps in
+   UTC, but URLs and chat input often carry the user's local time. Before issuing a time-bounded
+   query (e.g. "logs around the failing span"):
+   - If the artefact URL contains `from` / `to` query parameters, use those values verbatim — they
+     are already UTC.
+   - If you derive a window from a human-readable timestamp the user pasted, convert it to UTC
+     using their reported time zone (or `Intl.DateTimeFormat().resolvedOptions().timeZone` if
+     unstated) before sending it to the MCP tool.
+   - Pad the window by ±5 minutes — clock skew between the user's browser and the ingest pipeline
+     can shift events by seconds to minutes.
+5. Call the appropriate Dash0 MCP tool to fetch the artefact. Capture:
    - Service name, environment, deployment / release version.
    - Operation name, span attributes (especially `code.*`, `exception.*`, `http.*`, `db.*`).
    - Stack trace if present (often in `exception.stacktrace`).
    - Linked spans (parent, root, children) — bugs frequently live one or two hops up the trace
      from where they surface.
    - Surrounding logs in the same trace (correlate by `trace_id`).
-5. If the span has `exception.stacktrace`, also route the stacktrace through [Stack trace](#stack-trace)
+6. If the span has `exception.stacktrace`, also route the stacktrace through [Stack trace](#stack-trace)
    so source mapping benefits from both signals.
 
 ## Linear input
 
-Today this skill does not auto-resolve Linear tickets. Print this exact message and wait:
+Linear tickets are resolved by the `linear-ticket-investigator` agent, which reads the ticket via
+Linear MCP, applies the project's domain navigator, and returns an Evidence Record. Invoke it via:
 
 ```text
-Linear-ticket integration is documented but not yet implemented. Open the
-ticket, copy the most useful evidence (Dash0 link, stack trace, screenshot
-or video, code pointer) into this chat, and I will continue.
+Agent({
+  subagent_type: "linear-ticket-investigator",
+  description: "Investigate Linear ticket {ID}",
+  prompt: "Extract evidence from Linear ticket {ID}. Return an Evidence Record (no analysis)."
+})
 ```
 
-See [`rules/future-linear-integration.md`](./future-linear-integration.md) for the planned shape.
+Pass the returned Evidence Record forward to Phase 2 of `/fix-bug` like any other input. Do not
+re-investigate; the investigator owns the ticket-reading step.
+
+If the Linear MCP server is not configured, print this message and wait:
+
+```text
+Linear MCP is not configured. Open the ticket, copy the most useful evidence
+(Dash0 link, stack trace, screenshot or video, code pointer) into this chat,
+and I will continue.
+```
 
 ## Code pointer
 
