@@ -19,7 +19,7 @@ Observability is the foundation of every other rule in this skill.
 
 ## Contents
 
-- Trace every LLM call (fields, stack: Langfuse, OTEL)
+- Trace every LLM call (OTEL is the strong default)
 - Span hierarchy for agents
 - Redact PII before logging
 - Sampling policy — keep all errors and slow paths
@@ -28,7 +28,7 @@ Observability is the foundation of every other rule in this skill.
 - Alert on the right things
 - Common mistakes
 
-## 1. Trace every LLM call
+## 1. Trace every LLM call — OpenTelemetry is the strong default
 
 For every model call, record:
 
@@ -43,15 +43,70 @@ For every model call, record:
 | Tool calls + results | Full nested span tree for agents.                              |
 | User / session ID    | Correlation across traces.                                     |
 
-Minimum viable stack (Q1 2026):
+**Default to OpenTelemetry (OTEL) with the GenAI semantic conventions.**
+Vendor-specific tracing (Langfuse SDK, Helicone proxy, Braintrust) is
+fine, but build on OTEL underneath — it's the converging standard,
+every backend ingests it, and switching vendors becomes a config change
+instead of a rewrite.
 
-- **Langfuse** (open-source, self-hostable) — turnkey LLM tracing.
-- **OpenTelemetry** — converging standard.
-  Pydantic AI, smolagents, Strands, OpenAI Agents SDK all emit OTEL
-  natively.
-- **Helicone, Braintrust, Arize Phoenix** — commercial alternatives.
+The GenAI semantic conventions (`gen_ai.*` attributes) are non-negotiable.
+They're how every backend recognises an LLM span as an LLM span:
 
-Source: [Langfuse — Tracing](https://langfuse.com/docs/observability/get-started).
+| Attribute                          | What it carries                                  |
+| ---------------------------------- | ------------------------------------------------ |
+| `gen_ai.system`                    | `anthropic`, `openai`, `google`.                  |
+| `gen_ai.request.model`             | Requested model id.                              |
+| `gen_ai.response.model`            | Resolved model id (different on aliases).        |
+| `gen_ai.usage.input_tokens`        | Prompt tokens billed.                             |
+| `gen_ai.usage.output_tokens`       | Completion tokens billed.                         |
+| `gen_ai.usage.cache_read_tokens`   | Anthropic cache read tokens.                      |
+| `gen_ai.operation.name`            | `chat`, `embeddings`, `tool_use`.                 |
+
+If you skip these, your traces look like generic HTTP spans and the
+backend cannot compute LLM-specific metrics (cost, cache hit rate,
+TTFT).
+
+Most modern frameworks already emit OTEL natively:
+Pydantic AI, smolagents, Strands, OpenAI Agents SDK, LangChain (via
+`langchain-otel`), LiteLLM.
+For the rest, instrument at the SDK boundary using the OTEL SDK.
+
+### Use the dash0 skills for this
+
+If you have them installed (slash commands):
+
+- **`/otel-instrumentation`** — Use when adding OTEL to a new service or
+  refactoring existing tracing.
+  Walks through SDK setup, exporter choice, span shape, and resource
+  attributes; produces the wiring code.
+- **`/otel-semantic-conventions`** — Use when picking attribute names or
+  validating a span against the spec.
+  Authoritative on `gen_ai.*` (LLMs), `db.*`, `http.*`, etc., and flags
+  attribute drift before it ships.
+
+Invoke `/otel-instrumentation` when designing the trace pipeline;
+invoke `/otel-semantic-conventions` when reviewing emitted spans for
+compliance.
+Together they replace the "is this attribute name right?" guesswork
+that produces non-portable traces.
+
+### Backends
+
+Any OTEL-compatible backend works.
+Common picks (Q1 2026):
+
+- **Dash0, Honeycomb, Grafana Tempo, Datadog APM** — full APM with
+  GenAI dashboards.
+- **Langfuse** — LLM-specialised; ingests OTEL natively.
+- **Arize Phoenix, Helicone, Braintrust** — LLM-specialised
+  alternatives.
+
+Pick by ergonomics for your team; the trace data itself is portable
+because OTEL is the wire format.
+
+Sources:
+[OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/),
+[Langfuse — Native OpenTelemetry integration](https://langfuse.com/integrations/native/opentelemetry).
 
 ## 2. Span hierarchy for agents
 
@@ -178,7 +233,11 @@ Useless alerts (that teams set anyway):
 ## Common mistakes
 
 - **No tracing in prod.**
-  **Fix:** Langfuse / OTEL — anything is better than nothing.
+  **Fix:** OTEL with GenAI semantic conventions. Anything is better than
+  nothing, but vendor-locked tracing is one rewrite away.
+- **Tracing without `gen_ai.*` attributes.**
+  **Fix:** apply the OTEL GenAI semantic conventions; invoke
+  `/otel-semantic-conventions` to validate.
 - **Logging raw PII to the trace store.**
   **Fix:** redact before logging.
 - **Prompts edited in a vendor dashboard, not in git.**

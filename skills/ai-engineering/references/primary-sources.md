@@ -83,11 +83,20 @@ Provider docs win over blog summaries.
 
 ## Observability / tooling
 
+- [OpenTelemetry — GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/)
+- [OpenTelemetry — Tracing API](https://opentelemetry.io/docs/concepts/signals/traces/)
 - [Langfuse — Observability overview](https://langfuse.com/docs/observability/overview)
 - [Langfuse — Get started with tracing](https://langfuse.com/docs/observability/get-started)
 - [Langfuse — Native OpenTelemetry integration](https://langfuse.com/integrations/native/opentelemetry)
 - [PromptLayer — Prompt Versioning](https://www.promptlayer.com/glossary/prompt-versioning/)
 - [PromptLayer — A/B releases](https://docs.promptlayer.com/why-promptlayer/ab-releases)
+
+### Companion skills (invoke from the observability rule)
+
+- `/otel-instrumentation` (dash0) — wires OTEL into a service or
+  refactors existing tracing.
+- `/otel-semantic-conventions` (dash0) — validates span attributes
+  against the spec, including `gen_ai.*`.
 
 ## RAG
 
