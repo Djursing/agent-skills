@@ -470,7 +470,7 @@ skills/
                          templates/                          (slash command)
   e2e-testing-mobile/    SKILL.md + rules/ + references/ +
                          templates/                          (slash command)
-  fix-bug/               SKILL.md                            (slash command)
+  fix-bug/               SKILL.md + rules/ + templates/      (slash command)
   holistic-analysis/     SKILL.md                            (agent-invokable)
   tdd/                   SKILL.md + rules/                   (agent-invokable)
   test-provenance-guard/ SKILL.md + rules/ + references/     (agent-invokable, applied)
