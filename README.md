@@ -136,6 +136,7 @@ User-invoked only — the model can't auto-trigger these. **Zero baseline contex
 
 | Command                                                             | What it does                                                                                                                                                                                                                                                             |
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **[/ai-engineering](./skills/ai-engineering/SKILL.md)**             | Reviews and guides LLM/AI application engineering: prompt writing, system-prompt design, prompt caching and token cost, RAG, agent loops and tool design, eval harnesses with LLM-as-judge bias mitigations, testing (mocks, VCR, snapshots, CI cost discipline), safety and prompt-injection defence, and observability. Synthesises 2025–2026 practices from primary provider docs (Anthropic, OpenAI, Google), OWASP LLM Top 10, and practitioners. |
 | **[/ci-auto-fix](./skills/ci-auto-fix/SKILL.md)**                   | Diagnoses a failed CI check, applies a minimal fix, pushes, and iterates until CI passes. Provider-agnostic in scope; currently implements the GitHub Actions path. Refuses to disable, skip, or weaken checks.                                                          |
 | **[/code-quality](./skills/code-quality/SKILL.md)**                 | Authors and reviews code for low cognitive complexity, readability, and maintainability. Applies guard clauses, early returns, single-responsibility, and pragmatic performance choices grounded in Clean Code, Cognitive Complexity, and Knuth's optimization guidance. |
 | **[/create-pr](./skills/create-pr/SKILL.md)**                       | Generates a narrative PR description, pushes the branch, opens the PR, then watches CI and auto-fixes simple failures (lint, format, lockfiles). Escalates judgment-required failures via `/confidence` rather than guessing.                                            |
@@ -470,6 +471,8 @@ skills/
   aw-create-plan/        SKILL.md                            (workflow companion, slash-only)
   aw-create-walkthrough/ SKILL.md                            (workflow companion, slash-only)
   aw-review-quality-gate/ SKILL.md                           (workflow companion, slash-only)
+  ai-engineering/        SKILL.md + rules/ + references/ +
+                         templates/                          (slash command)
   ci-auto-fix/           SKILL.md                            (slash command)
   code-quality/          SKILL.md + rules/                   (slash command)
   create-pr/             SKILL.md                            (slash command)
