@@ -243,6 +243,52 @@ Disable by removing the invocation here (see
 
 ---
 
+## Adversarial Pre-Mortem (opt-in)
+
+**Anchor:** `adversarial-pre-mortem`
+
+**Opt-in only.** Run this step **only** when the user passed `--critical` to
+the workflow. Skip silently otherwise — no auto-engage heuristics at this stage.
+
+Purpose: surface plan defects that pass static rules but would fail under
+adversarial review, and force exploration of at least one alternative design
+before the confidence gate locks the plan in.
+
+Run between `code-quality(plan)` and `confidence(plan)`:
+
+```
+Skill("critical", "plan")
+```
+
+Treat the output as follows:
+
+- **Must-fix** items → plan defects. Update the technical approach (or
+  `plan.md` if it has been drafted) to address them before the confidence
+  gate runs.
+- **Should-fix / Nice-to-have** items → log as plan notes; address only if
+  they meaningfully improve the design.
+- **Steelman alternative** → preserve verbatim under a `## Considered
+  alternatives` section of the plan. This is the load-bearing differentiator
+  vs. `code-quality` and `confidence` — record it even when the chosen
+  approach wins.
+
+`critical` is **advisory** — it does not gate. `confidence(plan)` remains the
+only mandatory gate. Never bypass confidence on the strength of a clean
+adversarial pass.
+
+Log:
+
+```markdown
+- [TIMESTAMP] Phase 1: critical(plan) — applied (N must-fixes addressed, steelman recorded)
+- [TIMESTAMP] Phase 1: critical(plan) — not available, continuing
+- [TIMESTAMP] Phase 1: critical(plan) — skipped (no --critical flag)
+```
+
+Disable by removing the invocation here (see
+[`companion-skills.md`](./companion-skills.md#registry)).
+
+---
+
 ## Confidence Gate
 
 **Anchor:** `confidence-gate`

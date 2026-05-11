@@ -125,6 +125,7 @@ for the full registry, trigger conditions, and **how to disable any companion**.
 | ----- | ---------------------- | ------------------------------------------------------ | ---------------- |
 | 1     | `holistic-analysis`    | Complex / multi-domain / unfamiliar task               | —                |
 | 1     | `code-quality`         | Always (informs design)                                | `plan`           |
+| 1     | `critical`             | Opt-in only (user passed `--critical` to the workflow). Single adversarial pre-mortem pass between `code-quality(plan)` and `confidence(plan)`. Findings flow into `aw-create-plan` as plan defects (must-fix) and considered-alternatives notes (steelman). Advisory — does not gate. | `plan` |
 | 1     | `confidence`           | Always (plan gate, MANDATORY)                          | `plan`           |
 | 2     | `aw-create-plan`       | Full Mode only                                         | —                |
 | 3     | `tdd`                  | Pure logic / business rules / "test-driven"            | —                |

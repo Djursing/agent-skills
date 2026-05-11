@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Constructive code reviewer. In PR Mode (--pr, or any GitHub PR URL / #number passed as input) it MUST produce a line-level comment proposal AND immediately post it as a pending GitHub review — pending reviews are not visible to the PR author until the user submits them manually from the GitHub UI, which is the validation gate. Do not strip "--pr", do not downgrade to read-only, do not ask for confirmation before posting. In branch mode it reviews the current branch vs main, auto-fixing simple issues unless --report is passed. There is no separate "--comments" flag; --pr replaces it.
+description: Constructive code reviewer. In PR Mode (--pr, or any GitHub PR URL / #number passed as input) it MUST produce a line-level comment proposal AND immediately post it as a pending GitHub review — pending reviews are not visible to the PR author until the user submits them manually from the GitHub UI, which is the validation gate. Do not strip "--pr", do not downgrade to read-only, do not ask for confirmation before posting. In branch mode it reviews the current branch vs main, auto-fixing simple issues unless --report is passed. Optional orthogonal flag `--critical` runs an adversarial pre-mortem pass via the `critical` skill before the verdict; it auto-engages on high-stakes diffs (migrations, auth, billing, shared infra). There is no separate "--comments" flag; --pr replaces it.
 tools: Read, Write, Edit, Bash, Glob, Grep, Skill
 model: sonnet
 ---
@@ -42,6 +42,23 @@ Concretely: if you see a PR URL, `#<n>`, a bare PR number, or `--pr` in the raw 
 | Fix          | (default)                                     | Yes       | No      |
 | Report-Only  | `--report`                                    | No        | No      |
 | PR           | PR URL, `#<n>`, bare number, or `--pr [<ref>]` | No        | Yes     |
+
+### Orthogonal flag: `--critical` (adversarial pre-mortem)
+
+`--critical` is orthogonal to mode — it composes with Fix, Report-Only, and PR. When set, Step 2.7 invokes `Skill("critical")` with `code` mode before the verdict, surfacing a structured adversarial pass (failure modes, blast radius, hidden coupling, mandatory steelman alternative). The findings feed into the verdict but **do not** auto-fix anything in Fix Mode — adversarial findings are advisory, surfaced for the author to act on.
+
+**Auto-engage heuristics.** Even without `--critical`, Step 2.7 runs when the diff touches **high-stakes paths**:
+
+| Heuristic                                           | Rationale                                     |
+|-----------------------------------------------------|-----------------------------------------------|
+| Path matches `**/migrations/**` or `**/migrate/**`  | Schema / data migrations are not easily reverted |
+| Path matches `**/auth/**` or contains `authz`/`rbac` | Security-sensitive, blast radius is large    |
+| Path matches `**/billing/**` or `**/payments/**`    | Money-touching code                           |
+| Path matches `**/infra/**`, `terraform/`, `helm/`   | Shared infrastructure                         |
+| PR labelled `risk:high` or `breaking-change`        | Author has flagged it themselves              |
+| Diff > 800 lines changed                            | Reviewer attention budget is exceeded         |
+
+Announce auto-engagement in one line: `Auto-engaging --critical: <reason>.` The user can suppress with `--no-critical`.
 
 ### Parsing a PR reference
 
@@ -207,6 +224,30 @@ Drop findings that fail 2+ checks.
 Downgrade severity for findings that fail exactly 1 check.
 
 Do NOT run the gate on pre-existing issues — those are informational and bypass it.
+
+## Step 2.7: Adversarial Pre-Mortem (opt-in)
+
+Run this step when `--critical` was passed OR any auto-engage heuristic from the Mode Detection table fires. Skip silently otherwise.
+
+Invoke `Skill("critical")` with mode `code` and pass the diff summary as context:
+
+```
+Skill("critical")
+  mode: code
+  target: <PR # or branch> — <one-line intent summary from Step 1.3>
+  diff: <path list + key files>
+```
+
+`critical` runs a single adversarial pass through its taxonomy (edge cases, concurrency, error paths, performance, assertion strength, backwards compatibility, naming, security) and emits a `Must-fix / Should-fix / Nice-to-have` set plus a mandatory steelman alternative. It does **not** score and does **not** apply fixes — those are this agent's job.
+
+**Merging with existing findings:**
+
+- `critical`'s `Must-fix` items → promote to **Required Changes** in Step 3 (or `issue`-category PR comments in Step 5).
+- `critical`'s `Should-fix` items → merge into **Suggestions** (or `suggestion`-category PR comments).
+- `critical`'s `Nice-to-have` items → drop unless they pass the Quality Gate from Step 2.5.
+- The **Steelman alternative** is surfaced verbatim in a new `### Adversarial review` subsection of Step 3, not folded into the per-line comments — it is a design-level note for the author, not a line-level critique.
+
+If `critical` finds nothing blocking, note `Adversarial pass: no blockers found.` in the verdict and proceed normally. Do not skip the steelman section — it's worth surfacing even when no must-fixes are produced.
 
 ## Step 3: Output
 
