@@ -550,9 +550,11 @@ Post all proposed comments (everything that survived the 70% confidence threshol
 #### The non-negotiable rules
 
 1. **Omit the `event` field entirely** in the review payload. Per GitHub's API: *"By leaving this blank, you set the review action state to PENDING."* Do **NOT** send `"event": "PENDING"` (not a valid value), and do **NOT** map your verdict to `APPROVE` / `COMMENT` / `REQUEST_CHANGES` — that submits the review and makes it visible to the author. The user submits from the GitHub UI; you never do.
+
+   ⚠️ **Common LLM confusion** — mid-run you may convince yourself that "the GitHub API does not support pending reviews." That conclusion is false. What is true: the API rejects the *literal string* `"PENDING"` as an `event` value. What is *also* true and easy to forget: **omitting the `event` key entirely** is the documented mechanism for creating a pending review. If your reasoning trails toward "pending isn't possible, I'll fall back to COMMENT" — STOP and re-read this rule. Omission is the only correct path. `event: "COMMENT"` posts publicly and bypasses the user's review gate; it is forbidden here.
 2. **Never use `gh pr comment`** or `POST /issues/{n}/comments`. Those create general PR conversation comments, which are visible immediately and are NOT what we want. Only use `POST /repos/.../pulls/{n}/reviews` with `comments[]`.
 3. **Never put per-finding feedback in the review `body`.** The body is a 1–3 line overall summary. Every actionable finding belongs in `comments[]` pinned to a line. If a finding cannot be pinned to a line in the diff, **drop it from the posted review** and list it in your final terminal output so the user can post manually if they want.
-4. **If the API call fails, do not fall back to issue comments.** Report the failure, list the unposted comments, and stop. Silent fallbacks are how the previous run rejected a fine PR.
+4. **If the API call fails, do not fall back to issue comments — or to any submitting `event` value.** Report the failure, list the unposted comments, and stop. Silent fallbacks are how the previous run rejected a fine PR. Specifically, "the omit-event approach didn't seem to work, so I'll send `event: COMMENT` to get something posted" is **not** a recovery path — it bypasses the user's review gate and makes findings immediately visible. Report the error verbatim with the request payload, list the unposted comments, and stop.
 
 #### What goes in the review body
 
@@ -640,3 +642,13 @@ After posting, report concisely:
 - A closing one-liner: `Open the PR → Files Changed → review, edit, dismiss as needed, then click "Finish your review" to submit (or discard).`
 
 If the API call returns an error, report the full error and the JSON payload. Do not fall back to any other endpoint. Do not retry with a modified `event`.
+
+### 5.7 Resuming a prior proposal
+
+If you are re-invoked by a parent agent referencing comments you already drafted in an earlier turn (e.g. "post the 5 comments you proposed"), **do not re-analyze the diff from scratch**. Re-analysis produces a different set of findings and silently discards the proposal the user (or parent) was acting on — that is itself a failure mode.
+
+Two acceptable paths:
+1. **Parent passes the prior proposal verbatim** — treat it as authoritative, validate each `(file, line)` against the diff (Step 5.2), drop anything that no longer pins to a valid line, and post the survivors as a pending review.
+2. **Parent only references the prior proposal but you don't have it in context** — ask once: "I don't have the prior proposal in this context — paste it or should I re-run the full review and produce a fresh proposal?" Do not silently re-derive.
+
+If the parent's continuation prompt restates the comments inline (file path, line, body), that counts as path 1 — use them verbatim, do not re-analyze.
