@@ -82,6 +82,13 @@ If short-circuit fires, log the decision in the bug-notes ledger as a `confirmed
 (`hypotheses[0].state = confirmed; evidence-for: pre-flight probes 1+6`). See
 [`bug-notes-ledger.md`](./bug-notes-ledger.md).
 
+The short-circuit **also upgrades Phase 0.5 triage** from `complex` to `simple` if triage hadn't
+already picked `simple`. The upgrade is logged in the ledger under the existing `Complexity triage`
+section as: `triage upgrade: complex → simple (pre-flight short-circuit fired)`. The fast-lane in
+[`autonomous-handoff.md`](./autonomous-handoff.md#fast-lane) becomes available at Phase 6 provided
+the other fast-lane preconditions hold (confidence ≥ 92 %, non-best-effort repro). See
+[`complexity-triage.md`](./complexity-triage.md#decision-procedure) for the override semantics.
+
 ---
 
 ## Regression window detection
