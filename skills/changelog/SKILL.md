@@ -10,8 +10,8 @@ description: >
   "what have I done", "weekly summary", "my recent work", "recap my week",
   "/changelog".
 disable-model-invocation: true
-argument-hint: "[days]"
-allowed-tools: Bash(gh *) Bash(date *) Read Write
+argument-hint: "[days] [--scope=current|all] [--audience=technical|general]"
+allowed-tools: Bash(gh *) Bash(date *) Bash(git *) Read Write
 license: MIT
 metadata:
   author: mthines
@@ -34,9 +34,13 @@ grouped by feature area. Render the result against the template in
 [`templates/changelog.md`](./templates/changelog.md) and print it to the
 chat.
 
-## Argument
+## Arguments
 
-A single optional positional argument controls the window in days.
+Three orthogonal arguments. Flag order is free. `days` is positional.
+
+### `days` (positional, optional)
+
+Controls the window in days.
 
 | Input            | Resolved window                                  |
 | ---------------- | ------------------------------------------------ |
@@ -45,10 +49,46 @@ A single optional positional argument controls the window in days.
 | `30`             | 30 days, ending today                            |
 | Any non-integer  | Reject with an error; do not assume a value      |
 
-Compute the window once at start with:
+### `--scope=current|all` (default: `current`)
+
+- `current` (DEFAULT) — restrict PRs to the GitHub repo of the **current
+  working directory**, resolved via
+  `gh repo view --json nameWithOwner -q .nameWithOwner`. Linear tickets
+  are **not** narrowed (Linear has no repo concept) — say so in the
+  rendered output.
+- `all` — query every repo the user authored PRs in. Output is grouped
+  **by repo first**, then by feature bucket inside each repo (see
+  [Output rules](#output-rules)).
+
+If `--scope=current` is passed but the cwd is not a GitHub-linked git
+repo, error and exit 1 — do not silently fall back to `all`. The error
+must read:
+`Current directory is not a GitHub-linked git repo. Re-run with --scope=all or cd into a repo.`
+
+### `--audience=technical|general` (default: `technical`)
+
+- `technical` (DEFAULT) — existing rendering: conventional-commit scopes
+  as buckets, identifier-level summaries, full PR numbers inline.
+- `general` — re-render for a non-engineering audience (see
+  [Audience modes](#audience-modes)).
+
+### Argument parsing
+
+Parse flags in any order; the first non-flag positional integer is
+`days`. Unknown flags must error. Compute the window once at start with:
 
 ```bash
-DAYS="${1:-7}"
+DAYS=7
+SCOPE=current
+AUDIENCE=technical
+for arg in "$@"; do
+  case "$arg" in
+    --scope=current|--scope=all) SCOPE="${arg#--scope=}" ;;
+    --audience=technical|--audience=general) AUDIENCE="${arg#--audience=}" ;;
+    --*) echo "Unknown flag: $arg" >&2; exit 1 ;;
+    *) DAYS="$arg" ;;
+  esac
+done
 [[ "$DAYS" =~ ^[1-9][0-9]*$ ]] || {
   echo "Argument must be a positive integer number of days (got \"$DAYS\")." >&2
   exit 1
@@ -56,6 +96,19 @@ DAYS="${1:-7}"
 SINCE="$(date -u -v-"${DAYS}"d +%Y-%m-%d 2>/dev/null \
          || date -u --date="${DAYS} days ago" +%Y-%m-%d)"   # BSD then GNU
 UNTIL="$(date -u +%Y-%m-%d)"
+
+case "$SCOPE" in
+  current)
+    REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)" || {
+      echo "Current directory is not a GitHub-linked git repo. Re-run with --scope=all or cd into a repo." >&2
+      exit 1
+    }
+    SCOPE_FILTER="repo:${REPO}"
+    ;;
+  all)
+    SCOPE_FILTER=""
+    ;;
+esac
 ```
 
 `gh search` treats `--merged-at` and `--closed` date ranges as **inclusive**
@@ -99,9 +152,14 @@ gh search prs \
   --author=@me \
   --state=closed \
   --closed="${SINCE}..${UNTIL}" \
+  ${SCOPE_FILTER:+$SCOPE_FILTER} \
   --limit "${LIMIT}" \
   --json title,number,url,state,closedAt,repository,labels,body
 ```
+
+When `$SCOPE_FILTER` is set (scope=current), `gh search prs` accepts the
+`repo:<owner>/<name>` qualifier as a free-form search token alongside
+the typed flags.
 
 In the agent:
 
@@ -173,6 +231,44 @@ personal recap, but state it so the empty-looking week is not a bug.
 
 ## Output rules
 
+### Scope-aware structure
+
+- `scope=current` (default): feature buckets at H2 (existing behavior).
+- `scope=all`: **repo** at H2, **feature buckets** at H3 inside each
+  repo. Repos sorted alphabetically; an `Other` repo bucket (for
+  unattributable items) sorts last. Feature buckets inside each repo
+  follow the existing alphabetical rule, with `Other` last.
+
+### Audience modes
+
+**`technical` (default)** — unchanged. All existing rules in this
+section apply.
+
+**`general`** — re-render the same data for a non-engineering reader
+(use case: weekly all-hands recap). Apply these substitutions:
+
+- **Theme buckets** replace feature buckets: *Performance*,
+  *Reliability & bug fixes*, *New features*, *Polish & UX*. Map by
+  conventional-commit type: `perf` → Performance, `fix` → Reliability,
+  `feat` → New features, `chore` / `docs` / `refactor` → Polish. Items
+  without a type are placed by judgement.
+- **User-visible impact** replaces identifier-level summaries. Strip
+  jargon (`memoize`, `parsedExpression`, `useEventSource`,
+  `transformBody`, `rAF`, `jsonHash`, `isEqual`, etc.). Lead with the
+  outcome a non-engineer would notice.
+- **Omit** the `Closed without merge` section.
+- **Keep** a short inline link at the end of every bullet using the same
+  `([#123]({{PR_URL}}))` format as technical mode. Do **not** emit a
+  `## References` footer.
+- The Summary paragraph is 2–3 plain-English sentences focused on
+  user-visible change for the week.
+- Skip the inclusive-date footnote.
+- When combined with `scope=all`: repos are H2, themes are H3 inside
+  each repo. Repos ordered by PR count descending (largest contribution
+  first).
+
+### General rules
+
 - Always emit a single Markdown block — render against
   [`templates/changelog.md`](./templates/changelog.md) verbatim, wrapped
   in a 4-backtick outer fence.
@@ -203,9 +299,9 @@ template itself.
 /changelog
 ```
 
-Resolves `SINCE=2026-05-04`, `UNTIL=2026-05-11`, fetches 11 merged PRs and
-5 closed Linear tickets, groups into `Agent0`, `Dashboards`, `OTel`, and
-`Other`, renders the template, prints inside a fenced block.
+Resolves `SINCE=2026-05-04`, `UNTIL=2026-05-11`, `--scope=current`,
+`--audience=technical`. Fetches the user's PRs in the **current repo
+only** and renders the technical template inside a fenced block.
 
 ### Good — invoked with a custom window
 
@@ -213,7 +309,29 @@ Resolves `SINCE=2026-05-04`, `UNTIL=2026-05-11`, fetches 11 merged PRs and
 /changelog 30
 ```
 
-Resolves a 30-day window, otherwise identical.
+Defaults to `--scope=current --audience=technical`. 30-day window for
+the repo of the current directory.
+
+### Good — explicit org-wide weekly summary
+
+```
+/changelog 7 --scope=all --audience=general
+```
+
+Cross-repo, general-audience rendering. Repos are H2, themes
+(*Performance* / *Reliability* / *New features* / *Polish*) are H3
+inside each. Every bullet ends with a short inline `([#123](...))`
+link — no separate references footer. Repos ordered by PR count
+descending.
+
+### Good — explicit single-repo technical recap
+
+```
+/changelog 14 --scope=current
+```
+
+14-day window for the current repo, technical rendering. Equivalent to
+the default behavior with a wider window.
 
 ### Bad — invoked with a non-integer
 
@@ -223,6 +341,11 @@ Resolves a 30-day window, otherwise identical.
 
 Reject: `Argument must be an integer number of days (got "last-month").`
 Do not silently coerce to 7.
+
+### Bad — `--scope=current` outside a GitHub-linked repo
+
+Re-run with `--scope=all` or `cd` into a repo. The skill must not
+silently fall back.
 
 ## Anti-patterns
 
@@ -235,6 +358,12 @@ Do not silently coerce to 7.
 - Writing the output to a file by default. Print to chat unless asked.
 - Stretching the window to "fill" a short list. The window is the user's
   contract.
+- Silently falling back from `--scope=current` to `--scope=all` when cwd
+  is not a GitHub-linked git repo. Error explicitly.
+- Mixing technical jargon into `--audience=general` output. The audience
+  switch is load-bearing — strip identifier-level terms ruthlessly.
+- Keeping the `Closed without merge` section in `--audience=general`.
+  Abandoned branches are noise for a non-engineering audience.
 
 ## Definition of done
 
@@ -243,6 +372,12 @@ Do not silently coerce to 7.
       (or a one-line skip notice printed if `gh` is missing).
 - [ ] Linear MCP queried for the current viewer's tickets in the window
       (or a one-line skip notice printed if MCP is unavailable).
+- [ ] `--scope` resolved (default `current`); when `current`, the
+      `gh search prs` query carries a `repo:<owner>/<name>` filter;
+      when `all`, output is grouped by repo (H2) then feature (H3).
+- [ ] `--audience` resolved (default `technical`); when `general`, theme
+      buckets / user-visible impact / inline-PR-links / no-Closed-section
+      rules applied and the jargon strip-list enforced.
 - [ ] Each item bucketed by feature using the lookup table above.
 - [ ] PR / ticket pairs merged into a single entry where one closes the
       other.
