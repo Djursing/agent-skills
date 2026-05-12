@@ -301,7 +301,7 @@ the next cap hit goes straight to user escalation.
 
 | Skill                       | Behavior                                                                            |
 | --------------------------- | ----------------------------------------------------------------------------------- |
-| `confidence("analysis")` installed | Returns confidence score + analysis findings                             |
+| `confidence("analysis")` installed | Returns confidence score + root-cause / outcome-confidence findings      |
 | `confidence` missing        | Logs `not available, continuing`; treat as confidence < 90% (conservative default)  |
 | `holistic-analysis` installed | Re-traces execution path end-to-end; output feeds the next `aw-create-plan` invocation, which writes `plan.v{N+1}.md` and updates `plan.md` |
 | `holistic-analysis` missing | Logs `not available, continuing`; perform a manual end-to-end trace yourself        |

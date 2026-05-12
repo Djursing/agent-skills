@@ -20,6 +20,7 @@ metadata:
     - plan-validation
     - code-review
     - analysis
+    - bug-analysis # deprecated alias for `analysis` — kept so tag-indexed routing still resolves
     - multi-signal
     - autonomous-workflow
 ---
