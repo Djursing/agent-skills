@@ -24,7 +24,7 @@ This repro is the executor's `FAIL_TO_PASS` contract. **The plan must:**
 2. Run the repro after each implementation edit; on failure, capture the failing input/output
    verbatim and append to `.agent/<branch>/bug-notes.md` under `Counterexamples`, then refine.
 3. Cap refinement at **3 rounds**. After the third failure, stop and return to
-   `confidence(bug-analysis fix)` rather than guessing further.
+   `confidence(analysis fix)` rather than guessing further.
 
 ## Root cause (from holistic-analysis)
 <root cause paragraph + supporting evidence from holistic-analysis Phase 4>
@@ -33,7 +33,7 @@ This repro is the executor's `FAIL_TO_PASS` contract. **The plan must:**
 <plain-language description + impact analysis from holistic-analysis Phase 7>
 
 ## Confidence
-- bug-analysis: <X%>
+- analysis: <X%>
 - breakdown:
   - Evidence strength: <Y%>
   - Root cause certainty: <Y%>

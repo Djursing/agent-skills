@@ -12,7 +12,7 @@ tags:
 # Fast-Lane Plan Contract
 
 Loaded by Phase 6 of `/fix-bug` when triage picked `simple` AND
-`confidence(bug-analysis) ≥ 92 %`. Defines the minimum `plan.md` shape that
+`confidence(analysis) ≥ 92 %`. Defines the minimum `plan.md` shape that
 `/fix-bug` must produce — via `Skill("aw-create-plan", ...)` — for
 `aw-executor` to consume without `aw-planner` ever running.
 
@@ -70,7 +70,7 @@ If any precondition fails, route to standard-lane and log the reason.
 9. **FAIL_TO_PASS contract** — the repro test name + expected failure mode
 10. **PASS_TO_PASS contract** — list of test files that must continue to pass
 11. **Bug-notes ledger pointer** — path + read/append discipline reminder
-12. **Confidence trajectory** — bug-analysis score + breakdown
+12. **Confidence trajectory** — analysis score + breakdown
 13. **Out of scope** — explicit list of what NOT to touch
 14. **Done criteria** — when aw-executor opens the draft PR
 
@@ -235,7 +235,7 @@ individual files — the executor expands suites at run time.
 ### 12. Confidence trajectory
 
 ```markdown
-## Confidence (bug-analysis)
+## Confidence (analysis)
 
 - Evidence strength: <X%>
 - Root cause certainty: <X%>
@@ -251,7 +251,7 @@ individual files — the executor expands suites at run time.
 The executor must NOT:
 
 - Modify any file outside the affected-files table in the Evidence Record
-  without re-running confidence(bug-analysis).
+  without re-running confidence(analysis).
 - Modify the repro file under `repro/` to make tests pass — verifier
   rejects this.
 - Introduce new dependencies.

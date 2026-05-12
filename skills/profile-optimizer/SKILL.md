@@ -85,7 +85,7 @@ Six phases. Do not skip a gate.
 | 1     | Measurement frame   | [`rules/measurement-methodology.md`](./rules/measurement-methodology.md) | Baseline metric chosen (TBT, INP, p95 commit, retained MB, etc.) and target stated |
 | 2     | Hotspot extraction  | [`rules/react-profile-analysis.md`](./rules/react-profile-analysis.md), [`rules/chrome-trace-analysis.md`](./rules/chrome-trace-analysis.md), or [`rules/heap-snapshot-analysis.md`](./rules/heap-snapshot-analysis.md) | Top-N bottlenecks listed with concrete numbers (ms / MB / %, count)      |
 | 3     | Root-cause          | [`rules/optimization-playbook.md`](./rules/optimization-playbook.md)     | Each hotspot mapped to a code-level cause (file path / component / API)  |
-| 4     | Confidence gate     | [`rules/confidence-loop.md`](./rules/confidence-loop.md)                 | `/confidence bug-analysis` ≥ 90% — else iterate (max 2 deep-dives)        |
+| 4     | Confidence gate     | [`rules/confidence-loop.md`](./rules/confidence-loop.md)                 | `/confidence analysis` ≥ 90% — else iterate (max 2 deep-dives)        |
 | 5     | Optimisation plan   | [`templates/analysis-report.md`](./templates/analysis-report.md)         | Report written with ranked fixes, expected impact, and verification plan |
 
 Phases 2 and 3 branch on the input format (CPU / memory) — everything else is shared.
@@ -111,10 +111,10 @@ Load on demand — do not preload.
 ## Confidence-gated iteration
 
 After the first pass at root-cause analysis, invoke the confidence skill in
-`bug-analysis` mode:
+`analysis` mode:
 
 ```text
-Skill(skill="confidence", args="bug-analysis")
+Skill(skill="confidence", args="analysis")
 ```
 
 Apply this gate:
@@ -202,7 +202,7 @@ Don't preload it — only when an input is detected as a heap format.
 - [ ] Top-N hotspots listed with measured cost (ms / MB / %, count).
 - [ ] Each hotspot mapped to a file/component/API/constructor with line or
       retainer references where possible.
-- [ ] `/confidence bug-analysis` reached ≥ 90% (or two deep-dives recorded
+- [ ] `/confidence analysis` reached ≥ 90% (or two deep-dives recorded
       with the remaining uncertainty surfaced to the user).
 - [ ] Optimisation plan written using
       [`templates/analysis-report.md`](./templates/analysis-report.md), with

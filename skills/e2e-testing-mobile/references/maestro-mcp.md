@@ -153,7 +153,7 @@ out-of-band:
   prefer the MCP loop for repeatable, repo-scoped work.
 - **AI test analysis** — Maestro Cloud's failure-clustering view that
   groups runs by likely root cause. Read it before opening
-  `confidence(bug-analysis)` on a CI-only failure.
+  `confidence(analysis)` on a CI-only failure.
 
 Neither is a replacement for the spec-first loop in this skill.
 

@@ -166,7 +166,7 @@ mis-frame feature work.
 
 Run `Skill("confidence", "<mode>")` per ticket, where mode is:
 
-- **`bug-analysis`** for bug tickets — scores evidence strength, root cause certainty, fix
+- **`analysis`** for bug tickets — scores evidence strength, root cause certainty, fix
   confidence.
 - **`plan`** for feature tickets — scores completeness, feasibility, ambiguity of the proposed
   approach captured in the investigator's Evidence Record.
@@ -175,10 +175,10 @@ Status mapping (same shape for both types, different source skill):
 
 | Status | Bug source | Feature source | Approvable? |
 |--------|-----------|---------------|-------------|
-| **Ready** | `confidence(bug-analysis)` ≥ 90% | `confidence(plan)` ≥ 90% | Yes |
-| **Needs Review** | `confidence(bug-analysis)` 70–89% | `confidence(plan)` 70–89% | Yes (with warning) |
+| **Ready** | `confidence(analysis)` ≥ 90% | `confidence(plan)` ≥ 90% | Yes |
+| **Needs Review** | `confidence(analysis)` 70–89% | `confidence(plan)` 70–89% | Yes (with warning) |
 | **Needs Info** | Information gap from investigator | Acceptance criteria missing or unclassified | **No** |
-| **Stopped** | `confidence(bug-analysis)` < 70% | `confidence(plan)` < 70% | **No** |
+| **Stopped** | `confidence(analysis)` < 70% | `confidence(plan)` < 70% | **No** |
 
 ### Capture per ticket
 

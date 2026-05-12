@@ -57,7 +57,7 @@ docs, and CI auto-fix.
 - **`plan.md` is the single source of truth**: A new session must be able to
   execute from it alone.
 - **Stuck-loop has a hard limit**: 3 iterations on the same failing area
-  triggers `Skill("confidence", "bug-analysis")` and escalation.
+  triggers `Skill("confidence", "analysis")` and escalation.
 - **Companions skip silently if not installed**: never block on a missing
   companion.
 - **Self-validate continuously**: Check work at every step.
@@ -118,7 +118,7 @@ Phase 3: Implementation (Full: follow plan.md, update Progress Log)
     | code-quality(code) once at end
     | (code complete)
 Phase 4: Testing & Iteration <- 3-iteration cap per failing area
-    | After 3 same-area iterations: confidence(bug-analysis) -> escalate to user
+    | After 3 same-area iterations: confidence(analysis) -> escalate to user
     | (all tests pass OR user-approved stop)
 Phase 5: Documentation
     | Skill("update-claude") always (self-improving CLAUDE.md loop)
@@ -218,7 +218,7 @@ Is this a complex change? (4+ files OR architectural)
 - Partial implementation committed
 - Clear explanation of blockers
 - Recommendations for next steps
-- Stuck-loop escalation includes `confidence(bug-analysis)` summary
+- Stuck-loop escalation includes `confidence(analysis)` summary
 
 ## References
 

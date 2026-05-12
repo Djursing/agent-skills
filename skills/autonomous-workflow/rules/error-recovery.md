@@ -72,7 +72,7 @@ See [phase-4-testing](./phase-4-testing.md) for the full iteration strategy.
 | --------- | ------------------------------------------------------------ |
 | 1         | Read error, fix the most likely cause                        |
 | 2         | Re-read error in light of attempt 1; adjust mental model     |
-| 3         | This is the cap. Run `Skill("confidence", "bug-analysis")`,  |
+| 3         | This is the cap. Run `Skill("confidence", "analysis")`,  |
 |           | summarize attempts, escalate to user                         |
 
 After 3 iterations on the same failing area, **stop guessing**. Token spend
@@ -86,7 +86,7 @@ beyond this rarely converges.
 
 **Recovery (mandatory):**
 
-1. Run `Skill("confidence", "bug-analysis")` to root-cause the failure.
+1. Run `Skill("confidence", "analysis")` to root-cause the failure.
 2. Append to `plan.md` Progress Log: a one-line summary of each prior attempt
    plus the confidence findings.
 3. Present to the user:

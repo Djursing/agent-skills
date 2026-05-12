@@ -5,20 +5,20 @@ tags:
   - confidence
   - iteration
   - quality-gate
-  - bug-analysis
+  - analysis
 ---
 
 # Confidence Loop
 
 After Phase 3 (root-cause mapping), invoke the `confidence` skill in
-`bug-analysis` mode. E2E flake diagnoses fail in predictable ways
+`analysis` mode. E2E flake diagnoses fail in predictable ways
 (symptom mistaken for cause, race named at the wrong layer, fix
 recommended without checking the network log) — the gate catches them.
 
 ## Invocation
 
 ```text
-Skill(skill="confidence", args="bug-analysis")
+Skill(skill="confidence", args="analysis")
 ```
 
 Provide the confidence skill with:
@@ -60,7 +60,7 @@ that most directly addresses the dimension the score lost points on:
    `toBeEnabled` wait only helps if the disabled state is what
    blocked the click. Confirm by reading the call log.
 
-After the iteration, re-run `confidence(bug-analysis)`. If still
+After the iteration, re-run `confidence(analysis)`. If still
 70–89%, do **at most one more** deep-dive, then escalate.
 
 ## Stop conditions

@@ -103,7 +103,7 @@ Seed with `F-novel` as a catch-all and add classes only as real diagnoses produc
 | F-novel | Novel mode  | Does not match any existing row  | —             | Diagnosis proposes a new row inline (added on user approval only) |
 ```
 
-The taxonomy is **append-only** — every novel failure mode adds a new row, the row is justified by a diagnosis that cleared `confidence(bug-analysis) ≥ 90 %` AND was user-approved at apply time.
+The taxonomy is **append-only** — every novel failure mode adds a new row, the row is justified by a diagnosis that cleared `confidence(analysis) ≥ 90 %` AND was user-approved at apply time.
 Speculative categories are not pre-populated — they push the diagnoser toward forcing a match where none exists.
 
 ### 6. Hard invariants

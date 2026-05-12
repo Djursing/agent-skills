@@ -75,7 +75,7 @@ with a high-confidence proposal:
 2. The same commit's date matches the CI flip window in probe #6.
 3. The commit's diff is ≤ 50 lines.
 
-The proposed fix is "revert or amend commit `<sha>`". Phase 5 still runs `confidence(bug-analysis)`
+The proposed fix is "revert or amend commit `<sha>`". Phase 5 still runs `confidence(analysis)`
 — do not bypass the gate, just skip the heavy analysis.
 
 If short-circuit fires, log the decision in the bug-notes ledger as a `confirmed` hypothesis

@@ -214,7 +214,7 @@ Example with auto-replan triggering on confidence < 90%:
 - [2026-04-29T16:34:22Z] Phase 4: Fix attempt 2 — refresh token flow, still failing
 - [2026-04-29T16:36:45Z] Phase 4: Fix attempt 3 — context propagation, still failing
 - [2026-04-29T16:39:00Z] Phase 4: Fix attempt 4 — middleware order, still failing
-- [2026-04-29T16:41:30Z] Phase 4: Cap hit (5) — confidence(bug-analysis) — 62% (root cause unclear)
+- [2026-04-29T16:41:30Z] Phase 4: Cap hit (5) — confidence(analysis) — 62% (root cause unclear)
 - [2026-04-29T16:42:05Z] Phase 4: Auto-replan triggered (confidence < 90%) — holistic-analysis() invoked
 - [2026-04-29T16:44:50Z] Phase 4: plan.v2.md created (auto-replan, "Auth flow" rewritten); plan.md updated; counter reset; auto_replan_used=True
 - [2026-04-29T16:48:12Z] Phase 4: Resumed — fix attempt 1 (post-replan), session middleware moved earlier, passing
@@ -274,7 +274,7 @@ the iteration cap is hit. The user is escalated to **only** if recovery fails.
 ```
 when iterations_on_same_area == iteration_cap:
 
-    Skill("confidence", "bug-analysis")
+    Skill("confidence", "analysis")
 
     if confidence_score >= 90%:
         # We understand the root cause; user decides whether to accept risk.
@@ -294,14 +294,14 @@ when iterations_on_same_area == iteration_cap:
 ```
 
 The `auto_replan_used` flag is the **one-shot guard** — it prevents an infinite
-`bug-analysis → holistic → replan → fail` cycle. After one replan-and-retry,
+`analysis → holistic → replan → fail` cycle. After one replan-and-retry,
 the next cap hit goes straight to user escalation.
 
 ### Companion Behavior
 
 | Skill                       | Behavior                                                                            |
 | --------------------------- | ----------------------------------------------------------------------------------- |
-| `confidence("bug-analysis")` installed | Returns confidence score + bug analysis findings                         |
+| `confidence("analysis")` installed | Returns confidence score + analysis findings                             |
 | `confidence` missing        | Logs `not available, continuing`; treat as confidence < 90% (conservative default)  |
 | `holistic-analysis` installed | Re-traces execution path end-to-end; output feeds the next `aw-create-plan` invocation, which writes `plan.v{N+1}.md` and updates `plan.md` |
 | `holistic-analysis` missing | Logs `not available, continuing`; perform a manual end-to-end trace yourself        |
@@ -321,7 +321,7 @@ A concise summary message containing:
 - The failing test / area description
 - All fix hypotheses tried (one line each — include both pre- and post-replan
   attempts when applicable)
-- Confidence score and bug-analysis findings
+- Confidence score and analysis findings
 - Whether auto-replan was attempted, and the new mental model from
   `holistic-analysis` if so
 - The current understanding of root cause
@@ -344,7 +344,7 @@ Log every step of the auto-replan protocol in `plan.md` Progress Log:
 
 ```markdown
 - [2026-04-29T16:35:10Z] Phase 4: cap hit (3 iterations on ThemeToggle initial state, Lite Mode)
-- [2026-04-29T16:35:42Z] Phase 4: confidence(bug-analysis) — invoked (74%, suspects provider boundary)
+- [2026-04-29T16:35:42Z] Phase 4: confidence(analysis) — invoked (74%, suspects provider boundary)
 - [2026-04-29T16:35:55Z] Phase 4: confidence < 90% — auto-replan triggered
 - [2026-04-29T16:36:30Z] Phase 4: holistic-analysis() — re-traced provider chain, identified missing context default
 - [2026-04-29T16:37:05Z] Phase 4: plan.v2.md created (auto-replan); plan.md updated; counter reset; auto_replan_used=True
@@ -385,7 +385,7 @@ Skill("holistic-analysis")
 | ------------------------------ | ------------------------------------------------------------------- |
 | Purpose                        | Step back, re-trace the **entire** execution path end-to-end before any further fix attempts |
 | When invoked here              | After the mandatory user escalation, when the user requested a fresh analysis path |
-| Also invoked automatically     | Inside the [auto-replan protocol](#auto-replan-protocol-at-the-cap) when `confidence(bug-analysis) < 90%` |
+| Also invoked automatically     | Inside the [auto-replan protocol](#auto-replan-protocol-at-the-cap) when `confidence(analysis) < 90%` |
 | If skill missing               | Log `not available, continuing`; perform a manual end-to-end trace yourself: entry point → each contract boundary → data flow → exit |
 
 ### After Holistic Analysis
@@ -459,7 +459,7 @@ Skill("test-provenance-guard", "--diff --base $(git merge-base HEAD main) --fix"
 > gate fails, the heal is reverted with `git restore` and the finding is
 > emitted as `heal-failed`. In both cases, the autonomous-workflow
 > stuck-loop protocol takes over (per-iteration self-check →
-> `confidence(bug-analysis)` → `holistic-analysis` auto-replan → user escalation).
+> `confidence(analysis)` → `holistic-analysis` auto-replan → user escalation).
 
 | Behavior                       | Detail                                                              |
 | ------------------------------ | ------------------------------------------------------------------- |
@@ -491,7 +491,7 @@ Registry: [`companion-skills.md`](./companion-skills.md#registry).
 - [ ] Mode-aware iteration cap honored — 3 (Lite) / 5 (Full), not 6 or 20
 - [ ] Per-iteration lightweight self-check ran from iteration 2 onward (NOT a full `confidence` call)
 - [ ] Per-iteration in-loop self-reflection completed after each fix
-- [ ] `confidence(bug-analysis)` invoked automatically when cap hit
+- [ ] `confidence(analysis)` invoked automatically when cap hit
 - [ ] `holistic-analysis` invoked automatically when confidence < 90% (auto-replan)
 - [ ] `plan.v{N+1}.md` snapshot created and `plan.md` updated after auto-replan (via `aw-create-plan`)
 - [ ] One-shot guard respected — auto_replan_used not bypassed

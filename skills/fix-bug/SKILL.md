@@ -7,7 +7,7 @@ description: >
   pick between a fast lane and a full holistic-analysis lane, runs a pre-flight sweep, locks a
   failing reproduction (delegating to /tdd, /e2e-testing, or /e2e-testing-mobile by layer),
   delegates root-cause analysis to holistic-analysis on complex bugs (or runs a lightweight
-  in-skill analysis on simple ones), gates on confidence(bug-analysis), and on >= 92 % hands off
+  in-skill analysis on simple ones), gates on confidence(analysis), and on >= 92 % hands off
   **without human confirmation**: simple bugs take the fast lane (/fix-bug → aw-create-plan →
   aw-executor, no aw-planner) and complex bugs take the standard lane (aw-planner → aw-executor),
   both with a CEGIS refinement contract. Fast-lane round-3 CEGIS failure falls back to
@@ -89,7 +89,7 @@ Phase 1:   Evidence Resolution        → per-input resolution + pre-flight swee
 Phase 2:   Source Mapping + Repro Lock → Evidence Record + failing repro (via /tdd or /e2e-testing*)
 Phase 3:   Analysis                   → Skill("holistic-analysis", "fix") [complex]
                                       OR lightweight in-skill analysis [simple]
-Phase 4:   Confidence Gate            → /confidence bug-analysis
+Phase 4:   Confidence Gate            → /confidence analysis
 Phase 5:   Branch Decision            → >= 92 % auto-implement (no human confirmation);
                                        70–91 % stop with raise-the-score guidance;
                                        < 70 % stop, no force-proceed.
@@ -380,7 +380,7 @@ and any pre-flight short-circuit findings):
 Skill("holistic-analysis", "fix\n\n<Evidence Record from Phase 2>")
 ```
 
-`holistic-analysis` runs its own 8-phase protocol and internally calls `/confidence bug-analysis`
+`holistic-analysis` runs its own 8-phase protocol and internally calls `/confidence analysis`
 at its Phase 6. Do **not** duplicate that analysis here — Phase 3 is purely a delegation step.
 
 If the bug-notes ledger has any `state = ruled-out` hypotheses, pass them in the prompt so
@@ -408,7 +408,7 @@ path, predicate has more than one plausible cause), upgrade triage to `complex` 
 
 ## Phase 4 — Confidence Gate
 
-Reuse the score holistic-analysis emitted at its Phase 6. Re-run `/confidence bug-analysis` here
+Reuse the score holistic-analysis emitted at its Phase 6. Re-run `/confidence analysis` here
 **only** if new evidence has arrived between Phase 3 and now, or the proposed fix has materially
 changed.
 
@@ -427,7 +427,7 @@ Otherwise:
 | Confidence | Action |
 |------------|--------|
 | **>= 92%** | **Fully autonomous — no human confirmation required.** Print a one-line status (lane + root cause + score) and proceed directly to Phase 6. Lane is fast-lane if Phase 0.5 triage = `simple` AND a non-best-effort repro exists; otherwise standard-lane. |
-| **80–91%** | Stop. Present Evidence Record + proposed fix + confidence breakdown + **what would raise the score**. Offer: collect more evidence, force-proceed, or abandon. Force-proceed at this tier always routes to the **standard-lane** (planner's `confidence(plan)` gate is the extra safety net when bug-analysis confidence is marginal). |
+| **80–91%** | Stop. Present Evidence Record + proposed fix + confidence breakdown + **what would raise the score**. Offer: collect more evidence, force-proceed, or abandon. Force-proceed at this tier always routes to the **standard-lane** (planner's `confidence(plan)` gate is the extra safety net when analysis confidence is marginal). |
 | **70–79%** | Stop. Force-proceed offered but flagged **NOT recommended**. Same standard-lane routing as 80–91 % when force-proceed is taken. |
 | **< 70%** | Stop. Do **NOT** offer force-proceed. Present analysis findings (holistic or lightweight) as a discussion document. Ask the user for direction. Hard invariant — no escape hatch. |
 
@@ -541,7 +541,7 @@ shape stays stable; only the tail varies.
 ### Proposed change
 <plain-language description + impact + verification plan>
 
-### Confidence (bug-analysis)
+### Confidence (analysis)
 - Evidence strength: X%
 - Root cause certainty: X%
 - Fix confidence: X%
@@ -566,11 +566,11 @@ shape stays stable; only the tail varies.
 | Free-text input triggers low-confidence holistic analysis | Medium | Phase 0 refuses to analyse on free text alone — clarifying questions first. Phase 0.5 triage also picks `complex` for free-text (signal 11). |
 | Dash0 MCP not configured | Medium | Detection step in `evidence-resolution.md` prints the install / paste-evidence fallback; Phase 8 has its own capability gate. |
 | Repro is best-effort only (UI / race / perf) | Medium | Verifier (Phase 7) skips `FAIL_TO_PASS` and relies on broader test suite + diff sanity. Best-effort repros are also blocked from the fast-lane — they always route via standard-lane. Documented in the bug-notes ledger. |
-| Analysis returns a confident-but-wrong root cause | Low–Medium | Three independent gates on **both lanes**: standard-lane uses `confidence(bug-analysis)` + `confidence(plan)` + verifier; fast-lane uses `confidence(bug-analysis) ≥ 92 %` (stricter substitute for `confidence(plan)`) + plan.md validator + verifier. |
+| Analysis returns a confident-but-wrong root cause | Low–Medium | Three independent gates on **both lanes**: standard-lane uses `confidence(analysis)` + `confidence(plan)` + verifier; fast-lane uses `confidence(analysis) ≥ 92 %` (stricter substitute for `confidence(plan)`) + plan.md validator + verifier. |
 | Triage classified `simple` but the bug was cross-cutting | Low–Medium | Fast-lane round-3 CEGIS failure falls back to standard-lane via aw-planner with the captured counterexamples — single-shot safety net. |
 | Triage classified `complex` but the bug was trivial | Medium | Acceptable. Wasted tokens; no correctness loss. Conservative default is intentional. Pre-flight short-circuit can still upgrade `complex` → `simple` later in the run. |
 | Fast-lane plan.md missing a required section | Low | `/fix-bug` validates plan.md after `aw-create-plan` returns and before dispatching `aw-executor`. Fails loudly. |
-| Executor's first patch fails the repro | Medium | CEGIS refinement contract: capture failing input as counterexample, refine, cap at 3 rounds before escalating (standard-lane → `confidence(bug-analysis fix)`; fast-lane → standard-lane fallback). |
+| Executor's first patch fails the repro | Medium | CEGIS refinement contract: capture failing input as counterexample, refine, cap at 3 rounds before escalating (standard-lane → `confidence(analysis fix)`; fast-lane → standard-lane fallback). |
 | Verifier rubber-stamps the executor's diff | Low | Verifier runs in fresh context with no access to planner / executor reasoning — the canonical separation-of-concerns mitigation. Identical on both lanes. |
 | Bug-notes ledger drifts from reality | Low | Schema is strict; phases append rather than rewrite; verifier reads the ledger as evidence. |
 | Phase 8 polls the wrong release | Low | Capability gate plus explicit deploy-ID capture; falls back to deferred mode for production deploys. |
@@ -593,8 +593,8 @@ shape stays stable; only the tail varies.
 4. **Cheap localisation first.** Pre-flight (Phase 1.5) often names the cause in seconds —
    running heavy holistic analysis first wastes tokens. Pre-flight short-circuits can also
    upgrade `complex` triage to `simple` and unlock the fast-lane.
-5. **Three independent confidence gates on both lanes.** Standard-lane: `confidence(bug-analysis)`
-   + `confidence(plan)` + verifier. Fast-lane: `confidence(bug-analysis) ≥ 92 %` (stricter
+5. **Three independent confidence gates on both lanes.** Standard-lane: `confidence(analysis)`
+   + `confidence(plan)` + verifier. Fast-lane: `confidence(analysis) ≥ 92 %` (stricter
    substitute for the bypassed planner gate) + plan.md validator + verifier. Self-grading is
    not allowed at any of these.
 6. **Auto-implement at ≥ 92 % is fully autonomous.** No human confirmation. The skill prints a

@@ -54,7 +54,7 @@ LLM agents tend to fail in three predictable ways during long-running tasks:
    the `aw-create-plan` companion, it captures every decision, requirement,
    and rationale so a new session can resume cold.
 3. **Phase 4 stuck-loop has a mode-aware hard cap** — 3 iterations in Lite
-   Mode, 5 in Full Mode. At the cap, the agent runs `confidence(bug-analysis)`;
+   Mode, 5 in Full Mode. At the cap, the agent runs `confidence(analysis)`;
    if confidence is below 90% the workflow auto-invokes `holistic-analysis`,
    regenerates the affected `plan.md` section, and resumes ONCE more before
    mandatory user escalation. No more 20-iteration token burns.
@@ -244,7 +244,7 @@ while not all_tests_pass:
 
   if iterations_on_same_area == iteration_cap:
     stuck_loop_detection:
-      Skill("confidence", "bug-analysis")
+      Skill("confidence", "analysis")
       if confidence_score >= 90%:
         → escalate to user with findings
       else if not auto_replan_used:
@@ -383,7 +383,7 @@ What `create-skill` owns:
 
 1. The seven-step procedure (collect → classify → attribute → propose → gate → write → apply / PR).
 2. The output report format.
-3. The `confidence(bug-analysis) ≥ 90 %` gate before `--apply`.
+3. The `confidence(analysis) ≥ 90 %` gate before `--apply`.
 4. The hard rules: one proposal per report, earliest-phase wins, mechanical > judgment, never weaken gates.
 
 When changing a phase, gate, taxonomy class, or load-bearing invariant in
@@ -402,7 +402,7 @@ contract is unchanged.
 
 | Instance                                                   | Confidence mode             | Threshold | Action gated                                                      |
 | ---------------------------------------------------------- | --------------------------- | --------- | ----------------------------------------------------------------- |
-| `/create-skill diagnose <skill> --apply`                  | `confidence(bug-analysis)`  | ≥ 90 %    | `git apply` of a proposed change to the **target skill's** source |
+| `/create-skill diagnose <skill> --apply`                  | `confidence(analysis)`  | ≥ 90 %    | `git apply` of a proposed change to the **target skill's** source |
 | `test-provenance-guard --fix` in loop                      | `confidence(code)`          | ≥ 90 %    | Extract-and-rewrite refactor of production code to fix a test     |
 
 Both instances share three contracts:
@@ -502,7 +502,7 @@ end-user-facing; this file is contributor-facing.
   to parameterize itself: phase model, failure taxonomy (F1 + `F-novel`,
   unchanged, append-only), existing-guards-per-phase table, hard
   invariants, source root, artifacts. Behavior is preserved end-to-end:
-  `--apply` still gates on `confidence(bug-analysis) ≥ 90 %` plus explicit
+  `--apply` still gates on `confidence(analysis) ≥ 90 %` plus explicit
   user confirmation; one proposal per report; earliest-phase-fix wins;
   diagnose never modifies user product code. For users, the only surface
   change is the invocation: `/autonomous-workflow --diagnose` becomes
@@ -514,7 +514,7 @@ end-user-facing; this file is contributor-facing.
     Outputs `.agent/{branch}/diagnose-{ts}.md` containing a failure
     classification, a phase-attribution matrix walk, and one applyable
     unified-diff proposal targeting this skill's source. The proposal is
-    **gated by `Skill("confidence", "bug-analysis") ≥ 90 %`**; below the
+    **gated by `Skill("confidence", "analysis") ≥ 90 %`**; below the
     threshold, `--apply` is refused and the report becomes a discussion
     artifact. `--apply` always asks for confirmation even with the gate
     passing — Auto mode does not bypass this. Procedure originally lived
@@ -532,7 +532,7 @@ end-user-facing; this file is contributor-facing.
     gates (build, target test, mutation re-verify) afterwards. Either gate
     failing ⇒ no autonomous refactor; the finding is reported as
     `heal-skipped-low-confidence` or `heal-failed`, and the existing
-    Phase 4 stuck-loop / `confidence(bug-analysis)` / `holistic-analysis`
+    Phase 4 stuck-loop / `confidence(analysis)` / `holistic-analysis`
     cascade takes over. The `--no-confidence-gate` override is reserved
     for human-driven slash invocations and is never set inside the loop.
 
@@ -594,7 +594,7 @@ end-user-facing; this file is contributor-facing.
     conditions to gate against (sprint-contract pattern from Anthropic's
     harness-design guidance).
   - **Auto-replan on stuck-loop.** Phase 4 stuck-loop detection now
-    auto-invokes `holistic-analysis` when `confidence(bug-analysis) < 90%`,
+    auto-invokes `holistic-analysis` when `confidence(analysis) < 90%`,
     regenerates the affected `plan.md` section, and resumes once. One-shot
     guard prevents infinite recursion.
   - **Mode-aware iteration cap.** 3 iterations for Lite, 5 for Full. Lite

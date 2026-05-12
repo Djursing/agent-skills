@@ -65,7 +65,7 @@ test.skip('checkout completes after 3DS', async ({ page }) => { /* ... */ });
 ```
 
 If a test is genuinely flaky, file the cause.
-If the Healer cannot converge, escalate via `confidence(bug-analysis)`.
+If the Healer cannot converge, escalate via `confidence(analysis)`.
 Never `.skip()` to make CI green.
 
 ## Refuse to generate against a stub server

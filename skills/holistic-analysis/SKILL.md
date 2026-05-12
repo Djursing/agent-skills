@@ -41,7 +41,7 @@ code.
 - [Phase 3: Scene Set — Explain the Situation to the Duck](#phase-3-scene-set--explain-the-situation-to-the-duck)
 - [Phase 4: Structured Hypothesis Generation](#phase-4-structured-hypothesis-generation) — fix-mode root causes / refactor-mode approaches
 - [Phase 5: Meta-Cognitive Check — Challenge Your Own Reasoning](#phase-5-meta-cognitive-check--challenge-your-own-reasoning)
-- [Phase 6: Confidence Gate — Analysis Validation](#phase-6-confidence-gate--analysis-validation) — `/confidence bug-analysis` or `/confidence plan`
+- [Phase 6: Confidence Gate — Analysis Validation](#phase-6-confidence-gate--analysis-validation) — `/confidence analysis` or `/confidence plan`
 - [Phase 7: Plan the Change — Words Before Code](#phase-7-plan-the-change--words-before-code)
 - [Phase 8: Implement and Verify](#phase-8-implement-and-verify) — `/confidence code` gate
 - [Output Format](#output-format)
@@ -242,7 +242,7 @@ Answer honestly:
 
 Run the appropriate `/confidence` mode based on the analysis type:
 
-### Fix mode → `/confidence bug-analysis`
+### Fix mode → `/confidence analysis`
 
 Scores:
 - **Evidence strength** (40%) — Is the analysis backed by concrete evidence?
@@ -325,7 +325,7 @@ Present the analysis using this structure:
 [Refactor mode: The selected approach and rationale]
 
 ### Analysis Confidence
-[Fix mode: /confidence bug-analysis score and breakdown]
+[Fix mode: /confidence analysis score and breakdown]
 [Refactor mode: /confidence plan score and breakdown]
 
 ### Change Plan

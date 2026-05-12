@@ -7,7 +7,7 @@ description: >
   Surfaces concerns only — does not score (delegates to `/confidence`) and does not apply fixes.
   Use during planning before autonomous execution, before opening a high-stakes PR, or when a fix "feels off".
   One adversarial pass per run — naïve self-refine loops amplify bias.
-  Modes: plan (default), code, bug-analysis. Triggers on "critical", "challenge this", "pre-mortem", "red-team this", "/critical".
+  Modes: plan (default), code, analysis. Triggers on "critical", "challenge this", "pre-mortem", "red-team this", "/critical".
 license: MIT
 metadata:
   author: mthines
@@ -43,7 +43,7 @@ Surface specific, grounded failure modes; force at least one steelmanned alterna
 - [External grounding rule](#external-grounding-rule)
 - [Taxonomy — `plan` mode](#taxonomy--plan-mode)
 - [Taxonomy — `code` mode](#taxonomy--code-mode)
-- [Taxonomy — `bug-analysis` mode](#taxonomy--bug-analysis-mode)
+- [Taxonomy — `analysis` mode](#taxonomy--analysis-mode)
 - [Mandatory steelman alternative](#mandatory-steelman-alternative)
 - [Output format](#output-format)
 - [Composition with other skills](#composition-with-other-skills)
@@ -59,7 +59,7 @@ Surface specific, grounded failure modes; force at least one steelmanned alterna
 | When the user says "I'm in doubt", "challenge this", "is this really right" | After `/confidence` already passed at ≥ 90% with zero concerns              |
 | Right before a high-stakes PR (migrations, auth, billing, shared infra)    | As a reflex on every change — the cost outweighs the value                  |
 | Mid bug investigation when the proposed root cause feels off               | When you only need a syntactic check — `/code-quality` covers that          |
-| Slash form: `/critical [plan\|code\|bug-analysis]`                          | When iteration is desired — this skill is single-pass by design             |
+| Slash form: `/critical [plan\|code\|analysis]`                          | When iteration is desired — this skill is single-pass by design             |
 
 ---
 
@@ -72,7 +72,7 @@ Default to `plan` if no argument.
 | --------------- | ------- | ----------------------------------- | ------------------------------------------- |
 | `plan`          | **yes** | A `plan.md` or proposed approach    | Planning phase, before autonomous execution |
 | `code`          |         | A diff or set of changed files      | Reviewer agent (`--critical`), pre-PR       |
-| `bug-analysis`  |         | A root-cause + fix proposal         | `/fix-bug` Phase 3.5, before the gate       |
+| `analysis`  |         | A root-cause + fix proposal         | `/fix-bug` Phase 3.5, before the gate       |
 
 State the detected mode in one line before running: `Mode: critical/<mode>. Target: <one-line summary>.`
 
@@ -103,7 +103,7 @@ Before writing the findings, run **at least one grounding action** appropriate t
 
 - `plan` mode — `Read` the `plan.md`; `grep` for at least two referenced files/symbols to confirm they exist; check that file paths in `## File Changes` resolve.
 - `code` mode — `Read` the diff; `Grep` for callers of any changed function; check the test file count delta.
-- `bug-analysis` mode — `Read` the proposed evidence; `Grep` for the failing path in the codebase; verify the repro command if present.
+- `analysis` mode — `Read` the proposed evidence; `Grep` for the failing path in the codebase; verify the repro command if present.
 
 If a referenced file, symbol, or path does **not** resolve, that is itself a finding (categorised as `must-fix` — hallucinated grounding).
 
@@ -150,7 +150,7 @@ Row 9 is the [Steelman alternative](#mandatory-steelman-alternative).
 
 ---
 
-## Taxonomy — `bug-analysis` mode
+## Taxonomy — `analysis` mode
 
 | # | Concern                                          | Probe                                                                                              |
 | - | ------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
@@ -243,7 +243,7 @@ If `Must-fix` and `Should-fix` are both empty, output `No blocking concerns foun
 | -------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `/code-quality`      | A code-mode finding needs static-rule backing                        | Invoke `Skill("code-quality")` to confirm before classifying as `must-fix`           |
 | `/confidence`        | After findings are addressed                                         | Suggest `/confidence <mode>` in the `Next step` section — do not score here          |
-| `/holistic-analysis` | A `bug-analysis` finding suggests the root cause is wrong            | Suggest the user re-run `/holistic-analysis` before the `/confidence` gate           |
+| `/holistic-analysis` | A `analysis` finding suggests the root cause is wrong            | Suggest the user re-run `/holistic-analysis` before the `/confidence` gate           |
 
 This skill **never** invokes `/confidence` on the user's behalf and never produces a numeric score of its own.
 Scoring is `/confidence`'s job; conflating the two would re-create the bias amplification problem the literature warns against.

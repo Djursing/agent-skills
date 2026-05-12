@@ -37,7 +37,7 @@ Skills that do not declare a surface fall back to the inferred-from-`SKILL.md` p
 
 Diagnose Mode never modifies anything autonomously.
 It writes one report file and stops.
-Any proposed change to the target skill is **gated through `Skill("confidence", "bug-analysis")`** and **always requires explicit user confirmation** before `--apply` runs `git apply`.
+Any proposed change to the target skill is **gated through `Skill("confidence", "analysis")`** and **always requires explicit user confirmation** before `--apply` runs `git apply`.
 If the confidence score is below 90 %, `--apply` is **disabled for that report** and the diagnosis becomes a discussion artifact rather than an applyable patch.
 
 Run Diagnose Mode while the failing session is still in context — that is when the agent has the maximum amount of evidence (the target skill's plan/walkthrough/log artifacts, tests, user feedback, transcripts) to attribute the failure to a specific gate.
@@ -57,7 +57,7 @@ Trigger on any of:
 Do **not** run Diagnose Mode for:
 
 - Routine bugs in the user's product code unrelated to a skill's gaps — use `/fix-bug` or `/holistic-analysis` instead.
-- Failures in-progress mid-workflow — use the target skill's own stuck-loop or `confidence(bug-analysis)` instead.
+- Failures in-progress mid-workflow — use the target skill's own stuck-loop or `confidence(analysis)` instead.
 - Diagnosis of a skill whose source is not on the local checkout — Diagnose Mode needs to be able to resolve the source path to write a unified diff.
 
 ---
@@ -168,7 +168,7 @@ If the failure was classified `F-novel` in Step 3, the proposal must also includ
 Run:
 
 ```
-Skill("confidence", "bug-analysis")
+Skill("confidence", "analysis")
 ```
 
 Pass the diagnosis as the work-under-review: the symptom, the failure-class, the phase-attribution table, and the proposed edit.
@@ -290,7 +290,7 @@ The metadata header at the top is parseable enough for any future tooling, and s
 ## 6. Confidence gate result
 
 - Score: <N>%
-- Reasoning: <2–4 sentences from `confidence(bug-analysis)`>
+- Reasoning: <2–4 sentences from `confidence(analysis)`>
 - Outcome: `--apply` permitted | `--apply` disabled (score below 90 %)
 
 ## 7. Validation plan
@@ -343,7 +343,7 @@ The report is intentionally provider-neutral: another agent harness (Codex, Curs
 
 - **Diagnose Mode never modifies user product code.** It only proposes changes to the target skill's own source.
 - **Diagnose Mode never auto-applies.** `--apply` requires (a) Step 6 confidence ≥ 90 % and (b) explicit user confirmation, in that order. `--pr` requires a successful local apply first. Auto mode does not bypass either check.
-- **No `--apply` without confidence.** If `Skill("confidence", "bug-analysis")` returns < 90 %, `--apply` is refused even if the user passed the flag — the report becomes a discussion artifact.
+- **No `--apply` without confidence.** If `Skill("confidence", "analysis")` returns < 90 %, `--apply` is refused even if the user passed the flag — the report becomes a discussion artifact.
 - **Every diagnosis cites a taxonomy class.** Either an existing row from the target's surface, or `F-novel` plus a proposed new row. New rows are appended to the target's `rules/diagnostic-surface.md` only when a diagnosis clears the confidence gate AND the user approves the apply.
 - **Earliest-phase fix wins.** When multiple phases could have caught the failure, propose the change at the earliest phase — failing fast saves the most tokens.
 - **Mechanical checks beat judgment checks.** A deterministic rule that can be evaluated without an LLM call is always preferred over an LLM-judged review step.

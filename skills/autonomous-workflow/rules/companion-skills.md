@@ -48,8 +48,8 @@ When invoking, log one line in the conversation and the `plan.md` Progress Log:
 | `tdd`                | 3     | Pure logic / business rules / "test-driven" requested                   | —                     | Remove invocation in [`phase-3-implementation.md`](./phase-3-implementation.md#tdd-trigger) |
 | `ux`                 | 3     | Files touched include `*.tsx`, `*.jsx`, `*.vue`, `*.svelte`, RN screens | —                     | Remove invocation in [`phase-3-implementation.md`](./phase-3-implementation.md#ux-trigger)  |
 | `code-quality`       | 3     | Once at end of Phase 3 (not per-file — TDD owns inner loop)             | `code`                | Remove invocation in [`phase-3-implementation.md`](./phase-3-implementation.md#code-quality-trigger) |
-| `confidence`         | 4     | At iteration cap on same failing area (3 in Lite Mode, 5 in Full Mode) — automatic | `bug-analysis`        | Adjust cap or threshold in [`phase-4-testing.md`](./phase-4-testing.md#stuck-loop-detection) |
-| `holistic-analysis`  | 4     | Auto: when `confidence(bug-analysis) < 90%` (one-shot per area). User-driven: when user picks `try different approach` after escalation | — | Remove invocation in [`phase-4-testing.md`](./phase-4-testing.md#stuck-recovery)            |
+| `confidence`         | 4     | At iteration cap on same failing area (3 in Lite Mode, 5 in Full Mode) — automatic | `analysis`        | Adjust cap or threshold in [`phase-4-testing.md`](./phase-4-testing.md#stuck-loop-detection) |
+| `holistic-analysis`  | 4     | Auto: when `confidence(analysis) < 90%` (one-shot per area). User-driven: when user picks `try different approach` after escalation | — | Remove invocation in [`phase-4-testing.md`](./phase-4-testing.md#stuck-recovery)            |
 | `test-provenance-guard` | 4  | After Step 5 — any new `*.test.*` / `*.unit.*` / `*.spec.*` file written or extended | `--diff --base $(git merge-base HEAD main) --fix` — autofix is **gated by `confidence(code) ≥ 90 %`** before any file is mutated, plus the three post-heal mechanical gates afterwards. Either failure ⇒ no refactor; stuck-loop protocol takes over | Remove invocation in [`phase-4-testing.md`](./phase-4-testing.md#test-provenance-trigger) |
 | `update-claude`      | 5     | Always (self-improving doc loop — keeps CLAUDE.md aligned)              | —                     | Remove invocation in [`phase-5-documentation.md`](./phase-5-documentation.md#claude-md-trigger). Skip per-task by user override or skip-condition match (see [`phase-5-documentation.md#when-to-skip-update-claude`](./phase-5-documentation.md#when-to-skip-update-claude)). |
 | `review-changes`     | 6     | Always before push                                                      | —                     | Remove invocation in [`phase-6-pr-creation.md`](./phase-6-pr-creation.md#pre-push-review)   |
@@ -101,7 +101,7 @@ while not all_tests_pass:
     iterations_on_same_area += 1
 
     if iterations_on_same_area == iteration_cap:
-        score = Skill("confidence", "bug-analysis")
+        score = Skill("confidence", "analysis")
 
         if score < 90% and not auto_replan_used:
             Skill("holistic-analysis")
@@ -122,7 +122,7 @@ while not all_tests_pass:
 cap. It also runs again **on user request** if the user picks
 `try different approach` from the mandatory escalation menu. The
 `auto_replan_used` flag is the one-shot guard — without it, repeated
-`bug-analysis → holistic → replan → fail` cycles could loop indefinitely.
+`analysis → holistic → replan → fail` cycles could loop indefinitely.
 
 **Why mode-aware caps (3 vs 5)?** Lite Mode tasks are simpler and should
 converge fast — a tight cap is correct. Full Mode tasks are more complex and
