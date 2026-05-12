@@ -23,8 +23,35 @@ The user provides one of:
 - A GitHub Actions check/run URL (e.g., `https://github.com/owner/repo/actions/runs/12345678`)
 - A check run ID or workflow run ID
 - A PR URL with failing checks (e.g., `https://github.com/owner/repo/pull/42`)
+- **Nothing** — if `$ARGUMENTS` is empty, auto-detect the failing CI for the current branch's PR (see Step 0 below).
 
 The argument is: $ARGUMENTS
+
+## Step 0: Resolve the target when no argument was given
+
+If `$ARGUMENTS` is empty, do not ask the user — resolve the target automatically:
+
+1. Get the current branch:
+   ```bash
+   git rev-parse --abbrev-ref HEAD
+   ```
+
+2. Find the open PR for this branch:
+   ```bash
+   gh pr list --head "<branch>" --state open --json number,url,headRepositoryOwner --limit 1
+   ```
+   - If exactly one PR is found, use its URL as the PR input and continue to Step 1.
+   - If the PR's `headRepositoryOwner.login` differs from the current repo's owner (i.e., the PR is from a fork), surface that fact to the user before continuing.
+   - If no open PR is found, fall back to the most recent failed workflow run on this branch:
+     ```bash
+     gh run list --branch "<branch>" --limit 10 --json databaseId,conclusion,workflowName \
+       | jq '[.[] | select(.conclusion == "failure")] | .[0]'
+     ```
+     If a failed run is found, treat its `databaseId` as the run ID input.
+   - If neither resolves (no PR, no failed run), **then** ask the user for input.
+
+3. Print the resolved target before continuing:
+   `Auto-detected target: <PR URL or run ID> on branch <branch>`.
 
 ## Step 1: Identify the failure
 
