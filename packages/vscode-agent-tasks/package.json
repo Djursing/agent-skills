@@ -1,7 +1,7 @@
 {
   "name": "agent-tasks",
   "displayName": "Agent Tasks",
-  "description": "Visualize autonomous agent workflow artifacts (plan.md, task.md, walkthrough.md) from the VS Code sidebar",
+  "description": "Visualize autonomous agent workflow artifacts (plan.md, task.md, walkthrough.md, diagnose-*.md) from the VS Code sidebar",
   "version": "0.71.0",
   "publisher": "mthines",
   "license": "MIT",
@@ -326,17 +326,17 @@
         },
         {
           "command": "agentTasks.revealInOS",
-          "when": "view == agentTasksExplorer && viewItem =~ /^(agentBranch|agentWorktreeFlat|agentPlanFile|agentPlanVersion|agentWalkthroughFile)/",
+          "when": "view == agentTasksExplorer && viewItem =~ /^(agentBranch|agentWorktreeFlat|agentPlanFile|agentPlanVersion|agentWalkthroughFile|agentDiagnoseFile)/",
           "group": "1_navigation@1"
         },
         {
           "command": "agentTasks.copyPath",
-          "when": "view == agentTasksExplorer && viewItem =~ /^(agentBranch|agentWorktreeFlat|agentPlanFile|agentPlanVersion|agentWalkthroughFile)/",
+          "when": "view == agentTasksExplorer && viewItem =~ /^(agentBranch|agentWorktreeFlat|agentPlanFile|agentPlanVersion|agentWalkthroughFile|agentDiagnoseFile)/",
           "group": "1_navigation@2"
         },
         {
           "command": "agentTasks.deleteArtifacts",
-          "when": "view == agentTasksExplorer && viewItem =~ /^(agentBranch|agentWorktreeFlat|agentPlanVersion|agentWalkthroughFile)/",
+          "when": "view == agentTasksExplorer && viewItem =~ /^(agentBranch|agentWorktreeFlat|agentPlanVersion|agentWalkthroughFile|agentDiagnoseFile)/",
           "group": "9_destructive@1"
         },
         {
@@ -377,7 +377,7 @@
             ".gw"
           ],
           "scope": "resource",
-          "description": "Directories (relative to workspace and ancestors) to scan for agent task artifacts (plan.md, task.md, walkthrough.md). Order = priority. Empty array falls back to the defaults ['.agent', '.gw']."
+          "description": "Directories (relative to workspace and ancestors) to scan for agent task artifacts (plan.md, task.md, walkthrough.md, diagnose-*.md). Order = priority. Empty array falls back to the defaults ['.agent', '.gw']."
         },
         "agentTasks.autoOpenWalkthrough": {
           "type": "boolean",
@@ -388,6 +388,11 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically open plan.md when it is created"
+        },
+        "agentTasks.autoOpenDiagnose": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically open a diagnose-{target}.md report the first time it is created. Subsequent re-runs of /create-skill diagnose against the same target overwrite the report in place and do not re-open it."
         },
         "agentTasks.openMarkdownInPreview": {
           "type": "boolean",

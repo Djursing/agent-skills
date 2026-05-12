@@ -19,14 +19,38 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { parseTaskMd, parsePlanMd, ParsedTask, ParsedPlan, TaskItem } from '../parsers/markdown-parser';
+import {
+  ParsedDiagnose,
+  ParsedPlan,
+  ParsedTask,
+  TaskItem,
+  parseDiagnoseMd,
+  parsePlanMd,
+  parseTaskMd,
+} from '../parsers/markdown-parser';
 import { discoverWorktreePaths } from '../lib/worktree-discovery';
 import { findPlanVersions, PlanVersionInfo } from '../lib/plan-versions';
+import {
+  diagnoseTargetFromFilename,
+  findDiagnoseReports,
+} from '../lib/session-artifact-correlator';
 
 export type { PlanVersionInfo };
 export { findPlanVersions };
 
 export type AgentTasksScope = 'current' | 'all';
+
+/**
+ * Surfaced metadata for a single `diagnose-{target}.md` report. The target
+ * skill is always present (derived from the filename); the rest is
+ * best-effort from the report header and may be `undefined` when fields are
+ * missing.
+ */
+export interface DiagnoseFileInfo {
+  filePath: string;
+  targetSkill: string;
+  parsed: ParsedDiagnose;
+}
 
 /**
  * Returns the configured artifact directory names, falling back to the defaults
@@ -159,7 +183,8 @@ export class AgentBranchItem extends vscode.TreeItem {
     public readonly artifactDir: string,
     public readonly task: ParsedTask | undefined,
     public readonly plan: ParsedPlan | undefined,
-    public readonly hasWalkthrough: boolean
+    public readonly hasWalkthrough: boolean,
+    public readonly diagnoses: DiagnoseFileInfo[] = []
   ) {
     super(branchName, vscode.TreeItemCollapsibleState.Collapsed);
 
@@ -181,7 +206,12 @@ export class AgentBranchItem extends vscode.TreeItem {
       md.appendMarkdown(`**Plan:** ${this.plan.summary}\n\n`);
     }
     if (this.hasWalkthrough) {
-      md.appendMarkdown('$(check) **Completed** - walkthrough available');
+      md.appendMarkdown('$(check) **Completed** - walkthrough available\n\n');
+    }
+    if (this.diagnoses.length > 0) {
+      const labels = this.diagnoses.map((d) => `\`${d.targetSkill}\``).join(', ');
+      const noun = this.diagnoses.length === 1 ? 'Diagnose report' : 'Diagnose reports';
+      md.appendMarkdown(`**${noun}:** ${labels}`);
     }
     return md;
   }
@@ -448,6 +478,59 @@ export class WalkthroughSummaryItem extends vscode.TreeItem {
   }
 }
 
+/**
+ * Leaf node representing one `diagnose-{target}.md` report produced by
+ * `/create-skill diagnose <target>`. The label always includes the target
+ * skill name (extracted from the filename) so multiple reports under the
+ * same branch are distinguishable at a glance. When the report header
+ * carries a failure class and / or confidence score, those summarise the
+ * row via `description` and a richer tooltip.
+ */
+export class DiagnoseSummaryItem extends vscode.TreeItem {
+  constructor(public readonly info: DiagnoseFileInfo) {
+    super(`Diagnose: ${info.targetSkill}`, vscode.TreeItemCollapsibleState.None);
+
+    const lowConfidence =
+      info.parsed.applyStatus === 'disabled-low-confidence' ||
+      (typeof info.parsed.confidence === 'number' && info.parsed.confidence < 90);
+
+    this.iconPath = new vscode.ThemeIcon(
+      'beaker',
+      lowConfidence ? new vscode.ThemeColor('charts.yellow') : undefined
+    );
+
+    const parts: string[] = [];
+    if (info.parsed.failureClass) parts.push(info.parsed.failureClass);
+    if (typeof info.parsed.confidence === 'number') {
+      parts.push(`${info.parsed.confidence}%`);
+    }
+    this.description = parts.join(' · ') || undefined;
+
+    const md = new vscode.MarkdownString();
+    md.appendMarkdown(`**Diagnose report:** \`${info.targetSkill}\`\n\n`);
+    if (info.parsed.summary) {
+      md.appendMarkdown(`${info.parsed.summary}\n\n`);
+    }
+    if (info.parsed.failureClass) {
+      md.appendMarkdown(`**Failure class:** ${info.parsed.failureClass}\n\n`);
+    }
+    if (typeof info.parsed.confidence === 'number') {
+      md.appendMarkdown(`**Confidence:** ${info.parsed.confidence}%\n\n`);
+    }
+    if (info.parsed.applyStatus) {
+      md.appendMarkdown(`**Apply status:** ${info.parsed.applyStatus}`);
+    }
+    this.tooltip = md;
+
+    this.contextValue = 'agentDiagnoseFile';
+    this.command = {
+      command: 'agentTasks.openMarkdown',
+      title: 'Open Diagnose Report',
+      arguments: [info.filePath],
+    };
+  }
+}
+
 export class DecisionItem extends vscode.TreeItem {
   constructor(decision: string, rationale: string, phase: string, taskFilePath?: string) {
     super(decision, vscode.TreeItemCollapsibleState.None);
@@ -492,6 +575,7 @@ type AgentTaskTreeItem =
   | PlanVersionsGroupItem
   | PlanVersionItem
   | WalkthroughSummaryItem
+  | DiagnoseSummaryItem
   | DecisionItem
   | BlockerItem;
 
@@ -536,7 +620,8 @@ function collectBranchesForWorktree(
 
       const hasTaskFile = fs.existsSync(taskPath);
       const hasPlanFile = fs.existsSync(planPath);
-      if (!hasTaskFile && !hasPlanFile) continue;
+      const diagnosePaths = findDiagnoseReports(branchDir);
+      if (!hasTaskFile && !hasPlanFile && diagnosePaths.length === 0) continue;
 
       let task: ParsedTask | undefined;
       let plan: ParsedPlan | undefined;
@@ -569,10 +654,24 @@ function collectBranchesForWorktree(
         }
       }
 
+      const diagnoses: DiagnoseFileInfo[] = [];
+      for (const dp of diagnosePaths) {
+        const targetSkill = diagnoseTargetFromFilename(path.basename(dp));
+        if (!targetSkill) continue;
+        let parsed: ParsedDiagnose = {};
+        try {
+          parsed = parseDiagnoseMd(fs.readFileSync(dp, 'utf-8'));
+          latestMtime = Math.max(latestMtime, fs.statSync(dp).mtimeMs);
+        } catch {
+          // ignore parse / stat errors — still surface the file as a row
+        }
+        diagnoses.push({ filePath: dp, targetSkill, parsed });
+      }
+
       const hasInProgress = task?.taskSections.some((s) => s.items.some((t) => t.inProgress)) ?? false;
 
       results.push({
-        item: new AgentBranchItem(relPath, branchDir, task, plan, hasWalkthrough),
+        item: new AgentBranchItem(relPath, branchDir, task, plan, hasWalkthrough, diagnoses),
         mtime: latestMtime,
         name: relPath.toLowerCase(),
         hasWalkthrough,
@@ -586,8 +685,11 @@ function collectBranchesForWorktree(
 }
 
 /**
- * Recursively find directories containing `task.md`, `plan.md`, or
- * `walkthrough.md`. Returns relative paths from `dir`.
+ * Recursively find directories containing `task.md`, `plan.md`,
+ * `walkthrough.md`, or any `diagnose-*.md` report. Returns relative paths
+ * from `dir` — branches whose only artifact is a diagnose report still
+ * surface (a user can run `/create-skill diagnose` against a branch that
+ * never carried a plan or task).
  */
 function findBranchDirs(dir: string, relativePath = ''): string[] {
   const results: string[] = [];
@@ -596,7 +698,12 @@ function findBranchDirs(dir: string, relativePath = ''): string[] {
 
     // Check if this directory itself has artifacts
     const hasArtifact = entries.some(
-      (e) => !e.isDirectory() && (e.name === 'task.md' || e.name === 'plan.md' || e.name === 'walkthrough.md')
+      (e) =>
+        !e.isDirectory() &&
+        (e.name === 'task.md' ||
+          e.name === 'plan.md' ||
+          e.name === 'walkthrough.md' ||
+          /^diagnose-.+\.md$/.test(e.name))
     );
     if (hasArtifact && relativePath) {
       results.push(relativePath);
@@ -872,6 +979,13 @@ export class AgentTasksProvider implements vscode.TreeDataProvider<AgentTaskTree
     if (branch.hasWalkthrough) {
       const wtPath = path.join(branch.artifactDir, 'walkthrough.md');
       children.push(new WalkthroughSummaryItem(wtPath));
+    }
+
+    // Diagnose reports — one row per `diagnose-{target}.md` produced by
+    // `/create-skill diagnose <target>`. Multiple targets can coexist on
+    // the same branch, each surfaces independently.
+    for (const diagnose of branch.diagnoses) {
+      children.push(new DiagnoseSummaryItem(diagnose));
     }
 
     return children;

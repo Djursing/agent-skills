@@ -3,7 +3,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-import { findLinkedArtifacts, hasLinkedArtifacts } from './session-artifact-correlator';
+import {
+  diagnoseTargetFromFilename,
+  findDiagnoseReports,
+  findLinkedArtifacts,
+  hasLinkedArtifacts,
+} from './session-artifact-correlator';
 
 describe('findLinkedArtifacts', () => {
   let tmpRoot: string;
@@ -90,6 +95,79 @@ describe('findLinkedArtifacts', () => {
     const wt = setup({ '.agent/feat/foo/bar/plan.md': '# plan' });
     const result = findLinkedArtifacts(wt, 'feat/foo/bar', ['.agent']);
     expect(result.planPath).toBe(path.join(wt, '.agent', 'feat', 'foo', 'bar', 'plan.md'));
+  });
+
+  it('returns every diagnose-*.md report sorted by filename', () => {
+    const wt = setup({
+      '.agent/feat/x/plan.md': '# plan',
+      '.agent/feat/x/diagnose-fix-bug.md': '# fix-bug diag',
+      '.agent/feat/x/diagnose-autonomous-workflow.md': '# aw diag',
+    });
+    const result = findLinkedArtifacts(wt, 'feat/x', ['.agent']);
+    expect(result.diagnosePaths).toEqual([
+      path.join(wt, '.agent', 'feat', 'x', 'diagnose-autonomous-workflow.md'),
+      path.join(wt, '.agent', 'feat', 'x', 'diagnose-fix-bug.md'),
+    ]);
+  });
+
+  it('treats a diagnose report alone as a valid linked artifact', () => {
+    const wt = setup({ '.agent/feat/x/diagnose-fix-bug.md': '# diag' });
+    const result = findLinkedArtifacts(wt, 'feat/x', ['.agent']);
+    expect(result.diagnosePaths).toEqual([
+      path.join(wt, '.agent', 'feat', 'x', 'diagnose-fix-bug.md'),
+    ]);
+    expect(result.artifactDir).toBe(path.join(wt, '.agent', 'feat', 'x'));
+    expect(result.planPath).toBeUndefined();
+  });
+
+  it('does NOT match diagnose.md without a target suffix', () => {
+    const wt = setup({ '.agent/feat/x/diagnose.md': '# plain' });
+    const result = findLinkedArtifacts(wt, 'feat/x', ['.agent']);
+    expect(result.diagnosePaths).toBeUndefined();
+    expect(result.artifactDir).toBeUndefined();
+  });
+});
+
+describe('findDiagnoseReports', () => {
+  let tmpRoot: string;
+
+  beforeAll(() => {
+    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'diag-test-'));
+  });
+
+  afterAll(() => {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  it('returns [] for a missing directory', () => {
+    expect(findDiagnoseReports(path.join(tmpRoot, 'nope'))).toEqual([]);
+  });
+
+  it('returns [] when no diagnose files exist', () => {
+    const dir = fs.mkdtempSync(path.join(tmpRoot, 'empty-'));
+    fs.writeFileSync(path.join(dir, 'plan.md'), '# plan');
+    expect(findDiagnoseReports(dir)).toEqual([]);
+  });
+
+  it('ignores subdirectories named diagnose-foo.md', () => {
+    const dir = fs.mkdtempSync(path.join(tmpRoot, 'subdir-'));
+    fs.mkdirSync(path.join(dir, 'diagnose-fake.md'));
+    expect(findDiagnoseReports(dir)).toEqual([]);
+  });
+});
+
+describe('diagnoseTargetFromFilename', () => {
+  it('extracts the target from a well-formed filename', () => {
+    expect(diagnoseTargetFromFilename('diagnose-fix-bug.md')).toBe('fix-bug');
+    expect(diagnoseTargetFromFilename('diagnose-autonomous-workflow.md')).toBe(
+      'autonomous-workflow'
+    );
+  });
+
+  it('returns undefined for non-matching filenames', () => {
+    expect(diagnoseTargetFromFilename('plan.md')).toBeUndefined();
+    expect(diagnoseTargetFromFilename('diagnose.md')).toBeUndefined();
+    expect(diagnoseTargetFromFilename('diagnose-.md')).toBeUndefined();
   });
 });
 

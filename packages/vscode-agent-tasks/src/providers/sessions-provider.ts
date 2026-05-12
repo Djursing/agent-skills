@@ -374,6 +374,13 @@ export class SessionItem extends vscode.TreeItem {
       if (linkedArtifacts.taskPath) parts.push('task.md');
       if (linkedArtifacts.planPath) parts.push('plan.md');
       if (linkedArtifacts.walkthroughPath) parts.push('walkthrough.md');
+      if (linkedArtifacts.diagnosePaths && linkedArtifacts.diagnosePaths.length > 0) {
+        const noun =
+          linkedArtifacts.diagnosePaths.length === 1
+            ? 'diagnose report'
+            : `${linkedArtifacts.diagnosePaths.length} diagnose reports`;
+        parts.push(noun);
+      }
       md.appendMarkdown(`**Linked artifacts:** ${parts.join(' · ')}\n\n`);
     }
 
@@ -1082,6 +1089,14 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionTreeItem
     if (links.planPath) out.push(new LinkedArtifactItem('Plan', 'notebook', links.planPath));
     if (links.walkthroughPath) {
       out.push(new LinkedArtifactItem('Walkthrough', 'book', links.walkthroughPath));
+    }
+    if (links.diagnosePaths) {
+      for (const diagPath of links.diagnosePaths) {
+        const filename = diagPath.split(/[\\/]/).pop() ?? diagPath;
+        const targetMatch = /^diagnose-(.+)\.md$/.exec(filename);
+        const label = targetMatch ? `Diagnose: ${targetMatch[1]}` : 'Diagnose';
+        out.push(new LinkedArtifactItem(label, 'beaker', diagPath));
+      }
     }
 
     // Append a Pull Request row when we know the branch + worktree, so the

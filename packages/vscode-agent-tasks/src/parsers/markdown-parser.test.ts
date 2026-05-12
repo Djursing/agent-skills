@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseTaskMd, parsePlanMd, parseWalkthroughMd } from './markdown-parser';
+import { parseDiagnoseMd, parsePlanMd, parseTaskMd, parseWalkthroughMd } from './markdown-parser';
 
 describe('parseTaskMd', () => {
   describe('frontmatter parsing', () => {
@@ -528,5 +528,56 @@ describe('parseWorktreeListOutput', () => {
   // Testing the git worktree parser is already covered in git-worktree.test.ts
   it('is tested in git-worktree.test.ts', () => {
     expect(true).toBe(true);
+  });
+});
+
+describe('parseDiagnoseMd', () => {
+  const sample = `# Diagnosis: walkthrough invariants regressed
+
+- Generated: 2026-05-12T10:01:02Z
+- Target skill: autonomous-workflow
+- Branch: feat/x
+- Failure class: F1
+- Confidence (Step 6): 92%
+- Apply status: permitted
+
+## 1. Symptom
+
+Something happened.
+`;
+
+  it('extracts every header field from a well-formed report', () => {
+    const result = parseDiagnoseMd(sample);
+    expect(result.summary).toBe('walkthrough invariants regressed');
+    expect(result.targetSkill).toBe('autonomous-workflow');
+    expect(result.branch).toBe('feat/x');
+    expect(result.failureClass).toBe('F1');
+    expect(result.confidence).toBe(92);
+    expect(result.applyStatus).toBe('permitted');
+    expect(result.generated).toBe('2026-05-12T10:01:02Z');
+  });
+
+  it('parses fractional confidence values', () => {
+    const content = sample.replace('92%', '88.5%');
+    const result = parseDiagnoseMd(content);
+    expect(result.confidence).toBe(88.5);
+  });
+
+  it('returns undefined for fields that are missing', () => {
+    const result = parseDiagnoseMd('# Diagnosis: bare\n');
+    expect(result.summary).toBe('bare');
+    expect(result.targetSkill).toBeUndefined();
+    expect(result.confidence).toBeUndefined();
+    expect(result.applyStatus).toBeUndefined();
+  });
+
+  it('tolerates extra whitespace around header values', () => {
+    const result = parseDiagnoseMd(`# Diagnosis: x
+
+-   Target skill:    fix-bug
+- Failure class:   F-novel
+`);
+    expect(result.targetSkill).toBe('fix-bug');
+    expect(result.failureClass).toBe('F-novel');
   });
 });

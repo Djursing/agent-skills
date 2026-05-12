@@ -1,13 +1,14 @@
 # Agent Tasks
 
-Visualize autonomous agent workflow artifacts (`plan.md`, `task.md`, `walkthrough.md`) in the VS Code sidebar. Works with any workflow that writes artifacts to `.agent/` or `.gw/` directories — including the [`autonomous-workflow`](https://github.com/mthines/agent-skills) skill.
+Visualize autonomous agent workflow artifacts (`plan.md`, `task.md`, `walkthrough.md`, `diagnose-*.md`) in the VS Code sidebar. Works with any workflow that writes artifacts to `.agent/` or `.gw/` directories — including the [`autonomous-workflow`](https://github.com/mthines/agent-skills) skill.
 
 ## Features
 
 - **Agent Tasks sidebar** — browse all in-flight and completed agent tasks by branch
 - **Task progress** — see phase, status (in-progress/blocked/completed), and sub-tasks at a glance
 - **Plan viewer** — inspect the plan summary, files to create/modify, and complexity estimate
-- **Walkthrough & plan auto-open** — when a `walkthrough.md` or `plan.md` is created, the extension opens it automatically in Markdown Preview (each toggleable)
+- **Diagnose reports** — surface every `diagnose-{target}.md` produced by `/create-skill diagnose <target>` next to the plan and walkthrough, with the failure class and confidence score in the row description
+- **Walkthrough, plan, and diagnose auto-open** — when a `walkthrough.md`, `plan.md`, or new `diagnose-*.md` is created, the extension opens it automatically in Markdown Preview (each toggleable)
 - **Configurable directories** — scan `.agent/`, `.gw/`, or any custom directory name
 - **Sort** — sort by date, name, or status; ascending or descending
 - **Sessions panel** — view Claude Code session history for the current workspace and sibling worktrees; click to open the transcript or resume the session in a terminal
@@ -99,6 +100,7 @@ As of this release, the extension also activates via `onStartupFinished` so the 
 | `agentTasks.sortOrder` | `"desc"` | Sort direction: `"asc"` or `"desc"`. |
 | `agentTasks.autoOpenWalkthrough` | `true` | Auto-open `walkthrough.md` in Preview when created. |
 | `agentTasks.autoOpenPlan` | `true` | Auto-open `plan.md` in Preview when created. |
+| `agentTasks.autoOpenDiagnose` | `true` | Auto-open a `diagnose-{target}.md` report the first time it is created. Re-runs of `/create-skill diagnose` against the same target overwrite the report in place and do not re-open it. |
 | `agentTasks.openMarkdownInPreview` | `true` | Open artifact files in Markdown Preview mode. |
 | `agentTasks.sessions.openWith` | `"resume"` | What to do when a session is clicked: `"resume"` opens a terminal in the session's original CWD and runs `claude --resume <session-id>`; `"editor"` opens the JSONL file instead. |
 | `agentTasks.sessions.scope` | `"all"` | Which worktrees the Sessions panel includes: `"all"` shows every worktree (grouped, current first); `"current"` shows only the current worktree. Toggle quickly via the filter icon in the panel header. |
@@ -157,8 +159,9 @@ The extension reads:
 - `task.md` — task progress with phase, in-progress markers, sub-tasks, blockers, decisions
 - `plan.md` — plan frontmatter, summary, files to create/modify, complexity
 - `walkthrough.md` — post-implementation summary and files-changed table
+- `diagnose-{target}.md` — retrospective failure-analysis reports produced by `/create-skill diagnose <target>`. The row label carries the target skill name; the description shows the failure class and confidence score parsed from the header bullet list (`- Failure class: …`, `- Confidence (Step 6): N%`). Multiple targets coexist as siblings under the same branch.
 
-These are written by the [`autonomous-workflow`](https://github.com/mthines/agent-skills) skill's companion skills (`aw-create-plan`, `aw-create-walkthrough`).
+These are written by the [`autonomous-workflow`](https://github.com/mthines/agent-skills) skill's companion skills (`aw-create-plan`, `aw-create-walkthrough`) and by `/create-skill diagnose`.
 
 ## Requirements
 
