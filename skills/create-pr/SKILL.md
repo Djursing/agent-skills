@@ -259,126 +259,34 @@ Short summary:
 Use when the branch has accumulated several unrelated changes and a single PR would be hard to review.
 The skill analyses the diff, proposes a small number of focused PRs, and after explicit user approval executes the split as dependency-ordered draft PRs.
 
-### When to split (and when not to)
+**Full procedure lives in [`rules/split-mode.md`](./rules/split-mode.md).**
+Load that file when entering split mode; it covers when to split, file grouping rules, dependency detection across seven coupling categories, the per-PR execution loop, abort/rollback, and split-specific hard rules.
 
-Split is worth it when **at least one** of these is true:
+Quick reference for the shape of the workflow:
 
-- 6+ conceptual bullets are needed under "What changed" in default mode
-- The diff touches 3+ unrelated subsystems (auth, telemetry, UI, infra, ...)
-- A natural refactor-then-feature ordering exists
-- The body still exceeds 40 lines after trimming per Step 5
+| Step | Name                              | Output                                              |
+| ---- | --------------------------------- | --------------------------------------------------- |
+| S1   | Analyze the diff                  | Conceptual classification of every changed file    |
+| S2   | Group files into PRs              | 2–4 candidate groups (hard cap 5)                  |
+| S3   | Detect dependencies               | Topological order + file-level-only constraint     |
+| S4   | Propose to user                   | Table; **stop and wait** for `approve / modify / abort` |
+| S5   | Execute (preflight + per-PR loop) | Patch-based file extraction, sanity check, push    |
+| S6   | Watch CI bottom-up, rebase stack  | Auto-fix bottom; rebase upward PRs with `--force-with-lease` |
+| S7   | Abort and rollback                | Restore original SHA; ask before deleting remotes  |
+| S8   | Report                            | Stack diagram + recommended merge order            |
 
-Don't split when:
+**Hard preconditions** (enforced in S5 preflight):
 
-- The change is one coherent idea, even if large (e.g. a single big migration)
-- Splits would produce trivial PRs (< ~50 LOC each) — one slightly bigger PR beats five fragments
-- File-level splits would break the build on intermediate PRs (verify with the user's quick check command before proposing)
+- Working tree clean (`git status --porcelain` empty)
+- `git fetch origin` ran; first PR bases on `origin/main`, not local `main`
+- Original branch SHA recorded for rollback
 
-### Step S1: Analyze the diff
+**Hard prohibitions** (full list in `rules/split-mode.md`):
 
-Run in parallel:
-
-```bash
-git branch --show-current
-git log main..HEAD --oneline
-git diff main...HEAD --name-status
-git diff main...HEAD --stat
-git diff main...HEAD              # full diff — needed to classify each file
-```
-
-Read enough of the diff to classify every changed file by **conceptual concern**, not extension or directory.
-Concerns are things like *refactor X*, *new feature Y*, *unrelated lint fixes*, *DB migration*, *test additions for pre-existing code*, *docs update*.
-
-### Step S2: Group files into PRs
-
-Target **2–4 PRs**.
-Hard cap: 5.
-Apply this priority order:
-
-1. **Pre-requisite refactors first.** Code moves, renames, extractions — any change other PRs build on.
-2. **Independent concerns next.** Each group should be reviewable standalone (modulo stacking).
-3. **Tests with their code.** Don't put tests in a separate PR unless they cover *pre-existing* code.
-4. **Docs and lint fixes** can be their own PR only if substantial; otherwise fold into the most related PR.
-
-For each candidate group, ask: *could I write a coherent "Why" plus 2–4 "What changed" bullets for this?*
-If the answer is no, the group is wrong — merge it with another or re-cut.
-
-### Step S3: Detect dependencies
-
-For each group, check whether any of its files import or reference symbols introduced or modified by another group's files.
-If yes, the dependent group must stack on top of the other.
-
-Produce a dependency order (topological sort).
-If cycles emerge, the groups are wrong — re-group until acyclic.
-
-### Step S4: Propose the split to the user
-
-Render the proposal as a table:
-
-| # | Title                              | Files | LOC | Stacks on |
-| - | ---------------------------------- | ----- | --- | --------- |
-| 1 | refactor: extract auth helpers     | 3     | 80  | —         |
-| 2 | feat(auth): add 401 refresh        | 4     | 220 | PR #1     |
-| 3 | docs: update auth README           | 1     | 30  | —         |
-
-Below the table, write one short rationale line per PR (why this is a coherent unit, what risk it isolates).
-
-**Stop and confirm.**
-Do not execute until the user says go.
-Offer three responses:
-
-- `approve` — execute as proposed
-- `modify <instructions>` — accept user adjustments (combine PRs, move files between groups, rename, drop a PR)
-- `abort` — fall back to default mode (single PR) or exit
-
-### Step S5: Execute the split
-
-For each PR in dependency order:
-
-1. **Branch off the parent:**
-   ```bash
-   git checkout <parent-branch>          # main, or the previous split PR's branch
-   git checkout -b <split-branch>        # e.g. split/<original-branch>/01-extract-auth-helpers
-   ```
-2. **Apply only this PR's files** from the original branch:
-   ```bash
-   git checkout <original-branch> -- <file1> <file2> ...
-   ```
-3. **Sanity check.** If the user has a quick build/lint/type command, run it. A failure here means the file-level split is wrong — stop, report, and ask the user (do **not** silently pull in extra files to make it green).
-4. **Commit** with a message that matches the proposed title.
-5. **Push and create a draft PR** by reusing Steps 1–6 from default mode (gather → narrative → `gh pr create --draft`). For stacked PRs, set the base explicitly:
-   ```bash
-   gh pr create --draft --base <parent-branch> --title "..." --body "..."
-   ```
-6. Record the PR URL.
-   If subsequent PRs stack on this one, use this branch as their parent.
-
-After all PRs are open, run `gh pr checks --watch` on the **bottom** of the stack first, working up.
-Auto-fix per Steps 8–9 only on the bottom PR while the rest are still red waiting for it — fixing higher PRs first creates rebase churn.
-
-### Step S6: Report
-
-Output a stack diagram and the recommended merge order:
-
-```
-PR #1 (base: main):        <url> — refactor: extract auth helpers
-  └── PR #2 (base: PR #1): <url> — feat(auth): add 401 refresh
-PR #3 (base: main):        <url> — docs: update auth README
-
-Recommended merge order: #1 → #2, then #3 (independent).
-```
-
-Leave the user to choose when to merge.
-Do not mark any PR ready-for-review on their behalf.
-
-### Split-mode hard rules
-
-- **Never** push or open a PR before the user approves the Step S4 proposal table.
-- **Never** modify production code to make a split clean — only re-grouping files is allowed.
-- **Never** split a single logical commit across PRs unless the user explicitly asks.
-- **Never** create more than 5 PRs in one run.
-  If five focused groups isn't enough, the original branch was sprawling enough to need human judgment, not mechanical splitting — stop and report.
-- **Never** swallow a sanity-check failure (Step S5.3) by silently pulling extra files into the PR — surface it.
+- Never `git checkout <ref> -- <files>` to extract a PR — it loses deletions and corrupts renames. Use `git diff <parent> <original-sha> -- <files> | git apply --index --3way`.
+- Never push or open a PR before the user approves the Step S4 proposal.
+- Never force-push a stacked branch with plain `--force` — `--force-with-lease` only.
+- Never delete a pushed split branch or close a draft split PR during rollback without explicit user confirmation.
 
 ## Anti-patterns to Avoid
 
