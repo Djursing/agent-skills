@@ -9,6 +9,7 @@ import * as fs from 'fs';
 import {
   AgentTasksProvider,
   AgentBranchItem,
+  DiagnoseSummaryItem,
   PlanSummaryItem,
   PlanVersionItem,
   WalkthroughSummaryItem,
@@ -177,6 +178,13 @@ export function activate(context: vscode.ExtensionContext): void {
     if (item instanceof WalkthroughSummaryItem) {
       return { fsPath: item.walkthroughFilePath, isDirectory: false, label: 'walkthrough.md' };
     }
+    if (item instanceof DiagnoseSummaryItem) {
+      return {
+        fsPath: item.info.filePath,
+        isDirectory: false,
+        label: `diagnose-${item.info.targetSkill}.md`,
+      };
+    }
     return undefined;
   };
 
@@ -212,9 +220,14 @@ export function activate(context: vscode.ExtensionContext): void {
     // whole branch's artifact history with them, which is irreversible
     // unless the user has the worktree under git (and `.agent/` is
     // typically gitignored). Make that explicit.
+    const fileNote = target.label.startsWith('plan.v')
+      ? 'Versioned plan snapshots are intended as immutable history — only delete one if you are certain it is no longer useful.'
+      : target.label.startsWith('diagnose-')
+        ? 'Re-running `/create-skill diagnose` against the same target will regenerate this file, but the current report will be lost.'
+        : 'This cannot be undone.';
     const detail = target.isDirectory
-      ? `This permanently removes the directory and every artifact inside it (plan.md, plan.v*.md, walkthrough.md, task.md). \`.agent/\` is usually gitignored, so this CANNOT be undone.`
-      : `This permanently removes the file. ${target.label.startsWith('plan.v') ? 'Versioned plan snapshots are intended as immutable history — only delete one if you are certain it is no longer useful.' : 'This cannot be undone.'}`;
+      ? `This permanently removes the directory and every artifact inside it (plan.md, plan.v*.md, walkthrough.md, task.md, diagnose-*.md). \`.agent/\` is usually gitignored, so this CANNOT be undone.`
+      : `This permanently removes the file. ${fileNote}`;
 
     const confirm = await vscode.window.showWarningMessage(
       `Delete ${target.label}?`,

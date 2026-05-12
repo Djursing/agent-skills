@@ -1,7 +1,9 @@
 /**
  * File system watcher for agent artifact files
- * Watches for changes to task.md, plan.md, and walkthrough.md
- * Auto-opens walkthrough.md and plan.md when created, refreshes views on changes
+ * Watches for changes to task.md, plan.md, walkthrough.md, and
+ * diagnose-{target}.md reports.
+ * Auto-opens walkthrough.md, plan.md, and (when enabled) diagnose-*.md when
+ * created, refreshes views on changes.
  *
  * Uses Node.js fs.watch instead of vscode.workspace.createFileSystemWatcher
  * because artifact dirs may live in the bare repo root which is outside the
@@ -34,6 +36,16 @@ const ARTIFACT_FILES = new Set(['task.md', 'plan.md', 'walkthrough.md']);
 const PLAN_VERSION_PATTERN = /^plan\.v\d+\.md$/;
 
 /**
+ * Matches `diagnose-{target}.md` reports produced by
+ * `/create-skill diagnose <target>`. One file per diagnosed target skill;
+ * re-running the diagnose mode against the same target overwrites the
+ * existing report (no timestamp in the filename), so `onDidCreate` only
+ * fires the first time a target is diagnosed and subsequent runs come
+ * through as `change` events.
+ */
+const DIAGNOSE_FILE_PATTERN = /^diagnose-.+\.md$/;
+
+/**
  * Returns the configured artifact directory names, falling back to the defaults
  * when the setting is empty or unset.
  */
@@ -49,6 +61,7 @@ export class ArtifactWatcher implements vscode.Disposable {
   private lifetimeDisposables: vscode.Disposable[] = [];
   private knownWalkthroughs = new Set<string>();
   private knownPlans = new Set<string>();
+  private knownDiagnoses = new Set<string>();
   /** Artifact roots covered by the current set of watchers */
   private watchedRoots = new Set<string>();
   /** Per-file debounce timers so simultaneous changes to different files fire independently */
@@ -83,6 +96,8 @@ export class ArtifactWatcher implements vscode.Disposable {
             this.knownWalkthroughs.add(path.join(dir, entry.name));
           } else if (entry.name === 'plan.md') {
             this.knownPlans.add(path.join(dir, entry.name));
+          } else if (DIAGNOSE_FILE_PATTERN.test(entry.name)) {
+            this.knownDiagnoses.add(path.join(dir, entry.name));
           }
           continue;
         }
@@ -388,6 +403,13 @@ export class ArtifactWatcher implements vscode.Disposable {
           // history. We deliberately do NOT auto-open versioned snapshots:
           // the user opted in to versioning, not to a popup per iteration.
           this._onArtifactChanged.fire('plan.version');
+        } else if (DIAGNOSE_FILE_PATTERN.test(basename)) {
+          // A new or changed `diagnose-{target}.md` report. Route through
+          // the same per-file debounce as the canonical artifacts so the
+          // create-vs-change distinction (for auto-open on first create)
+          // is preserved.
+          const fullPath = path.join(artifactRoot, filename);
+          this.emitDebounced(fullPath, basename, eventType);
         } else {
           // Directory or non-artifact file change — could be a new branch dir
           this._onArtifactChanged.fire('directory');
@@ -411,7 +433,13 @@ export class ArtifactWatcher implements vscode.Disposable {
    * better than no watching at all.
    */
   private setupVscodeWatchers(): void {
-    const patterns = ['**/task.md', '**/plan.md', '**/plan.v*.md', '**/walkthrough.md'];
+    const patterns = [
+      '**/task.md',
+      '**/plan.md',
+      '**/plan.v*.md',
+      '**/walkthrough.md',
+      '**/diagnose-*.md',
+    ];
     const watchBases = this.getWatchBases();
     const dirs = getConfiguredDirs();
 
@@ -494,12 +522,24 @@ export class ArtifactWatcher implements vscode.Disposable {
       if (autoOpen) {
         this.openArtifact(vscode.Uri.file(fullPath), 'Plan');
       }
+      return;
+    }
+
+    if (DIAGNOSE_FILE_PATTERN.test(basename) && !this.knownDiagnoses.has(fullPath)) {
+      this.knownDiagnoses.add(fullPath);
+      const autoOpen = vscode.workspace
+        .getConfiguration('agentTasks')
+        .get<boolean>('autoOpenDiagnose', true);
+      if (autoOpen) {
+        this.openArtifact(vscode.Uri.file(fullPath), 'Diagnose report');
+      }
     }
   }
 
   private onFileDeleted(fullPath: string, basename: string): void {
     this.knownWalkthroughs.delete(fullPath);
     this.knownPlans.delete(fullPath);
+    this.knownDiagnoses.delete(fullPath);
     this._onArtifactChanged.fire(basename);
   }
 

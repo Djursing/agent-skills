@@ -1,5 +1,6 @@
 /**
- * Parsers for the agent artifact markdown files (task.md, plan.md, walkthrough.md)
+ * Parsers for the agent artifact markdown files (task.md, plan.md, walkthrough.md,
+ * and the diagnose-{target}.md retrospective reports produced by `/create-skill diagnose`).
  */
 
 export interface TaskFrontmatter {
@@ -461,5 +462,66 @@ export function parseWalkthroughMd(content: string): ParsedWalkthrough {
     branch,
     pr,
     worktreePath,
+  };
+}
+
+export type DiagnoseApplyStatus = 'permitted' | 'disabled-low-confidence' | string;
+
+export interface ParsedDiagnose {
+  /** Free-text from the `# Diagnosis: …` H1, when present. */
+  summary?: string;
+  /** Value of the `Target skill:` header line, e.g. `autonomous-workflow`. */
+  targetSkill?: string;
+  /** Value of the `Branch:` header line. */
+  branch?: string;
+  /** Value of the `Failure class:` header line (`F1`, `F-novel`, …). */
+  failureClass?: string;
+  /** Numeric confidence percentage extracted from the `Confidence (Step 6):` header line. */
+  confidence?: number;
+  /** Value of the `Apply status:` header line — kept as a free string so future statuses don't need a parser change. */
+  applyStatus?: DiagnoseApplyStatus;
+  /** Verbatim `Generated:` timestamp string, when present. */
+  generated?: string;
+}
+
+/**
+ * Parses the metadata header of a `diagnose-{target}.md` report.
+ * Tolerant of missing fields — the file is plain Markdown without YAML
+ * frontmatter, and only the H1 and the bullet list at the top are required.
+ *
+ * Returns `undefined` for fields that cannot be parsed so callers can fall
+ * back to deriving the target skill from the filename.
+ */
+export function parseDiagnoseMd(content: string): ParsedDiagnose {
+  const titleMatch = content.match(/^#\s+Diagnosis:\s*(.+)$/m);
+  const summary = titleMatch ? titleMatch[1].trim() : undefined;
+
+  const headerLine = (label: string): string | undefined => {
+    const regex = new RegExp(`^-\\s+${label}:\\s*(.+)$`, 'm');
+    const m = content.match(regex);
+    return m ? m[1].trim() : undefined;
+  };
+
+  const targetSkill = headerLine('Target skill');
+  const branch = headerLine('Branch');
+  const failureClass = headerLine('Failure class');
+  const generated = headerLine('Generated');
+  const applyStatus = headerLine('Apply status');
+
+  let confidence: number | undefined;
+  const confLine = content.match(/^-\s+Confidence\s*\(Step 6\):\s*(\d+(?:\.\d+)?)\s*%/m);
+  if (confLine) {
+    const n = Number(confLine[1]);
+    if (Number.isFinite(n)) confidence = n;
+  }
+
+  return {
+    summary,
+    targetSkill,
+    branch,
+    failureClass,
+    confidence,
+    applyStatus,
+    generated,
   };
 }
