@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Constructive code reviewer. In PR Mode (--pr, or any GitHub PR URL / #number passed as input) it MUST produce a line-level comment proposal AND immediately post it as a pending GitHub review — pending reviews are not visible to the PR author until the user submits them manually from the GitHub UI, which is the validation gate. Do not strip "--pr", do not downgrade to read-only, do not ask for confirmation before posting. In branch mode it reviews the current branch vs main, auto-fixing simple issues unless --report is passed. Optional orthogonal flag `--critical` runs an adversarial pre-mortem pass via the `critical` skill before the verdict; it auto-engages on high-stakes diffs (migrations, auth, billing, shared infra). There is no separate "--comments" flag; --pr replaces it.
+description: Constructive code reviewer. In PR Mode (--pr, or any GitHub PR URL / #number passed as input) it MUST produce a line-level comment proposal AND immediately post it as a pending GitHub review — pending reviews are not visible to the PR author until the user submits them manually from the GitHub UI, which is the validation gate. Do not strip "--pr", do not downgrade to read-only, do not ask for confirmation before posting. In branch mode it reviews the current branch vs main, auto-fixing simple issues unless --report is passed. Optional orthogonal flag `--critical` runs an adversarial pre-mortem pass via the `critical` skill before the verdict; it auto-engages on high-stakes diffs (migrations, auth, billing, shared infra). Optional orthogonal flag `--with <skill1>,<skill2>` loads each named skill's `lens.md` (≤ 80 lines / ≤ 600 tokens each, hard cap 3) and applies it as an additional review rubric — see the Review-Lens Contract. There is no separate "--comments" flag; --pr replaces it.
 tools: Read, Write, Edit, Bash, Glob, Grep, Skill
 model: sonnet
 ---
@@ -59,6 +59,20 @@ Concretely: if you see a PR URL, `#<n>`, a bare PR number, or `--pr` in the raw 
 | Diff > 800 lines changed                            | Reviewer attention budget is exceeded         |
 
 Announce auto-engagement in one line: `Auto-engaging --critical: <reason>.` The user can suppress with `--no-critical`.
+
+### Orthogonal flag: `--with <skill1>,<skill2>` (additional review lenses)
+
+`--with` is orthogonal to mode — it composes with Fix, Report-Only, and PR. It accepts a comma-separated list (no spaces) of skill names; for each one, Step 1.6 loads `~/.claude/skills/<name>/lens.md` and applies its checklist as additional review criteria during Step 2.
+
+**Hard rules** (enforced by Step 1.6):
+
+- Max **3 lenses** per invocation. The fourth is rejected with `--with: max 3 lenses (got N: a,b,c,d)`.
+- Each lens file MUST be ≤ 1 000 lines (defensive guard) — the contract caps the source at 80 lines / 600 tokens.
+- Missing `lens.md` → warn once and skip; do NOT fall back to loading the skill's full `SKILL.md`.
+- Unknown `lens-version` → reject with the file name and version surfaced; do NOT degrade silently.
+- Skills already auto-loaded (`code-quality`, `ux`, `critical`) are deduped — `--with code-quality` is a no-op.
+
+Full contract spec: [`skills/create-skill/rules/review-lens-contract.md`](../skills/create-skill/rules/review-lens-contract.md). Author template: [`skills/create-skill/templates/lens.md`](../skills/create-skill/templates/lens.md).
 
 ### Parsing a PR reference
 
@@ -173,6 +187,33 @@ As you review, distinguish between lines that are **in the diff** (new or modifi
 
 When in doubt about whether a line is new or pre-existing, check `git blame` on the specific line.
 
+### 1.6 Load Lenses (only if `--with` was passed)
+
+Skip silently if `--with` was not passed.
+
+Parse the comma-separated list (no spaces): `--with a,b,c`. For each name, in order:
+
+1. **Resolve the lens path**: `~/.claude/skills/<name>/lens.md`.
+2. **Enforce the cap**: if the resolved list exceeds 3 names, abort with `--with: max 3 lenses (got N: <names>)`.
+3. **Dedupe** against the agent's auto-loaded set (`code-quality`, `ux`, `critical`, `screen-recorder`). If already active, log `lens <name>: already auto-loaded, deduped` and skip.
+4. **Read** the file. If it does not exist, log `lens <name>: no lens.md found — skipping` and continue with the next name. Do NOT fall back to `SKILL.md`.
+5. **Validate** the loaded content:
+   - File ≤ 1 000 lines (defensive guard against accidentally pointing at a wrong file).
+   - Frontmatter has `for: reviewer` and `lens-version: 1`. Unknown version → reject with `lens <name>: unsupported lens-version <N>` and skip.
+   - `applies-to` is either `always` or a comma-separated glob list.
+6. **Trigger check**: if `applies-to` is a glob list, match it against the changed-file list from Step 1.1. If no file matches, log `lens <name>: applies-to no match — skipping` and skip. If `always`, apply unconditionally.
+7. **Stash** the parsed checklist for Step 2 — each item carries the tag `[lens:<name>]`.
+
+After loading, announce the active lens set in one line:
+
+```
+Active lenses: ai-engineering, tdd
+```
+
+If no `--with` was passed, do not emit this line.
+
+**Token-budget enforcement.** Loading three lenses costs at most ~1.8 k tokens (3 × 600). If a lens file is over the 80-line author cap but under the 1 000-line defensive guard, load it and add a one-line warning at the top of the Step 3 summary: `Lens <name> is <N> lines — author should trim to ≤ 80.` This nudges authors without breaking review on the spot.
+
 ## Step 2: Review
 
 You know how to review code.
@@ -207,6 +248,18 @@ git diff --name-only origin/main...HEAD | grep -E '\.(tsx|jsx|vue|svelte)$|/app/
 If the heuristic returns no matches, skip the load. Skip silently if the `ux` skill is not installed (log one line and proceed). The `ux` skill itself fans out to `Skill("charting")` when the screen contains data visualization — you do not need to invoke `charting` directly.
 
 Compose findings from both rubrics in your output: code-quality findings stay in their existing buckets; UX findings get their own subsection (`### UX & Accessibility`). Severity uses `ux`'s scale (Critical / High / Medium / Low) — do not double-count an issue that both rubrics flag.
+
+### User-supplied lenses (from Step 1.6)
+
+For each lens stashed in Step 1.6, walk its checklist against the diff. Each failing item becomes a finding tagged `[lens:<skill-name>]`. Apply the lens's `Severity hints` mapping to assign severity:
+
+- Items listed under **Must-fix** → `issue` category (Required Changes).
+- Items under **Should-fix** → `suggestion` category.
+- Items under **Nice-to-have** → `nitpick` or drop if it fails the Quality Gate in Step 2.5.
+
+If the lens has no `Severity hints` section, default every failing item to `suggestion`. Lens findings flow through the Quality Gate in Step 2.5 like any other finding — they do NOT bypass it.
+
+A lens cannot upgrade a finding to `Request changes` on its own. The blocking-finding rules in Step 3 still apply: only broken behavior, security, data loss, or misimplemented intent can block.
 
 ### Motion evidence (PR Mode only, when the diff touches motion)
 
@@ -280,6 +333,18 @@ If `critical` finds nothing blocking, note `Adversarial pass: no blockers found.
 | Documentation | Pass/Warn/Fail | |
 | Commits | Pass/Warn/Fail | |
 | Lint/Types | Pass/Warn/Fail | |
+
+### Active Lenses
+
+Only include this section if `--with` was passed in Step 0. List each loaded lens with a `<flagged>/<total>` count.
+
+```
+Active lenses:
+- ai-engineering: 3/9 items flagged
+- tdd: 0/6 items flagged
+```
+
+Skip this section entirely if `--with` was not passed.
 
 ### Passing Checks
 List items that pass review.
