@@ -99,8 +99,8 @@ graceful-skip rule applies to the optional **agent companions** (e.g.
 | 3     | `tdd`                  | Pure logic / business rules / "test-driven"                          | —                |
 | 3     | `ux`                   | UI files (`*.tsx`, `*.jsx`, `*.vue`, `*.svelte`, RN screens)         | —                |
 | 3     | `code-quality`         | Once at end of Phase 3 (not per-file)                                | `code`           |
-| 4     | `confidence`           | At iteration cap on same failing area (auto-replan trigger)          | `bug-analysis`   |
-| 4     | `holistic-analysis`    | Auto-replan only — `confidence(bug-analysis) < 90%` (one-shot)       | —                |
+| 4     | `confidence`           | At iteration cap on same failing area (auto-replan trigger)          | `analysis`   |
+| 4     | `holistic-analysis`    | Auto-replan only — `confidence(analysis) < 90%` (one-shot)       | —                |
 | 5     | `update-claude`        | Always (with skip conditions per phase-5 rule)                       | —                |
 | 6     | `review-changes`       | Always before push                                                   | —                |
 | 6     | `aw-create-walkthrough` | Full Mode only                                                      | —                |
@@ -113,7 +113,7 @@ graceful-skip rule applies to the optional **agent companions** (e.g.
 Phase 4 has a **mode-aware iteration cap**: 3 for Lite Mode, 5 for Full Mode
 on the same failing area. At the cap:
 
-1. Run `Skill("confidence", "bug-analysis")`.
+1. Run `Skill("confidence", "analysis")`.
 2. If score < 90% and auto-replan not yet used, run
    `Skill("holistic-analysis")`, update affected sections of `plan.md`,
    reset the iteration counter, and continue **once more** (one-shot guard).

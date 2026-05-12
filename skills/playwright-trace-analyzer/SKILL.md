@@ -82,7 +82,7 @@ Six phases. Do not skip a gate.
 | 1     | Measurement frame   | [`rules/measurement-methodology.md`](./rules/measurement-methodology.md) | Failure mode named (timeout, assertion, error, slow-but-passing) and primary metric chosen (action ms, total wall-clock, request count) |
 | 2     | Hotspot extraction  | [`rules/action-timing.md`](./rules/action-timing.md), [`rules/network-analysis.md`](./rules/network-analysis.md), [`rules/console-and-errors.md`](./rules/console-and-errors.md) | Top-N slow actions, top-N slow requests, error/console list — all with concrete numbers |
 | 3     | Root-cause          | [`rules/flake-diagnosis.md`](./rules/flake-diagnosis.md)                 | Each hotspot mapped to a code-level cause (selector, locator, network call, app event) with file path or line where possible |
-| 4     | Confidence gate     | [`rules/confidence-loop.md`](./rules/confidence-loop.md)                 | `/confidence bug-analysis` ≥ 90% — else iterate (max 2 deep-dives)        |
+| 4     | Confidence gate     | [`rules/confidence-loop.md`](./rules/confidence-loop.md)                 | `/confidence analysis` ≥ 90% — else iterate (max 2 deep-dives)        |
 | 5     | Fix plan            | [`templates/analysis-report.md`](./templates/analysis-report.md)         | Report written with ranked fixes, expected impact, and verification plan |
 
 ---
@@ -108,10 +108,10 @@ Pass-vs-fail comparison (when given two traces of the same test):
 ## Confidence-gated iteration
 
 After the first pass at root-cause analysis, invoke the confidence skill
-in `bug-analysis` mode:
+in `analysis` mode:
 
 ```text
-Skill(skill="confidence", args="bug-analysis")
+Skill(skill="confidence", args="analysis")
 ```
 
 Apply this gate:
@@ -230,7 +230,7 @@ it — only when an input is detected.
 - [ ] Console / page errors captured verbatim.
 - [ ] Each hotspot mapped to a test file + line (from `location` in the
       trace event), or to an app file when the cause is in product code.
-- [ ] `/confidence bug-analysis` reached ≥ 90% (or two deep-dives
+- [ ] `/confidence analysis` reached ≥ 90% (or two deep-dives
       recorded with the remaining uncertainty surfaced to the user).
 - [ ] Fix plan written using
       [`templates/analysis-report.md`](./templates/analysis-report.md),

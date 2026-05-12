@@ -7,7 +7,7 @@ priority: MEDIUM
 # Batch Approval UX
 
 How to present batch analysis results and collect user approval. Status values map directly to
-the per-ticket confidence-gate outcomes from Phase 1 — `confidence(bug-analysis)` for bugs,
+the per-ticket confidence-gate outcomes from Phase 1 — `confidence(analysis)` for bugs,
 `confidence(plan)` for features.
 
 ---

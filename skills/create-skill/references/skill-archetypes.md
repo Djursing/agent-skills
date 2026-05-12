@@ -247,7 +247,7 @@ worked examples.
 ## A7 — Multi-mode skill
 
 **Examples in this repo:** `holistic-analysis` (`fix` / `refactor` modes),
-`confidence` (`plan` / `code` / `bug-analysis` modes).
+`confidence` (`plan` / `code` / `analysis` modes).
 
 **Shape:** usually single-file with a `## Mode Detection` section near the
 top.
@@ -362,7 +362,7 @@ name: my-trace-analyser
 description: >
   Analyse <input artefact> for <target failure class>; auto-detects the
   format, extracts hotspots, maps them to source, and emits a ranked
-  fix plan. Confidence-gated via `confidence(bug-analysis)` — iterates
+  fix plan. Confidence-gated via `confidence(analysis)` — iterates
   if root-cause certainty is below 90%.
 metadata:
   workflow_type: advisory
@@ -376,7 +376,7 @@ metadata:
 | 1     | Intake / format detection (load `input-detection.md`) |
 | 2     | Hotspot extraction (`measurement-methodology.md`)     |
 | 3     | Source mapping + root-cause hypothesis                |
-| 4     | **Confidence gate** (`confidence(bug-analysis)`) — 90% to proceed; 70–89% does up to 2 deep-dive iterations; <70% surfaces the gap and stops |
+| 4     | **Confidence gate** (`confidence(analysis)`) — 90% to proceed; 70–89% does up to 2 deep-dive iterations; <70% surfaces the gap and stops |
 | 5     | Ranked fix plan with citations back to the trace      |
 
 **Why a dedicated archetype:** trace analysers fail in a predictable

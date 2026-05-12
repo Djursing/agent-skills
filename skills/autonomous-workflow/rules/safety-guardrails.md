@@ -70,8 +70,8 @@ See each `phase-N-*.md` rule for full gate details.
 
 | Mode      | Cap | At cap                                                                                  |
 | --------- | --- | --------------------------------------------------------------------------------------- |
-| Lite Mode | 3   | Stop. Run `Skill("confidence", "bug-analysis")`. Auto-replan or escalate to user.       |
-| Full Mode | 5   | Stop. Run `Skill("confidence", "bug-analysis")`. Auto-replan or escalate to user.       |
+| Lite Mode | 3   | Stop. Run `Skill("confidence", "analysis")`. Auto-replan or escalate to user.       |
+| Full Mode | 5   | Stop. Run `Skill("confidence", "analysis")`. Auto-replan or escalate to user.       |
 
 The mode-aware cap is the single biggest cost-saver in the workflow. More
 than the cap on the same failing area almost always means the mental model
@@ -123,7 +123,7 @@ Log:
 | > 50 files changed                     | Scope too large — split PRs     |
 | > 3 hours stuck                        | Fundamental issue — escalate    |
 | > 100 commits                          | Approach is wrong — escalate    |
-| 3 iterations on same failing area      | Run `confidence(bug-analysis)`, escalate |
+| 3 iterations on same failing area      | Run `confidence(analysis)`, escalate |
 | 2 `ci-auto-fix` handoffs on same PR    | Stop, surface failures to user  |
 
 ---

@@ -167,7 +167,7 @@ After the Generator produces a test:
 
 If the heal loop fails to converge:
 
-- Invoke `confidence(bug-analysis)` on the test failure.
+- Invoke `confidence(analysis)` on the test failure.
 - If confidence is below 90%, escalate to the user with the trace, the spec,
   and the proposed locator changes — do **not** keep healing blindly.
 
@@ -182,7 +182,7 @@ If the heal loop fails to converge:
 | Flaky existing test                                          | Healer pass only; do not rewrite without spec context.        |
 | Locator unstable, no stable role / label                     | Propose `data-testid` diff (rule: locator-strategy).          |
 | Repo missing Playwright or MCP                               | Phase 0 halt + ask permission.                                |
-| Heal loop > 3 attempts                                       | Stop, run `confidence(bug-analysis)`, escalate.               |
+| Heal loop > 3 attempts                                       | Stop, run `confidence(analysis)`, escalate.               |
 | Test passes on first run, never seen failing                 | Run `test-provenance-guard` before declaring done.            |
 
 ---

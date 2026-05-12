@@ -759,7 +759,7 @@ Total cost: Low (clean code, no rework, happy users)
 
 **Different rule for stuck-loop iteration:**
 
-- ❌ "I've tried 3 times on the same failure" — if 3 attempts haven't converged, the mental model is probably wrong. Run `confidence(bug-analysis)` and escalate per the stuck-loop protocol in [phase-4-testing.md](../rules/phase-4-testing.md#stuck-loop-detection). This is distinct from quality-driven self-refinement above, which has no fixed cap.
+- ❌ "I've tried 3 times on the same failure" — if 3 attempts haven't converged, the mental model is probably wrong. Run `confidence(analysis)` and escalate per the stuck-loop protocol in [phase-4-testing.md](../rules/phase-4-testing.md#stuck-loop-detection). This is distinct from quality-driven self-refinement above, which has no fixed cap.
 
 **Exception - stop and ask user if:**
 

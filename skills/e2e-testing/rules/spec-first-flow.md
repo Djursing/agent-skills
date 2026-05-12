@@ -120,7 +120,7 @@ Heal-loop cap: **three attempts per failing test**.
 At the cap:
 
 1. Stop the loop.
-2. Run `confidence(bug-analysis)` on the failure.
+2. Run `confidence(analysis)` on the failure.
 3. If confidence ≥ 90% the locator change is correct, apply and re-run.
 4. If confidence < 90%, escalate to the user with the trace, the spec, and
    the proposed diff.

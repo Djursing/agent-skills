@@ -2,24 +2,25 @@
 name: confidence
 description: >
   Rates confidence that the current work fully solves the stated requirement.
-  Supports plan validation, code review, and bug analysis modes. Plan mode
-  combines LLM judgment with deterministic rule checks (multi-signal gate);
-  a failed rule caps the gate at 89% regardless of LLM score. Use before
-  committing to autonomous execution, after implementation, or during
-  investigation. Triggers on "confidence check", "validate plan", "rate
-  confidence", "quality gate", "/confidence".
+  Supports plan validation, code review, and analysis (root-cause, refactor,
+  diagnose) modes. Plan mode combines LLM judgment with deterministic rule
+  checks (multi-signal gate); a failed rule caps the gate at 89% regardless
+  of LLM score. Use before committing to autonomous execution, after
+  implementation, or during investigation. Triggers on "confidence check",
+  "validate plan", "rate confidence", "quality gate", "/confidence".
 disable-model-invocation: false
 license: MIT
 metadata:
   author: mthines
-  version: '2.1.0'
+  version: '2.2.0'
   workflow_type: advisory
   tags:
     - confidence
     - quality-gate
     - plan-validation
     - code-review
-    - bug-analysis
+    - analysis
+    - bug-analysis # deprecated alias for `analysis` — kept so tag-indexed routing still resolves
     - multi-signal
     - autonomous-workflow
 ---
@@ -39,7 +40,7 @@ Rate your confidence that the current work fully solves the stated requirement.
 - [Assessment Dimensions](#assessment-dimensions)
   - [For `plan` mode](#for-plan-mode) — multi-signal: LLM scoring + rule checks (89% cap on failure)
   - [For `code` mode](#for-code-mode)
-  - [For `bug-analysis` mode](#for-bug-analysis-mode)
+  - [For `analysis` mode](#for-analysis-mode)
 - [Output Format](#output-format)
 - [Score Thresholds](#score-thresholds)
 - [Iteration Protocol (plan mode)](#iteration-protocol-plan-mode)
@@ -51,15 +52,18 @@ Rate your confidence that the current work fully solves the stated requirement.
 
 Check the arguments: `$ARGUMENTS`
 
-| Argument       | Default | Validates                        | When to use                                         |
-| -------------- | ------- | -------------------------------- | --------------------------------------------------- |
-| `plan`         |         | Implementation plan completeness | After Phase 1 planning, before autonomous execution |
-| `code`         | **yes** | Code implementation correctness  | After writing code, before PR                       |
-| `bug-analysis` |         | Root cause analysis accuracy     | During investigation, before proposing fix          |
+| Argument         | Default | Validates                                                          | When to use                                                                  |
+| ---------------- | ------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `plan`           |         | Implementation plan completeness                                   | After Phase 1 planning, before autonomous execution                          |
+| `code`           | **yes** | Code implementation correctness                                    | After writing code, before PR                                                |
+| `analysis`       |         | Analysis accuracy (root cause, refactor rationale, or skill gap)   | During investigation, before proposing a fix, refactor, or skill-source diff |
+| `bug-analysis`   |         | **Deprecated alias for `analysis`** — behaves identically          | Backwards-compatible; emit a one-line deprecation note in the report header  |
 
 If no argument is provided, default to `code`.
 
-If arguments contain **"fix"** (e.g., `code fix`, `plan fix`), run in **Fix Mode** — after the review, automatically apply fixes for any concerns found.
+**Alias handling.** `bug-analysis` is accepted as a deprecated alias and resolves to `analysis` with identical dimensions, weights, thresholds, and Fix Mode behaviour. When invoked with the alias, prepend a single line to the report header: `> Note: \`bug-analysis\` is a deprecated alias for \`analysis\`. Update the caller when convenient.` The alias keeps in-flight workflows and existing transcripts working through the transition; remove it after callers have migrated.
+
+If arguments contain **"fix"** (e.g., `code fix`, `plan fix`, `analysis fix`), run in **Fix Mode** — after the review, automatically apply fixes for any concerns found.
 
 ---
 
@@ -111,13 +115,15 @@ The intent: a plan that scores 95% on LLM judgment but fails rule check #4 (refe
 | **Completeness**   | 30%    | Are all cases, edge cases, and requirements covered?          |
 | **No regressions** | 30%    | Could this break existing behavior or introduce side effects? |
 
-### For `bug-analysis` mode
+### For `analysis` mode
 
-| Dimension                | Weight | What to evaluate                                                             |
-| ------------------------ | ------ | ---------------------------------------------------------------------------- |
-| **Evidence strength**    | 40%    | Is the analysis backed by concrete evidence (logs, traces, code paths)?      |
-| **Root cause certainty** | 30%    | Is this the root cause or just a symptom? How deep did the investigation go? |
-| **Fix confidence**       | 30%    | Will the proposed fix resolve the issue without introducing new problems?    |
+Use this mode whenever the artifact being graded is **an analysis** — a root-cause write-up, a refactor rationale, a `/create-skill diagnose` proposal, a holistic re-analysis after a stuck loop, or any other reasoning artifact that precedes a proposed change.
+
+| Dimension                | Weight | What to evaluate                                                                                                            |
+| ------------------------ | ------ | --------------------------------------------------------------------------------------------------------------------------- |
+| **Evidence strength**    | 40%    | Is the analysis backed by concrete evidence (logs, traces, code paths, file:line references, reproduced behaviour)?         |
+| **Root cause certainty** | 30%    | Is this the underlying cause or just a symptom? How deep did the investigation go? For refactor / diagnose analyses, read "root cause" as "the actual structural reason," not literal bug aetiology. |
+| **Outcome confidence**   | 30%    | Will the proposed action (fix, refactor, skill-source diff) resolve the situation without introducing new problems?         |
 
 ---
 
@@ -136,7 +142,7 @@ The intent: a plan that scores 95% on LLM judgment but fails rule check #4 (refe
 | <dim 2>   | X%    | ...   |
 | <dim 3>   | X%    | ...   |
 
-### Deterministic rule checks (plan mode only — omit for code/bug-analysis)
+### Deterministic rule checks (plan mode only — omit for code/analysis)
 
 | # | Rule                | Status      | Evidence                  |
 |---|---------------------|-------------|---------------------------|
@@ -150,7 +156,7 @@ The intent: a plan that scores 95% on LLM judgment but fails rule check #4 (refe
 - **Final: X%**
 ```
 
-Calculate the weighted LLM score as a weighted average using the dimension weights above. For `plan` mode, the **Final** is `min(weighted_LLM_score, rule_check_cap)`. For `code` and `bug-analysis` modes, omit the rule-check section and `Final = weighted_LLM_score`.
+Calculate the weighted LLM score as a weighted average using the dimension weights above. For `plan` mode, the **Final** is `min(weighted_LLM_score, rule_check_cap)`. For `code` and `analysis` modes (including invocations via the deprecated `bug-analysis` alias), omit the rule-check section and `Final = weighted_LLM_score`.
 
 **Be honest and critical — do not inflate scores. A low score with clear reasoning is more valuable than a false 95%. A failed rule check is non-negotiable — surface it even if the LLM score is high.**
 
@@ -180,7 +186,7 @@ When used as a quality gate before autonomous execution:
 
 **Skip this section entirely if not in Fix Mode.**
 
-When running in Fix Mode (`plan fix`, `code fix`, `bug-analysis fix`), automatically address every concern that lowered your score:
+When running in Fix Mode (`plan fix`, `code fix`, `analysis fix` — or the deprecated `bug-analysis fix` alias), automatically address every concern that lowered your score:
 
 ### Simple Fixes (apply immediately)
 

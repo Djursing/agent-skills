@@ -95,7 +95,7 @@ A refinement contract is generic — this skill does not specify what is checked
 | **Check** | A command or condition the executor runs after each implementation edit (e.g., a failing reproduction test, a property test, a benchmark threshold). |
 | **On-failure action** | What the executor does when the check fails — typically: capture evidence verbatim, append it to a [caller-supplied context artefact](./artifacts-overview.md#caller-supplied-context-artefacts), and refine the implementation using the captured evidence as concrete input. |
 | **Round cap** | Maximum refinement rounds before escalation (typically 3 — beyond which the executor stops and surfaces the failed evidence rather than guessing). |
-| **Escalation path** | Where the executor returns when the cap is hit — usually `confidence(bug-analysis)` or back to the orchestrator. |
+| **Escalation path** | Where the executor returns when the cap is hit — usually `confidence(analysis)` or back to the orchestrator. |
 
 The pattern descends from counterexample-guided synthesis (CEGIS) — the failing input from a check is more valuable feedback than the boolean check result, so refinement should consume the input directly. See [LLM-CEGIS-Repair (AAAI 2025)](https://github.com/pmorvalho/LLM-CEGIS-Repair) for the formal treatment; reports +15-30% on Defects4J vs single-shot generation.
 
@@ -106,7 +106,7 @@ The pattern descends from counterexample-guided synthesis (CEGIS) — the failin
 - **Check**: run the reproduction test (`<repro_command>`) after each implementation edit.
 - **On-failure action**: capture the failing input/output verbatim, append to the bug-notes ledger under `Counterexamples`, refine the patch using the captured input.
 - **Round cap**: 3.
-- **Escalation path**: re-run `Skill("confidence", "bug-analysis fix")` and return to the orchestrator with the failed evidence.
+- **Escalation path**: re-run `Skill("confidence", "analysis fix")` and return to the orchestrator with the failed evidence.
 
 Full contract at [`/fix-bug rules/autonomous-handoff.md`](../../fix-bug/rules/autonomous-handoff.md#step-6c--cegis-refinement-contract).
 
@@ -227,7 +227,7 @@ The executor's scope starts at Phase 3 and ends at Phase 7 CI gate. It must not:
 | Revisit Phase 1 design decisions silently        | If the plan is wrong, escalate to the user (or trigger Phase 4 stuck-loop auto-replan). Don't quietly redesign. |
 | Skip Phase 2 verification                        | Even though the planner created the worktree, the executor still verifies it's inside the right one. |
 
-If the executor discovers mid-implementation that the plan is fundamentally flawed, it follows the [Phase 4 stuck-loop protocol](./companion-skills.md#stuck-loop-protocol-phase-4) — auto-replan via `confidence(bug-analysis)` + `holistic-analysis` is the recovery, not silent improvisation.
+If the executor discovers mid-implementation that the plan is fundamentally flawed, it follows the [Phase 4 stuck-loop protocol](./companion-skills.md#stuck-loop-protocol-phase-4) — auto-replan via `confidence(analysis)` + `holistic-analysis` is the recovery, not silent improvisation.
 
 ---
 

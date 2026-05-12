@@ -97,7 +97,7 @@ Three attempts is enough to either converge or expose a structural
 problem.
 Beyond three, the agent is usually guessing.
 [`spec-first-flow.md`](./spec-first-flow.md) escalates via
-`confidence(bug-analysis)` at the cap — do not raise the cap silently.
+`confidence(analysis)` at the cap — do not raise the cap silently.
 
 ## Sharding on Maestro Cloud
 

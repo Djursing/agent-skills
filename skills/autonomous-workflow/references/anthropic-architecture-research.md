@@ -111,7 +111,7 @@ The harness-design post describes a Planner/Generator/Evaluator triad: the plann
 |---|---|
 | Planner | Planner agent (phases 0–2) |
 | Generator | Executor agent (phases 3–7) |
-| Evaluator | `confidence` skill — invoked in plan, code-review, and bug-analysis modes |
+| Evaluator | `confidence` skill — invoked in plan, code-review, and analysis modes |
 | Sprint contract | Acceptance Criteria section in `plan.md` |
 
 The triad is realized without spawning three coordinator agents.
@@ -125,7 +125,7 @@ Planner and Generator are separate agents with a clean context boundary; Evaluat
 **Mapping in autonomous-workflow:**
 `confidence(plan)` is a multi-signal evaluator combining LLM dimensional scoring with deterministic rule checks.
 It is invoked at the planner→executor handoff — i.e., *downstream* of the planner, in front of the executor.
-Phase 4 stuck-loop also gates via `confidence(bug-analysis)`.
+Phase 4 stuck-loop also gates via `confidence(analysis)`.
 
 There is NO separate "validation agent" upstream of the planner.
 A clarifier-then-planner pipeline is exactly the role-based architecture Anthropic warns against (see §2.4).
@@ -244,13 +244,13 @@ This is exactly why `confidence` is a separate skill, not a method on the planne
 It evaluates `plan.md` from cold — without the planner's exploration history.
 That cold read is what makes the score useful: if `confidence(plan)` cannot reconstruct the plan's intent from `plan.md` alone, the plan is not ready for the executor (who will also be reading it cold).
 
-The same property holds for `review-changes` (cold-reads the diff) and `confidence(bug-analysis)` (cold-reads a stuck-loop description).
+The same property holds for `review-changes` (cold-reads the diff) and `confidence(analysis)` (cold-reads a stuck-loop description).
 
 | Verifier skill | Cold input | Why minimal context matters |
 |---|---|---|
 | `confidence(plan)` | `plan.md` only | Forces the plan to be self-contained; if a cold reader cannot grade it, the executor (also cold-reading) will fail |
 | `review-changes` | Diff + `plan.md` | Independent perspective on whether the diff matches the contract |
-| `confidence(bug-analysis)` | Stuck-loop description | Detects when the executor's mental model has drifted into a wrong frame |
+| `confidence(analysis)` | Stuck-loop description | Detects when the executor's mental model has drifted into a wrong frame |
 
 ---
 
@@ -322,7 +322,7 @@ If Anthropic publishes guidance on calibrated confidence thresholds, revisit thi
 | Reflexion (research) | Optimum varies by task |
 
 autonomous-workflow's choice sits at the tight end of the field range.
-The reasoning: most stuck loops past iteration 3 indicate a wrong mental model, not a hard problem; better to escalate (run `confidence(bug-analysis)`) than to keep retrying.
+The reasoning: most stuck loops past iteration 3 indicate a wrong mental model, not a hard problem; better to escalate (run `confidence(analysis)`) than to keep retrying.
 This is distinct from quality-driven self-refinement, which has no fixed cap (see [`iterative-refinement.md`](./iterative-refinement.md)).
 
 ### 4.3 Always-on `update-claude`
@@ -345,7 +345,7 @@ Advisory skills keep the agent in charge of progress.
 | Skill | Load-bearing because |
 |---|---|
 | `confidence(plan)` at Phase 1 → Phase 2 boundary | Score below 90% blocks worktree creation |
-| `confidence(bug-analysis)` during stuck-loop | Score below threshold escalates to user |
+| `confidence(analysis)` during stuck-loop | Score below threshold escalates to user |
 
 These are the only two gates where a skill blocks progression.
 Both are evaluator-role gates Anthropic's harness-design post explicitly endorses (§2.6, §2.13).

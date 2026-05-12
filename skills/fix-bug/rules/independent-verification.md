@@ -117,7 +117,7 @@ not the bug").
    - **refine** — re-spawn `aw-executor` with the verifier's findings appended to `plan.md`.
      Cap at 3 refinement rounds (per the CEGIS contract in
      [`autonomous-handoff.md`](./autonomous-handoff.md)).
-   - **escalate** — re-run `Skill("confidence", "bug-analysis fix")` on the failed verification
+   - **escalate** — re-run `Skill("confidence", "analysis fix")` on the failed verification
      to surface root-cause concerns.
    - **abandon** — close the PR draft, return the bug-notes ledger as the artefact.
 

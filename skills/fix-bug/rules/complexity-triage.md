@@ -177,7 +177,7 @@ The lightweight analysis the simple path runs **in place of** Phase 3:
    and does not break neighbours.
 3. Write the proposed change to the Evidence Record as plain prose, exactly
    the way `holistic-analysis` would have written its root-cause paragraph.
-4. Invoke `Skill("confidence", "bug-analysis")` directly — same gate as
+4. Invoke `Skill("confidence", "analysis")` directly — same gate as
    Phase 4 for the complex path. **No self-grading; the score is from
    confidence as a separate skill.**
 

@@ -58,7 +58,7 @@ At the entry of Phase 6, read the bug-notes ledger and pick the lane:
      downgrade reason in the ledger.
 3. If the user force-proceeded after 70–91 % confidence (Phase 5) → always
    [Standard-lane](#standard-lane), regardless of triage. The planner's
-   `confidence(plan)` gate is the extra safety net when bug-analysis
+   `confidence(plan)` gate is the extra safety net when analysis
    confidence is marginal.
 
 Print one line:
@@ -117,7 +117,7 @@ the executor owns CI watching.
 ### Fast-lane round-3 fallback
 
 The CEGIS contract caps at 3 refinement rounds for both lanes. On the
-standard-lane, round-3 failure escalates to `confidence(bug-analysis fix)`
+standard-lane, round-3 failure escalates to `confidence(analysis fix)`
 and the existing branch-decision tiers. On the **fast-lane**, round-3
 failure additionally **re-dispatches via aw-planner with the captured
 counterexamples**, because round-3 failure is the strongest signal the bug
@@ -207,7 +207,7 @@ contract verbatim. After each executor edit:
    `.agent/<branch>/bug-notes.md` under `Counterexamples`, then refine the
    patch using the captured input as concrete evidence.
 3. Cap at **3 refinement rounds**. After the third failure, stop refining.
-   - On **standard-lane**: return to `confidence(bug-analysis fix)` for
+   - On **standard-lane**: return to `confidence(analysis fix)` for
      re-analysis rather than guessing further.
    - On **fast-lane**: trigger the
      [fast-lane round-3 fallback](#fast-lane-round-3-fallback) — re-dispatch
@@ -231,7 +231,7 @@ distinguishes them.
 | Source | <Dash0 link / stack trace / code pointer> |
 | Lane | fast-lane | standard-lane (downgrade <reason>) | standard-lane (force-proceed) |
 | Root cause | <one line> |
-| Confidence (bug-analysis) | <X%> |
+| Confidence (analysis) | <X%> |
 | Plan confidence | <Y%> if standard-lane, "n/a (fast-lane)" otherwise |
 | PR | <url> (draft — verifier pending) |
 | Branch | fix/<slug> |

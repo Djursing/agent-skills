@@ -243,7 +243,7 @@ caught it, and emit a confidence-gated unified diff that hardens the target
 skill against the same failure class.
 
 The full procedure (seven steps, including the mandatory
-`confidence(bug-analysis) ≥ 90 %` gate before `--apply`), the report format,
+`confidence(analysis) ≥ 90 %` gate before `--apply`), the report format,
 and the hard rules live in [`rules/diagnose-mode.md`](./rules/diagnose-mode.md).
 
 **Invocation:**
@@ -342,7 +342,7 @@ A **diagnose** run is done when:
       proposed new row).
 - [ ] Phase-attribution table walks every phase in the target's surface.
 - [ ] Exactly one improvement proposal constructed (one diff per report).
-- [ ] `confidence(bug-analysis)` score recorded; `--apply` honored only at
+- [ ] `confidence(analysis)` score recorded; `--apply` honored only at
       ≥ 90 %.
 - [ ] Report written to `.agent/{branch}/diagnose-{target}.md` (or
       stdout with `--no-write`).

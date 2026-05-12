@@ -83,7 +83,7 @@ disabled: true
 ```
 
 If a flow is genuinely flaky, file the cause.
-If the Healer cannot converge, escalate via `confidence(bug-analysis)`.
+If the Healer cannot converge, escalate via `confidence(analysis)`.
 Never disable a flow to make CI green.
 
 ## Refuse to generate flows against a stub server

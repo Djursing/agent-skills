@@ -5,20 +5,20 @@ tags:
   - confidence
   - iteration
   - quality-gate
-  - bug-analysis
+  - analysis
 ---
 
 # Confidence Loop
 
 After Phase 3 (root-cause mapping), invoke the `confidence` skill in
-`bug-analysis` mode. Performance diagnoses fail in predictable ways
+`analysis` mode. Performance diagnoses fail in predictable ways
 (symptom mistaken for cause, fiber resolved to the wrong file, fix
 recommended without checking the call stack) — the gate catches them.
 
 ## Invocation
 
 ```text
-Skill(skill="confidence", args="bug-analysis")
+Skill(skill="confidence", args="analysis")
 ```
 
 Provide the confidence skill with:
@@ -56,7 +56,7 @@ most directly addresses the dimension the score lost points on:
    `React.memo` only helps if the props are reference-equal after the
    fix. A worker only helps if the work is parallelisable.
 
-After the iteration, re-run `confidence(bug-analysis)`. If still 70–89%,
+After the iteration, re-run `confidence(analysis)`. If still 70–89%,
 do **at most one more** deep-dive, then escalate.
 
 ## Stop conditions

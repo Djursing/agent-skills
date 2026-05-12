@@ -150,7 +150,7 @@ trigger registry is in
 | 3     | `tdd`                  | Optional  | RED-GREEN-REFACTOR for pure logic / business rules |
 | 3     | `ux`                   | Optional  | UI / accessibility review when UI files touched |
 | 3     | `code-quality`         | Optional  | End-of-Phase-3 code-quality pass              |
-| 4     | `confidence`           | Optional  | `bug-analysis` at iteration cap (3 Lite / 5 Full) |
+| 4     | `confidence`           | Optional  | `analysis` at iteration cap (3 Lite / 5 Full) |
 | 4     | `holistic-analysis`    | Optional  | Step-back analysis after stuck-loop confidence |
 | 5     | `update-claude`        | Optional  | Self-improving doc loop (keeps `CLAUDE.md` in sync) |
 | 6     | `review-changes`       | Optional  | Pre-PR diff review                            |
@@ -267,7 +267,7 @@ untouched — only new artifacts land in `.agent/`. Migrate manually with
    `aw-create-plan`).
 4. **Verify after editing** — fast check before continuing.
 5. **Stuck-loop cap is mode-aware** — 3 iterations (Lite) / 5 iterations (Full); at
-   the cap, run `confidence(bug-analysis)` and auto-replan or escalate.
+   the cap, run `confidence(analysis)` and auto-replan or escalate.
 6. **Companions skip silently** — never block on a missing companion (except
    `confidence` at Phase 1).
 7. **Stop and ask when blocked** — don't guess on ambiguity.
@@ -342,7 +342,7 @@ to this skill's source.
 
 ## Related Skills
 
-- [`confidence`](../confidence/) — quality gate (plan / code / bug-analysis)
+- [`confidence`](../confidence/) — quality gate (plan / code / analysis)
 - [`aw-create-plan`](../aw-create-plan/) — `plan.md` artifact generator
 - [`aw-create-walkthrough`](../aw-create-walkthrough/) — `walkthrough.md` artifact generator
 - [`code-quality`](../code-quality/) — readability and complexity review

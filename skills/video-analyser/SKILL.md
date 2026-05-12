@@ -19,7 +19,7 @@ metadata:
   tags:
     - video
     - screen-recording
-    - bug-analysis
+    - analysis
     - ffmpeg
     - ocr
     - vision

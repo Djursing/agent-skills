@@ -213,7 +213,7 @@ After the agent emits a flow:
 
 If the heal loop fails to converge:
 
-- Invoke `confidence(bug-analysis)` on the flow failure.
+- Invoke `confidence(analysis)` on the flow failure.
 - If confidence is below 90%, escalate to the user with the Maestro
   log, the spec, and the proposed locator changes — do **not** keep
   healing blindly.
@@ -231,7 +231,7 @@ If the heal loop fails to converge:
 | Flaky existing flow                                               | Healer pass only; do not rewrite without spec context.                              |
 | Locator unstable, no stable `testID`                              | Propose `testID` diff via the `setTestId` helper.                                   |
 | Repo missing Maestro CLI or `.maestro/` or `eas.json` E2E profile | Phase 0 halt + ask permission.                                                      |
-| Heal loop > 3 attempts                                            | Stop, run `confidence(bug-analysis)`, escalate.                                     |
+| Heal loop > 3 attempts                                            | Stop, run `confidence(analysis)`, escalate.                                     |
 | Flow passes on first run, never seen failing                      | Verify any imported helpers via `test-provenance-guard` before declaring done.      |
 | Existing Detox suite is green and stable                          | Keep it; see [`references/detox-legacy.md`](./references/detox-legacy.md).          |
 | Detox suite is brittle through RN upgrades                        | Migrate flow-by-flow to Maestro; do not rewrite the whole suite at once.            |

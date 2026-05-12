@@ -43,7 +43,7 @@ The contract spec lives at [`skills/create-skill/rules/diagnostic-surface.md`](.
 | 1     | `code-quality(plan)`; `confidence(plan)` ≥ 90 % gate (LLM + deterministic rule checks)                           | Plan missed a hidden constraint; rule checks didn't cover the failure shape                                   |
 | 2     | Worktree isolation; `aw-create-plan` writes `plan.md`                                                            | `plan.md` missing a section that downstream phases rely on                                                    |
 | 3     | `tdd` (RED-GREEN-REFACTOR + mutation); `ux`; `code-quality(code)` at end                                         | Companion not triggered because trigger condition was too narrow; mutation step skipped in non-TDD path       |
-| 4     | Stuck-loop cap (3 Lite / 5 Full); `confidence(bug-analysis)`; auto-replan via `holistic-analysis`                | Tests passed first try → no RED phase → no mutation check; cap miscounted                                     |
+| 4     | Stuck-loop cap (3 Lite / 5 Full); `confidence(analysis)`; auto-replan via `holistic-analysis`                | Tests passed first try → no RED phase → no mutation check; cap miscounted                                     |
 | 5     | `update-claude`                                                                                                  | Skip condition matched wrongly; `CLAUDE.md` drift                                                             |
 | 6     | `review-changes`; `aw-create-walkthrough`; `create-pr`                                                           | Reviewer didn't compare diff against `plan.md`; walkthrough hid the issue                                     |
 | 7     | CI watcher; `ci-auto-fix`; optional `reviewer` agent (PR Mode)                                                   | CI passed because tests were narrow; `reviewer` not installed                                                 |
@@ -59,7 +59,7 @@ The matrix is not exhaustive — when a real failure exposes a guard not listed 
 | F1      | Test-by-construction   | New test imports a private copy of the SUT or duplicates its body — passes regardless of prod | 4             | `test-provenance-guard` (static + mutation) — should have run     |
 | F-novel | Novel mode             | Does not match any existing row                                                               | —             | Diagnosis proposes a new row inline (added on user approval only) |
 
-The taxonomy is **append-only** — every novel failure mode adds a new row, the row is justified by a diagnosis that cleared `confidence(bug-analysis) ≥ 90 %` AND was user-approved at apply time.
+The taxonomy is **append-only** — every novel failure mode adds a new row, the row is justified by a diagnosis that cleared `confidence(analysis) ≥ 90 %` AND was user-approved at apply time.
 Speculative categories were intentionally not pre-populated — they push the diagnoser toward forcing a match where none exists.
 
 ---
