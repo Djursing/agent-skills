@@ -79,14 +79,20 @@ After Phase 7 ("Measure") of the `animations` workflow, when:
 
 ```js
 // inside animations / Phase 7
-const baseClip = await Skill("screen-recorder", {
-  url, selector, interaction, "output-name": `${name}-default`,
-  caller: "animations",
+const baseClip = await Skill('screen-recorder', {
+  url,
+  selector,
+  interaction,
+  'output-name': `${name}-default`,
+  caller: 'animations',
 });
-const reducedClip = await Skill("screen-recorder", {
-  url, selector, interaction, "output-name": `${name}-reduced`,
-  "reduced-motion": true,
-  caller: "animations",
+const reducedClip = await Skill('screen-recorder', {
+  url,
+  selector,
+  interaction,
+  'output-name': `${name}-reduced`,
+  'reduced-motion': true,
+  caller: 'animations',
 });
 attachToDelivery({ default: baseClip, reduced: reducedClip });
 ```
@@ -119,13 +125,13 @@ agent, not a recording.
   [`interactions.md`](./interactions.md)).
 - `interaction` — encoded from the finding type:
 
-  | Finding concerns…       | `interaction` recipe          |
-  | ----------------------- | ----------------------------- |
-  | Hover reveal            | `hover`                       |
-  | Focus ring              | `tab-to`                      |
-  | Entry animation         | `idle`                        |
-  | Modal entrance          | `click` (on the opener)       |
-  | Drag affordance         | `drag-to`                     |
+  | Finding concerns… | `interaction` recipe    |
+  | ----------------- | ----------------------- |
+  | Hover reveal      | `hover`                 |
+  | Focus ring        | `tab-to`                |
+  | Entry animation   | `idle`                  |
+  | Modal entrance    | `click` (on the opener) |
+  | Drag affordance   | `drag-to`               |
 
 - `context.finding-id` — the finding's `[file:line]` from the `ux`
   report, so the artifact filename references back to the finding.
@@ -224,7 +230,7 @@ This skill produces the file and returns the path via `RECORDING_PATH=`.
 
 **Note on Step 5.7 wiring:** The `reviewer` agent's Step 5.7 covers
 pending-review resumption (the general PR comment system), not video
-upload. Video attachment is a separate step that runs *after* the
+upload. Video attachment is a separate step that runs _after_ the
 pending review is filed, using the snippet above. The `reviewer` agent
 should surface the returned `RECORDING_PATH=` in its `### Motion evidence`
 subsection and then execute the upload snippet as a post-review step.
@@ -251,13 +257,13 @@ video-analyser ──► structured findings
 The crop pass writes outputs that match `video-analyser`'s Pareto-optimal
 ingest:
 
-| Setting        | This skill default | `video-analyser` Step             | Why it matters                                                              |
-| -------------- | ------------------ | ---------------------------------- | --------------------------------------------------------------------------- |
-| Output width   | 768 px max         | Step 5 (`scale=768:-2` filter)     | One-pass: no second downscale needed on ingest; legibility preserved.       |
-| Keyframe interval | 15 frames (0.5 s) | Step 5a (`select='eq(pict_type,I)'`) | Guarantees ≥ 6 I-frames in a 3 s clip; analyser uses pure-keyframe path. |
-| Duration       | 5 s default, 15 s cap | Step 3 (bail at 600 s)          | Always well under the 10-min ceiling; no trim needed.                       |
-| Container      | `.webm` (default)  | Step 5a handles `.webm` directly   | `.mp4` works too; both honour the fixed-interval GOP.                       |
-| Audio          | dropped (`-an`)    | Step 7 (audio-conditional)          | No-op for analyser; saves a few KB.                                         |
+| Setting           | This skill default    | `video-analyser` Step                | Why it matters                                                           |
+| ----------------- | --------------------- | ------------------------------------ | ------------------------------------------------------------------------ |
+| Output width      | 768 px max            | Step 5 (`scale=768:-2` filter)       | One-pass: no second downscale needed on ingest; legibility preserved.    |
+| Keyframe interval | 15 frames (0.5 s)     | Step 5a (`select='eq(pict_type,I)'`) | Guarantees ≥ 6 I-frames in a 3 s clip; analyser uses pure-keyframe path. |
+| Duration          | 5 s default, 15 s cap | Step 3 (bail at 600 s)               | Always well under the 10-min ceiling; no trim needed.                    |
+| Container         | `.webm` (default)     | Step 5a handles `.webm` directly     | `.mp4` works too; both honour the fixed-interval GOP.                    |
+| Audio             | dropped (`-an`)       | Step 7 (audio-conditional)           | No-op for analyser; saves a few KB.                                      |
 
 ### Record → analyse → iterate
 
@@ -274,7 +280,7 @@ The canonical loop a caller (typically `animations`) drives is:
 
 Cap the loop at **3 iterations**.
 A 4th attempt usually means the fix is uncertain — escalate via
-`Skill("confidence", bug-analysis)` rather than burning more vision tokens.
+`Skill("confidence", analysis)` rather than burning more vision tokens.
 
 The full call-site wiring lives in
 [`skills/animations/SKILL.md`](../../animations/SKILL.md) Phase 7.5
@@ -322,11 +328,11 @@ non-zero. Callers must surface the error to the user, not retry blindly.
 
 When this skill's contract changes, update these call sites:
 
-| Skill / agent                                                                                                  | Section that calls                                                          |
-| -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| [`skills/animations/SKILL.md`](../../animations/SKILL.md)                                                      | Phase 7 "Measure" — append two `Skill("screen-recorder")` calls.            |
-| [`skills/ux/SKILL.md`](../../ux/SKILL.md)                                                                      | Phase 3 "Report" — invoke for Critical / High findings on motion concerns.  |
-| [`agents/reviewer.md`](../../../agents/reviewer.md)                                                            | Step 2 "Analysis" — after UX rubric, when motion heuristics match.          |
+| Skill / agent                                             | Section that calls                                                         |
+| --------------------------------------------------------- | -------------------------------------------------------------------------- |
+| [`skills/animations/SKILL.md`](../../animations/SKILL.md) | Phase 7 "Measure" — append two `Skill("screen-recorder")` calls.           |
+| [`skills/ux/SKILL.md`](../../ux/SKILL.md)                 | Phase 3 "Report" — invoke for Critical / High findings on motion concerns. |
+| [`agents/reviewer.md`](../../../agents/reviewer.md)       | Step 2 "Analysis" — after UX rubric, when motion heuristics match.         |
 
 ## Common mistakes
 

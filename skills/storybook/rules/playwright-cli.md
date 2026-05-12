@@ -34,11 +34,11 @@ function is being debugged.
 Storybook serves each story at a deterministic URL.
 Pick the form that matches the workflow step:
 
-| URL                                                                            | Use when                                                  |
-| ------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| `http://localhost:6006/?path=/story/<id>--<variant>`                            | A human is going to look — full Storybook chrome.         |
-| `http://localhost:6006/iframe.html?id=<id>--<variant>&viewMode=story`           | Headless screenshot or `<canvas>` content only.           |
-| `http://localhost:6006/iframe.html?id=<id>--<variant>&viewMode=story&args=…`    | Override `args` on the fly (`Playground` story tuning).   |
+| URL                                                                          | Use when                                                |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `http://localhost:6006/?path=/story/<id>--<variant>`                         | A human is going to look — full Storybook chrome.       |
+| `http://localhost:6006/iframe.html?id=<id>--<variant>&viewMode=story`        | Headless screenshot or `<canvas>` content only.         |
+| `http://localhost:6006/iframe.html?id=<id>--<variant>&viewMode=story&args=…` | Override `args` on the fly (`Playground` story tuning). |
 
 The `<id>` is the lower-kebab form of `meta.title`.
 Example: `"Components/Button"` + story `Default` →
@@ -61,12 +61,12 @@ npx playwright screenshot \
 
 The four determinism flags are non-negotiable:
 
-| Flag                          | Why                                                                                        |
-| ----------------------------- | ------------------------------------------------------------------------------------------ |
-| `--viewport-size=1280,720`    | Storybook defaults vary by builder; lock it so a baseline taken locally matches CI.        |
-| `--color-scheme=light`        | Many themes flip on `prefers-color-scheme`. Lock to light unless the story is dark-only.   |
-| `--wait-for-timeout=500`      | Lets fonts settle. Cheaper than a full `networkidle` wait, and Storybook is already local. |
-| `--full-page` (or omit)       | Pick one and stick with it across the loop — switching mid-run invalidates baselines.      |
+| Flag                       | Why                                                                                        |
+| -------------------------- | ------------------------------------------------------------------------------------------ |
+| `--viewport-size=1280,720` | Storybook defaults vary by builder; lock it so a baseline taken locally matches CI.        |
+| `--color-scheme=light`     | Many themes flip on `prefers-color-scheme`. Lock to light unless the story is dark-only.   |
+| `--wait-for-timeout=500`   | Lets fonts settle. Cheaper than a full `networkidle` wait, and Storybook is already local. |
+| `--full-page` (or omit)    | Pick one and stick with it across the loop — switching mid-run invalidates baselines.      |
 
 Add `--storage-state=<path>` if the URL is auth-gated.
 
@@ -120,7 +120,7 @@ The agent runs this loop while iterating on a play function:
 
 Cap the loop at **two iterations** before escalating.
 If the story still does not render after the second round, invoke
-`confidence(bug-analysis)` instead of running a third — a third
+`confidence(analysis)` instead of running a third — a third
 round almost always means the premise (selector, story id, auth) is
 wrong, not the implementation.
 
@@ -151,13 +151,13 @@ Copy-paste snippets for each fix live in
 load it only when at least one story has flaked or the user asked
 for deterministic snapshots.
 
-| Source              | Fix                                                                                              |
-| ------------------- | ------------------------------------------------------------------------------------------------ |
-| CSS animations      | `parameters: { chromatic: { pauseAnimationAtEnd: true } }` and add a global decorator that disables CSS transitions during tests (`* { animation: none !important; transition: none !important }`). |
-| Font loading        | Add a global decorator that awaits `document.fonts.ready` before rendering the story.            |
-| Dynamic timestamps  | Wrap `new Date()` callers in a clock mock — `mockdate` set to a fixed ISO string in `preview.tsx`. |
-| Theme flip          | Lock `--color-scheme=light` (above) and pin the theme decorator to a single value during tests.  |
-| Random IDs          | Pin `Math.random` via a deterministic seed in `preview.tsx` if the component uses it transitively.|
+| Source             | Fix                                                                                                                                                                                                 |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSS animations     | `parameters: { chromatic: { pauseAnimationAtEnd: true } }` and add a global decorator that disables CSS transitions during tests (`* { animation: none !important; transition: none !important }`). |
+| Font loading       | Add a global decorator that awaits `document.fonts.ready` before rendering the story.                                                                                                               |
+| Dynamic timestamps | Wrap `new Date()` callers in a clock mock — `mockdate` set to a fixed ISO string in `preview.tsx`.                                                                                                  |
+| Theme flip         | Lock `--color-scheme=light` (above) and pin the theme decorator to a single value during tests.                                                                                                     |
+| Random IDs         | Pin `Math.random` via a deterministic seed in `preview.tsx` if the component uses it transitively.                                                                                                  |
 
 ## Snapshot mode vs vision
 

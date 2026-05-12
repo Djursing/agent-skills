@@ -136,12 +136,12 @@ than against an open-ended "find any bugs" prompt.
 
 ## Iteration policy
 
-| Round | Action                                                                                                                             |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | Build → record default + reduced → analyse against contract.                                                                       |
-| 2     | If analyser flags a contract violation, apply the top "Recommended next step" verbatim. Re-record only the variant that was flagged. |
-| 3     | Same as round 2. If a *different* violation appears (i.e., the fix introduced a regression), record both variants — the regression matters. |
-| 4     | **Stop and escalate.** Three rounds without a clean analyser pass means the model and the contract disagree. See "Escalation" below. |
+| Round | Action                                                                                                                                      |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | Build → record default + reduced → analyse against contract.                                                                                |
+| 2     | If analyser flags a contract violation, apply the top "Recommended next step" verbatim. Re-record only the variant that was flagged.        |
+| 3     | Same as round 2. If a _different_ violation appears (i.e., the fix introduced a regression), record both variants — the regression matters. |
+| 4     | **Stop and escalate.** Three rounds without a clean analyser pass means the model and the contract disagree. See "Escalation" below.        |
 
 Re-recording only the failed variant saves one analyser call per round
 (~$0.019 on Sonnet 4.6).
@@ -153,7 +153,7 @@ If the analyser still flags violations after three iterations:
 1. Surface all three iterations' findings side-by-side — the human
    reviewer needs to see whether the same violation persisted or
    whether each round introduced a new one.
-2. Invoke `Skill("confidence", bug-analysis)` with:
+2. Invoke `Skill("confidence", analysis)` with:
    - The current animation code.
    - The contract from the analyser goal.
    - All three rounds of analyser findings.
@@ -163,7 +163,7 @@ If the analyser still flags violations after three iterations:
    high enough to apply unilaterally — go to round 4.
 
 The single-shot fallback is intentional: an unconverged loop usually
-means the *contract* is wrong, not the animation. Re-derive the
+means the _contract_ is wrong, not the animation. Re-derive the
 contract with the user before further rounds.
 
 ## Examples
@@ -227,7 +227,7 @@ contract-shaped goal.
 - **Looping past 3 rounds.**
   Diminishing returns; the analyser and the contract have already
   disagreed three times.
-  **Fix:** escalate via `confidence(bug-analysis)`; re-derive the
+  **Fix:** escalate via `confidence(analysis)`; re-derive the
   contract with the user if needed.
 - **Overriding `max-width` to record at full viewport.**
   Doubles analyser cost (~$0.038) with no legibility gain on UI
