@@ -208,6 +208,22 @@ If the heuristic returns no matches, skip the load. Skip silently if the `ux` sk
 
 Compose findings from both rubrics in your output: code-quality findings stay in their existing buckets; UX findings get their own subsection (`### UX & Accessibility`). Severity uses `ux`'s scale (Critical / High / Medium / Low) — do not double-count an issue that both rubrics flag.
 
+### Motion evidence (PR Mode only, when the diff touches motion)
+
+In PR Mode only, if the diff matches the motion-relevant regex below **and** the PR body / comments do not already link a `.webm` or `.mp4`, invoke `Skill("screen-recorder")` to record the affected interaction. The recording attaches as evidence in the pending review.
+
+```bash
+# Heuristic: motion-relevant changes
+git diff origin/main...HEAD -U0 | grep -E \
+  '@keyframes|transition:|animation:|motion/react|startViewTransition|@starting-style|scroll-timeline|view-timeline|@lottiefiles|@rive-app'
+```
+
+Required inputs to the `Skill()` call: `url` (preview deploy URL — extract from PR comments, otherwise ask), `selector` (extract a `data-testid` from the diff via `git diff origin/main...HEAD | grep -oE 'data-testid="[^"]+"' | head -1`), `interaction` (the closest recipe from the change type), `out-format: mp4` (GitHub previews `.mp4` inline; `.webm` is download-only), `caller: reviewer`, `context.pr: <number>`.
+
+Skip silently if the `screen-recorder` skill is not installed, if no preview deploy URL is available, or if no stable handle exists in the diff (do not record against brittle selectors). Surface the returned `RECORDING_PATH=` under a new `### Motion evidence` subsection in Step 3. The PR comment attachment itself happens after the pending review is filed — see Step 5.7. Full handshake in [`screen-recorder` rules/integrations.md](../skills/screen-recorder/rules/integrations.md).
+
+**Auth-leak consent prompt.** The `screen-recorder` skill's preflight will halt and prompt you when (a) the URL is not `localhost:*` (every preview deploy URL meets this), AND (b) `.browser/auth-state.json` exists in the repo. The prompt warns that the clip captures the authenticated session and will be embedded in a public PR comment. Pass the prompt through to the user verbatim and wait for explicit `y` before proceeding — do not auto-approve. If the user declines, drop motion evidence for this review and continue without it.
+
 ### Running lint/type-check/tests
 
 - Run lint and type-check if the project has them configured. Report new errors only (ignore pre-existing ones).

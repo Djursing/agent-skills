@@ -68,6 +68,8 @@ Analyze the code against each loaded rule file. For every finding:
 
 ### Phase 3: Report
 
+For every **Critical** or **High** finding that concerns motion, timing, focus order, hover-revealed information, or interaction feedback (i.e. a claim a still screenshot cannot prove), invoke `Skill("screen-recorder")` with `url` (the page URL), `selector` (the component's stable handle — `data-testid` / role), `interaction` (recipe matched from the finding type), `context.finding-id = "<file:line>"`, and `caller: "ux"`. Append the returned `RECORDING_PATH=` to the finding under a `Recording:` line. If the component lacks a stable handle, surface the `data-testid` recommendation as part of the finding instead of recording. The skill skips silently if not installed. Full handshake in [`screen-recorder` rules/integrations.md](../screen-recorder/rules/integrations.md).
+
 Output findings using this structure:
 
 ```
