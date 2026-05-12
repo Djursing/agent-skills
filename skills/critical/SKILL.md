@@ -243,7 +243,7 @@ If `Must-fix` and `Should-fix` are both empty, output `No blocking concerns foun
 | -------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `/code-quality`      | A code-mode finding needs static-rule backing                        | Invoke `Skill("code-quality")` to confirm before classifying as `must-fix`           |
 | `/confidence`        | After findings are addressed                                         | Suggest `/confidence <mode>` in the `Next step` section — do not score here          |
-| `/holistic-analysis` | A `analysis` finding suggests the root cause is wrong            | Suggest the user re-run `/holistic-analysis` before the `/confidence` gate           |
+| `/holistic-analysis` | An `analysis` finding suggests the root cause is wrong           | Suggest the user re-run `/holistic-analysis` before the `/confidence` gate           |
 
 This skill **never** invokes `/confidence` on the user's behalf and never produces a numeric score of its own.
 Scoring is `/confidence`'s job; conflating the two would re-create the bias amplification problem the literature warns against.
