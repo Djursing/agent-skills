@@ -344,6 +344,6 @@ A **diagnose** run is done when:
 - [ ] Exactly one improvement proposal constructed (one diff per report).
 - [ ] `confidence(bug-analysis)` score recorded; `--apply` honored only at
       ≥ 90 %.
-- [ ] Report written to `.agent/{branch}/diagnose-{target}-{ts}.md` (or
+- [ ] Report written to `.agent/{branch}/diagnose-{target}.md` (or
       stdout with `--no-write`).
 - [ ] If `--apply` ran, user explicitly confirmed before `git apply`.

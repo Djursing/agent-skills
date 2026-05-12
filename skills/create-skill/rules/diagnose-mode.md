@@ -191,8 +191,10 @@ Without it, Diagnose Mode could weaken the target skill's own gates whenever the
 Write the diagnosis report to:
 
 ```
-.agent/{branch}/diagnose-{target-skill}-{YYYYMMDD-HHMMSS}.md
+.agent/{branch}/diagnose-{target-skill}.md
 ```
+
+Re-running Diagnose Mode against the same target overwrites the prior report; check it into version control or copy it aside before re-running if you want to keep the history.
 
 The report is **self-contained** — another user with no access to the original session must be able to read it and apply the improvement.
 Use the structure in [Output Artifact](#output-artifact).
