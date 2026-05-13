@@ -89,8 +89,12 @@ sub-agents**, one per slice.
 3. Each sub-agent receives the [Sub-Agent Resource Discipline](#sub-agent-resource-discipline)
    embedding (see below).
 
-**Hard cap: 3 concurrent sub-agents.** Three `tsc` processes at ~2.9x RSS
-each is survivable on a 16 GB developer host; four is not.
+**Hard cap: 3 concurrent sub-agents.** Three concurrent sub-agent processes
+(each with their own Node.js heap, editor state, and scoped compile invocations)
+at approximately the peak RSS footprint measured during multi-slice testing is
+survivable on a 16 GB developer host; four concurrent processes is not.
+(Note: whole-project `tsc` is forbidden inside sub-agents — the RSS bound
+covers the sub-agent process overhead itself, not a whole-program type-check.)
 
 **If the task does not decompose cleanly, keep Phase 3 sequential.** Sequential
 is still the default for mixed-concern tasks.
