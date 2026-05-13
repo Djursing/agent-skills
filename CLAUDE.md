@@ -108,10 +108,11 @@ nx release vscode-agent-tasks --configuration=dry-run
 - `src/extension.ts` — activation entry point; wires `HookEventWatcher`, `PluginInstaller`, adaptive tick, `PrStatusCache`, `PrPoller`
 - `src/providers/sessions-provider.ts` — `SessionsProvider`; `computeStatus` has a 5-tier override: terminal-open → hook override → unread TTL → terminal-closed → `deriveRunState`
 - `src/watchers/hook-event-watcher.ts` — watches `~/.claude/plugins/data/agent-tasks-hooks-agent-skills-plugins/events/*.ndjson` for new events; validates `schemaVersion`
-- `src/lib/hook-event-types.ts` — shared `HookEvent` / `HookEventName` types (includes optional `schemaVersion`)
+- `src/lib/hook-event-types.ts` — `HookEvent` discriminated union (`LifecycleHookEvent | WorktreeSpawnedEvent`); `HookEventName` includes `WorktreeSpawned`
 - `src/lib/plugin-data-path.ts` — `getPluginDataDir()`, `getSentinelPath()`, `getHookEventsDir()` path helpers
 - `src/lib/plugin-installer.ts` — `PluginInstaller`; first-run consent modal, version check, CLI install, sentinel write
 - `src/lib/emit-event.test.ts` — vitest unit tests for `plugins/agent-tasks-hooks/bin/emit-event.js`
+- `src/lib/worktree-link-store.ts` — `WorktreeLink`, `loadWorktreeLinks`, `resolveWorktreePath`, `appendWorktreeLink`, `addWorktreeLink`; reads the append-only `worktree-links.ndjson` sidecar and builds the `creatorCwd → WorktreeLink[]` index used by `SessionsProvider` for spawned-worktree correlation
 - `src/lib/gh-executor.ts` — `GhExecutor` interface + `SystemGhExecutor` default implementation (injectable for tests)
 - `src/lib/pr-status-cache.ts` — `PrStatusCache`; fetches PR enrichment via `gh pr view`, caches per branch with 60s rate limit, no-flip guarantee
 - `src/lib/pr-status-reducer.ts` — `resolveDisplayStatus()` pure function; combines `SessionStatus` + `PrEnrichment` → `DisplayStatus`
@@ -138,8 +139,9 @@ Do NOT add a package without updating `tsconfig.json` references and `nx.json` r
 ### Plugin: agent-tasks-hooks
 
 `plugins/agent-tasks-hooks/` — Claude Code lifecycle hook plugin for the Agent Tasks VS Code extension.
-Registers `UserPromptSubmit`, `Stop`, `SessionStart`, `SessionEnd`, `Notification` hooks.
+Registers `UserPromptSubmit`, `Stop`, `SessionStart`, `SessionEnd`, `Notification` hooks, and a `PostToolUse` hook with `matcher: "Bash"` (added in v0.3.0).
 Emits NDJSON events to `${CLAUDE_PLUGIN_DATA}/events/<sessionId>.ndjson`.
+The `PostToolUse` branch detects `git worktree add` / `gw add` Bash commands and emits a `WorktreeSpawned` event plus appends a line to the append-only `${CLAUDE_PLUGIN_DATA}/worktree-links.ndjson` sidecar (keyed by `creatorCwd`).
 Hook script is `bin/emit-event.js` (Node.js, always exits 0, 40ms hard cap).
 Each emitted event includes `schemaVersion: 1` (added in v0.2.0).
 The extension rejects events with a known `schemaVersion` that is not `1`; missing `schemaVersion` is accepted for backwards compatibility.
