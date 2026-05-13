@@ -57,6 +57,7 @@ The matrix is not exhaustive — when a real failure exposes a guard not listed 
 | ID      | Class                  | Symptom                                                                                       | Primary phase | Primary companion / gate                                          |
 | ------- | ---------------------- | --------------------------------------------------------------------------------------------- | ------------- | ----------------------------------------------------------------- |
 | F1      | Test-by-construction   | New test imports a private copy of the SUT or duplicates its body — passes regardless of prod | 4             | `test-provenance-guard` (static + mutation) — should have run     |
+| F2      | Sub-agent resource contention | Phase 3 fan-out dispatches sub-agents with whole-project `tsc`/`lint`/`test`/`build` commands; N concurrent processes saturate developer host RAM (OOM). Root cause: sub-agent prompt inherits whole-project validation commands without scoping. | 3 | Sub-Agent Resource Discipline rule + `bin/check-subagent-prompts.sh` — should have been embedded in the dispatch prompt |
 | F-novel | Novel mode             | Does not match any existing row                                                               | —             | Diagnosis proposes a new row inline (added on user approval only) |
 
 The taxonomy is **append-only** — every novel failure mode adds a new row, the row is justified by a diagnosis that cleared `confidence(analysis) ≥ 90 %` AND was user-approved at apply time.
@@ -76,6 +77,7 @@ The diagnoser must not propose to relax any of these without explicit user confi
 - **`gh` is hard-required; `gw` is optional with a native fallback.**
 - **The system-prompt for the agent template stays lean.** It references `SKILL.md` rather than duplicating procedures.
 - **Stuck-loop caps (3 Lite / 5 Full) are load-bearing.** Changing them requires updating every coupled surface listed in [`CLAUDE.md`](../CLAUDE.md#the-mode-aware-stuck-loop-cap-3--5-and-auto-replan).
+- **Sub-Agent Resource Discipline is non-relaxable.** Sub-agents MUST run scoped/path-narrowed validation commands only. Whole-project `tsc`, `lint`, `build`, and `test` commands are reserved for the orchestrator at Phase 4 Step 6 and Phase 6 pre-PR. A diagnoser must never propose removing this constraint or widening it to allow whole-project commands in sub-agents.
 
 ---
 
@@ -96,4 +98,5 @@ Lite Mode runs produce no `plan.md` / `walkthrough.md` — diagnoses against Lit
 ## Validators
 
 - `claude plugin validate skills/autonomous-workflow` — frontmatter + structure check.
+- `bash skills/autonomous-workflow/bin/check-subagent-prompts.sh skills/autonomous-workflow/` — static check that every sub-agent dispatch block in `rules/` and `templates/` contains the Sub-Agent Resource Discipline sentinel phrase. Exits 0 on pass, exits 1 with a list of violations on failure.
 - Manual end-to-end pattern in [`CLAUDE.md`](../CLAUDE.md#testing-changes-end-to-end): symlink locally, run a small Lite Mode task, run a larger Full Mode task. There is no automated test suite for this skill.

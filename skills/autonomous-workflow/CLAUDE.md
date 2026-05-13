@@ -302,19 +302,20 @@ small changes too — they still drift docs).
 
 ## Parallelization
 
-Two places benefit from sub-agent fan-out:
+Three places benefit from sub-agent fan-out:
 
 1. **Phase 1 research** (`Explore` sub-agents per package/concern) — when
    the task is complex, parallel exploration finds context faster than
    sequential reads. See [`rules/phase-1-planning.md#parallel-research`].
-2. **Phase 7 CI fixes** (`ci-auto-fix` sub-agents per failed check) — cap
+2. **Phase 3 implementation** — controlled fan-out when slices are
+   file-disjoint (cap 3 concurrent sub-agents). Each sub-agent MUST receive
+   the Sub-Agent Resource Discipline embedding. If the task does not decompose
+   cleanly, keep Phase 3 sequential. See
+   [`rules/parallel-coordination.md#sub-agent-resource-discipline`](./rules/parallel-coordination.md#sub-agent-resource-discipline).
+3. **Phase 7 CI fixes** (`ci-auto-fix` sub-agents per failed check) — cap
    at 2 handoffs per PR; each sub-agent has its own retry budget. See
    [`rules/phase-7-ci-gate.md#parallel-ci-fixes`] and
    [`../create-pr/SKILL.md`] Step 8.
-
-Phase 3 (implementation) is **not** parallelized. File-level changes share
-state (lockfiles, types, imports), and parallel writes create conflicts that
-cost more time than serial implementation saves.
 
 ---
 
@@ -351,6 +352,11 @@ When editing this skill, do not break these — they're load-bearing:
   diagnoser cannot reason about hard invariants. Treat the surface like
   `companion-skills.md`: every change to a phase, gate, taxonomy class, or
   load-bearing invariant must update the surface in the same PR.
+- **Sub-Agent Resource Discipline is non-relaxable.** Every sub-agent dispatch
+  block must embed the resource-discipline sentinel line. Whole-project `tsc`,
+  `lint`, `build`, and `test` commands are forbidden inside sub-agents and
+  reserved for orchestrator-only boundaries (Phase 4 Step 6, Phase 6 pre-PR).
+  See [`rules/parallel-coordination.md#sub-agent-resource-discipline`](./rules/parallel-coordination.md#sub-agent-resource-discipline).
 
 ---
 
@@ -490,6 +496,19 @@ end-user-facing; this file is contributor-facing.
 ---
 
 ## History
+
+- **v3.8** — Sub-Agent Resource Discipline. Replaced the "Phase 3 is not
+  parallelized" blanket prohibition with "controlled fan-out under per-slice
+  scoping" (cap 3 concurrent, file-disjoint slices). Added the
+  `Sub-Agent Resource Discipline` rule (`rules/parallel-coordination.md#sub-agent-resource-discipline`):
+  sub-agents must use scoped validation commands only; whole-project `tsc`,
+  `lint`, `build`, `test` are forbidden inside sub-agents and reserved for
+  orchestrator-only boundaries (Phase 4 Step 6, Phase 6 pre-PR). Root cause:
+  N concurrent whole-project `tsc` processes scale peak RSS ~2.9x per process,
+  crashing developer hosts on multi-slice tasks. Added `F2` taxonomy row to
+  `rules/diagnostic-surface.md`, added `bin/check-subagent-prompts.sh`
+  regression script, and updated all 7 coupled surfaces that previously
+  asserted "Phase 3 is not parallelized".
 
 - **v3.7** — Diagnose Mode relocated to `create-skill`. The `--diagnose`
   flag is gone from this skill; the retrospective self-improvement loop is

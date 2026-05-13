@@ -31,8 +31,9 @@ Two distinct concerns live in this rule:
 2. **Multi-agent handoff** — when separate worktrees are owned by separate
    agents and need to coordinate on naming and hand-off.
 
-Phase 3 implementation is **NOT parallelized** — file-level changes share
-state and concurrent edits cause conflicts.
+Phase 3 implementation allows **controlled fan-out** when slices are
+file-disjoint — see [Phase 3: Controlled fan-out under per-slice scoping](#phase-3-controlled-fan-out-under-per-slice-scoping)
+and [Sub-Agent Resource Discipline](#sub-agent-resource-discipline).
 
 ---
 
@@ -42,7 +43,12 @@ state and concurrent edits cause conflicts.
 | ----- | ------------------------------------------------ | ---------------------------- |
 | 1     | Parallel `Explore` sub-agents for research       | One per package / concern    |
 | 7     | Parallel `ci-auto-fix` per independent failure   | 2 handoffs per PR            |
-| 3     | **Sequential only** — no fan-out                 | n/a                          |
+| 3     | Controlled fan-out — file-disjoint slices only   | 3 concurrent sub-agents      |
+
+> **Cap asymmetry note.** The Phase 3 cap (3) and Phase 7 cap (2) serve
+> different concerns: Phase 3 is concurrent-within-a-phase (RAM-bounded —
+> bounds peak RSS); Phase 7 is total handoffs per PR (token-bounded — bounds
+> token spend and retry surface). They are independently justified.
 
 ### Phase 1: Parallel Research (when complex/multi-domain)
 
@@ -68,12 +74,74 @@ tests, not lint with secondary test failures), spawn one
 escalate to the user — do not chain a third. See
 [phase-7-ci-gate.md#parallel-ci-fixes](./phase-7-ci-gate.md#parallel-ci-fixes).
 
-### Phase 3: Why no fan-out
+### Phase 3: Controlled fan-out under per-slice scoping
 
-Implementation edits share file state. Two sub-agents editing the same module
-race; two editing different modules still need a coordinated commit history.
-Keep Phase 3 sequential and let the inner companions (`tdd`, `ux`,
-`code-quality(code)`) provide the structure.
+When the implementation task decomposes cleanly into **file-disjoint slices**
+(e.g. backend handler, frontend component, migration script — no two slices
+edit the same file), the orchestrator may fan out up to **3 concurrent
+sub-agents**, one per slice.
+
+**Pre-conditions for fan-out (all must be true):**
+
+1. Slices are file-disjoint — no two slices write the same file.
+2. No slice depends on the output of another slice at write time (no
+   "A generates a type that B imports" dependency within the same fan-out).
+3. Each sub-agent receives the [Sub-Agent Resource Discipline](#sub-agent-resource-discipline)
+   embedding (see below).
+
+**Hard cap: 3 concurrent sub-agents.** Three `tsc` processes at ~2.9x RSS
+each is survivable on a 16 GB developer host; four is not.
+
+**If the task does not decompose cleanly, keep Phase 3 sequential.** Sequential
+is still the default for mixed-concern tasks.
+
+After all sub-agents return, the orchestrator runs a coordinated commit and the
+Phase 4 full-suite validation as normal.
+
+---
+
+## Sub-Agent Resource Discipline {#sub-agent-resource-discipline}
+
+> **Hard rule.** Sub-agents MUST run scoped / path-narrowed validation commands only.
+> Whole-project lint, type-check, test, and build commands are FORBIDDEN
+> inside sub-agents. Whole-project commands are reserved for the orchestrator
+> at well-defined boundaries (Phase 4 Step 6, Phase 6 pre-PR).
+
+### Command translation table
+
+| Forbidden inside sub-agents | Scoped equivalent |
+|-----------------------------|-------------------|
+| `npx tsc --noEmit` | If `tsconfig.json` has `"references"`: `npx tsc --noEmit -p <project-tsconfig>`. If NO project references: **SKIP type checking in the sub-agent** — leave it to the orchestrator's Phase 4 Step 6. Note: `tsc --noEmit <file>` does NOT scope the program load — it still resolves all imports. |
+| `npm run lint` (no args) | `npx eslint <changed-files>` or `npm run lint -- <changed-files>` |
+| `npm test` | `npm test -- --testPathPattern="<area>"` (also pin `--maxWorkers=2` if Jest) |
+| `npm run build` | Avoid in sub-agents entirely — build is the orchestrator's job at Phase 6 pre-PR |
+| `nx run-many -t build test lint` | `nx affected -t lint --files=<files>` or scope to the touched project(s) only |
+
+### Orchestrator-only checkpoints
+
+| Checkpoint | Where | Who runs it |
+|------------|-------|-------------|
+| Full type-check | Phase 4 Step 6 | Orchestrator only |
+| Full lint | Phase 4 Step 6 | Orchestrator only |
+| Full test suite | Phase 4 | Orchestrator only |
+| Full build | Phase 6 pre-PR | Orchestrator only |
+
+### Embedding requirement
+
+Every sub-agent dispatch block (in `rules/` and `templates/`) **MUST** include
+this line verbatim in the prompt body:
+
+> "Sub-Agent Resource Discipline: use scoped commands only — narrow
+> `tsc`/`eslint`/`jest` to the files/paths you touched. Do NOT run
+> whole-project `npm run lint`, `npx tsc --noEmit` (without project refs), `npm test`
+> (without `--testPathPattern`), or `npm run build`. The orchestrator runs
+> whole-project verification after all sub-agents return."
+
+### Regression check
+
+Run `bin/check-subagent-prompts.sh skills/autonomous-workflow/` to verify that
+every dispatch block in `rules/` and `templates/` contains the sentinel phrase
+`Sub-Agent Resource Discipline`. See [Validators in diagnostic-surface.md](./diagnostic-surface.md).
 
 ---
 
