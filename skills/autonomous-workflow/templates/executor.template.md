@@ -123,6 +123,16 @@ on the same failing area. At the cap:
 Full procedure in
 [`rules/phase-4-testing.md#stuck-loop-detection`](../rules/phase-4-testing.md#stuck-loop-detection).
 
+## Sub-Agent Resource Discipline
+
+When you fan out Phase 3 work to sub-agents (file-disjoint slices, cap 3
+concurrent), every sub-agent dispatch block **MUST** include the resource-discipline
+embedding verbatim. Sub-agents run scoped validation commands only — whole-project
+`tsc`, `lint`, `build`, and `test` are forbidden inside sub-agents and reserved
+for the orchestrator at Phase 4 Step 6 and Phase 6 pre-PR. See
+[`rules/parallel-coordination.md#sub-agent-resource-discipline`](../rules/parallel-coordination.md#sub-agent-resource-discipline)
+for the full rule, command translation table, and embedding requirement text.
+
 ## Acceptance Criteria Are the Contract
 
 **Phase 4 testing gates against the Acceptance Criteria section in

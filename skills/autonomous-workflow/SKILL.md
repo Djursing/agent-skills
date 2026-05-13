@@ -12,7 +12,7 @@ disable-model-invocation: false
 license: MIT
 metadata:
   author: mthines
-  version: '3.7.0'
+  version: '3.8.0'
   workflow_type: orchestrator
   tags:
     - autonomous
@@ -181,12 +181,11 @@ Add `.agent/` to `.gitignore`. Files are grouped by branch for easy browsing.
 
 ## Parallelization
 
-Two phases benefit from sub-agent fan-out:
+Three phases benefit from sub-agent fan-out:
 
 - **Phase 1 (Planning)** — when the task is complex/multi-domain, spawn parallel `Explore` sub-agents during research (one per package, one for past PRs, one for related docs). See [phase-1-planning.md](./rules/phase-1-planning.md#parallel-research).
+- **Phase 3 (Implementation)** — when the task decomposes into file-disjoint slices, fan out up to **3 concurrent sub-agents** (hard cap, RAM-bounded). Each sub-agent MUST embed the Sub-Agent Resource Discipline line — scoped commands only, no whole-project `tsc`/`lint`/`test`/`build`. See [parallel-coordination.md#sub-agent-resource-discipline](./rules/parallel-coordination.md#sub-agent-resource-discipline).
 - **Phase 7 (CI Gate)** — when multiple CI checks fail, spawn one `ci-auto-fix` sub-agent per independent failure. Cap: 2 handoffs per PR. See [phase-7-ci-gate.md](./rules/phase-7-ci-gate.md#parallel-ci-fixes).
-
-Phase 3 implementation is **NOT** parallelized (file-level changes share state).
 
 ---
 

@@ -134,6 +134,12 @@ prompt: |
   Follow the ci-auto-fix skill's instructions. Apply the minimal fix, commit,
   push, and watch until CI completes. Honor its guardrails — no --no-verify,
   no continue-on-error, no disabling checks.
+
+  Sub-Agent Resource Discipline: use scoped commands only — narrow
+  tsc/eslint/jest to the files/paths you touched. Do NOT run
+  whole-project npm run lint, npx tsc --noEmit (without project refs), npm test
+  (without --testPathPattern), or npm run build. The orchestrator runs
+  whole-project verification after all sub-agents return.
 ```
 
 Log to Progress Log:

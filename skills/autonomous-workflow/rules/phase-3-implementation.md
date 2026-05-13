@@ -76,7 +76,7 @@ If the worktree was not created, **STOP and return to Phase 2.**
 | Verify after every edit                | Fast type-check / compile before moving on       |
 | Commit at logical milestones           | Atomic commits with conventional format          |
 | Invoke companions per signal           | TDD / UX / code-quality at the right moments     |
-| Sequential, not parallel               | File-level changes share state; no fan-out here  |
+| Controlled fan-out when file-disjoint  | Cap 3 concurrent sub-agents; each inherits Sub-Agent Resource Discipline (see [`rules/parallel-coordination.md#sub-agent-resource-discipline`](./parallel-coordination.md#sub-agent-resource-discipline)) |
 
 ---
 
@@ -113,11 +113,23 @@ If `plan.md` is missing (Lite Mode), use the order above as the default.
 Run the project's fastest type-check / compile loop. Examples:
 
 ```bash
-npx tsc --noEmit              # TypeScript type check
-go vet ./...                  # Go vet
-cargo check                   # Rust compile check
+# TypeScript — scoped (preferred inside sub-agents)
+npx tsc --noEmit -p <project-tsconfig>   # if tsconfig.json has "references"
+npx eslint <changed-files>               # lint only the files you touched
+# If no project references exist, SKIP tsc in sub-agents — leave it to Phase 4 Step 6
+# WARNING: npx tsc --noEmit (no path) is FORBIDDEN inside sub-agents —
+#          it loads the whole program regardless of file arguments.
+
+go vet ./...                  # Go vet (scoped by module — acceptable)
+cargo check                   # Rust compile check (scoped by crate — acceptable)
 ruff check <file>             # Python lint
 ```
+
+> **Sub-Agent Resource Discipline applies here.** Inside a sub-agent, run
+> only scoped / path-narrowed commands. Whole-project `npm run lint`,
+> `npx tsc --noEmit` (without project refs), `npm test` (without
+> `--testPathPattern`), and `npm run build` are reserved for the orchestrator.
+> See [`rules/parallel-coordination.md#sub-agent-resource-discipline`](./parallel-coordination.md#sub-agent-resource-discipline).
 
 | Outcome           | Action                                                                 |
 | ----------------- | ---------------------------------------------------------------------- |

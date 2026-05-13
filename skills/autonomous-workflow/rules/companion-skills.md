@@ -134,12 +134,16 @@ why the auto-replan fires before more iterations are spent.
 
 ## Parallelization
 
-| Phase | Pattern                                      | Cap                          |
-| ----- | -------------------------------------------- | ---------------------------- |
-| 1     | Parallel `Explore` sub-agents for research   | One per package/concern      |
-| 7     | Parallel `ci-auto-fix` per independent failure | 2 handoffs per PR            |
+| Phase | Pattern                                         | Cap                          |
+| ----- | ----------------------------------------------- | ---------------------------- |
+| 1     | Parallel `Explore` sub-agents for research      | One per package/concern      |
+| 3     | Controlled fan-out — file-disjoint slices only  | 3 concurrent sub-agents      |
+| 7     | Parallel `ci-auto-fix` per independent failure  | 2 handoffs per PR            |
 
-Phase 3 implementation is **sequential** (file changes share state).
+Phase 3 allows controlled fan-out when slices are file-disjoint (cap 3 concurrent sub-agents).
+Each sub-agent MUST receive the Sub-Agent Resource Discipline embedding.
+If the task does not decompose cleanly into file-disjoint slices, keep Phase 3 sequential.
+See [`rules/parallel-coordination.md#sub-agent-resource-discipline`](./parallel-coordination.md#sub-agent-resource-discipline).
 
 ---
 
