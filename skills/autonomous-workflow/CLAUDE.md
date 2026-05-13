@@ -506,9 +506,10 @@ end-user-facing; this file is contributor-facing.
   orchestrator-only boundaries (Phase 4 Step 6, Phase 6 pre-PR). Root cause:
   N concurrent whole-project `tsc` processes scale peak RSS ~2.9x per process,
   crashing developer hosts on multi-slice tasks. Added `F2` taxonomy row to
-  `rules/diagnostic-surface.md`, added `bin/check-subagent-prompts.sh`
-  regression script, and updated all 7 coupled surfaces that previously
-  asserted "Phase 3 is not parallelized".
+  `rules/diagnostic-surface.md` and updated all 7 coupled surfaces that
+  previously asserted "Phase 3 is not parallelized". Enforcement is via diff
+  review at maintenance time and the LLM-readable rule at runtime — no
+  shipped script (skills stay markdown-only per the repo contract).
 
 - **v3.7** — Diagnose Mode relocated to `create-skill`. The `--diagnose`
   flag is gone from this skill; the retrospective self-improvement loop is

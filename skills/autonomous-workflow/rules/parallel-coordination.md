@@ -125,10 +125,9 @@ prompt: |
   whole-project verification after all sub-agents return.
 ```
 
-This template lives in `rules/` precisely so the regression check
-(`bin/check-subagent-prompts.sh`) has a committed Phase 3 dispatch block to
-validate — the runtime dispatch the orchestrator writes is otherwise inline
-and outside the script's scope.
+This template is committed reference text. At runtime the orchestrator writes
+its dispatch prompt inline; the runtime gate is the LLM reading the rule below
+and including the resource-discipline language in the prompt it sends.
 
 ---
 
@@ -160,10 +159,10 @@ and outside the script's scope.
 
 ### Embedding requirement
 
-Every sub-agent dispatch block (in `rules/` and `templates/`) **MUST** include
-the following text in the prompt body, including the sentinel phrase
-`Sub-Agent Resource Discipline` (the regression check is phrase-level via
-`grep -qF`, not byte-for-byte):
+Every sub-agent dispatch block the orchestrator writes — both the committed
+templates in `rules/` and `templates/` and the inline dispatch prompts the
+executor produces at runtime — **MUST** include the following text in the
+prompt body:
 
 > "Sub-Agent Resource Discipline: use scoped commands only — narrow
 > `tsc`/`eslint`/`jest` to the files/paths you touched. Do NOT run
@@ -171,11 +170,9 @@ the following text in the prompt body, including the sentinel phrase
 > (without `--testPathPattern`), or `npm run build`. The orchestrator runs
 > whole-project verification after all sub-agents return."
 
-### Regression check
-
-Run `bin/check-subagent-prompts.sh skills/autonomous-workflow/` to verify that
-every dispatch block in `rules/` and `templates/` contains the sentinel phrase
-`Sub-Agent Resource Discipline`. See [Validators in diagnostic-surface.md](./diagnostic-surface.md).
+Enforcement at maintenance time is the diff review (this language is easy to
+eyeball in a PR). Enforcement at runtime is the executor reading this rule
+when it writes the dispatch prompt.
 
 ---
 
