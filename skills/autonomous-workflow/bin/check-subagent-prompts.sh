@@ -39,8 +39,9 @@ fi
 # A file is a "dispatch file" if it contains "subagent_type" (the literal dispatch
 # syntax field) — this is more precise than matching "sub-agent" as a string, which
 # appears throughout the documentation descriptively without being a dispatch block.
-# Phase 1 Explore sub-agents (read-only: Read/Grep/Glob) are covered by files that
-# contain "subagent_type"; purely descriptive mentions are not dispatch blocks.
+# Phase 1 Explore sub-agents use a pseudo-code comment pattern, not the
+# subagent_type field, so they fall outside this script's scope intentionally.
+# They are read-only (Read/Grep/Glob) and exempt from the resource discipline.
 DISPATCH_FILES=()
 while IFS= read -r file; do
   DISPATCH_FILES+=("$file")

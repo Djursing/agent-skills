@@ -102,6 +102,34 @@ is still the default for mixed-concern tasks.
 After all sub-agents return, the orchestrator runs a coordinated commit and the
 Phase 4 full-suite validation as normal.
 
+**Sub-agent prompt template (one per file-disjoint slice):**
+
+```
+description: Implement <slice-name> in isolation
+subagent_type: general-purpose
+prompt: |
+  Implement the <slice-name> slice of <task-name>. Inputs:
+
+  - Plan: .agent/<branch>/plan.md (read the File Changes table and
+    Implementation Order for your slice only — do not touch files outside it)
+  - Slice scope: <list-of-files-this-sub-agent-owns>
+  - Worktree: <absolute-worktree-path>
+
+  Follow the Phase 3 procedure. Commit at logical milestones with conventional
+  commit messages. Do NOT add Co-Authored-By lines.
+
+  Sub-Agent Resource Discipline: use scoped commands only — narrow
+  tsc/eslint/jest to the files/paths you touched. Do NOT run
+  whole-project npm run lint, npx tsc --noEmit (without project refs), npm test
+  (without --testPathPattern), or npm run build. The orchestrator runs
+  whole-project verification after all sub-agents return.
+```
+
+This template lives in `rules/` precisely so the regression check
+(`bin/check-subagent-prompts.sh`) has a committed Phase 3 dispatch block to
+validate — the runtime dispatch the orchestrator writes is otherwise inline
+and outside the script's scope.
+
 ---
 
 ## Sub-Agent Resource Discipline {#sub-agent-resource-discipline}
@@ -133,7 +161,9 @@ Phase 4 full-suite validation as normal.
 ### Embedding requirement
 
 Every sub-agent dispatch block (in `rules/` and `templates/`) **MUST** include
-this line verbatim in the prompt body:
+the following text in the prompt body, including the sentinel phrase
+`Sub-Agent Resource Discipline` (the regression check is phrase-level via
+`grep -qF`, not byte-for-byte):
 
 > "Sub-Agent Resource Discipline: use scoped commands only — narrow
 > `tsc`/`eslint`/`jest` to the files/paths you touched. Do NOT run
