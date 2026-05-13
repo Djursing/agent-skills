@@ -37,8 +37,16 @@ import {
   findLinkedArtifacts,
   hasLinkedArtifacts,
 } from '../lib/session-artifact-correlator';
-import type { HookEvent, HookEventName } from '../lib/hook-event-types';
+import type { HookEvent, HookEventName, WorktreeSpawnedEvent } from '../lib/hook-event-types';
 import type { PrEnrichment } from '../lib/pr-status-cache';
+import {
+  WorktreeLink,
+  loadWorktreeLinks,
+  resolveWorktreePath,
+  appendWorktreeLink,
+  addWorktreeLink,
+} from '../lib/worktree-link-store';
+import { getPluginDataDir } from '../lib/plugin-data-path';
 import type { PrPoller, BranchTarget } from '../lib/pr-poller';
 import { resolveDisplayStatus, type DisplayStatus } from '../lib/pr-status-reducer';
 import { sessionUri, type SessionActivityDecorationProvider } from './session-activity-decoration-provider';
@@ -229,6 +237,8 @@ export class SessionItem extends vscode.TreeItem {
       status: SessionStatus;
       linkedArtifacts?: LinkedArtifacts;
       prEnrichment?: PrEnrichment;
+      /** Set when artifacts come from a spawned worktree rather than the session's own worktree. */
+      spawnedWorktreePath?: string;
     }
   ) {
     const linked = options.linkedArtifacts;
@@ -267,7 +277,8 @@ export class SessionItem extends vscode.TreeItem {
       this.displayStatus,
       branch,
       this.linkedArtifacts,
-      options.prEnrichment
+      options.prEnrichment,
+      options.spawnedWorktreePath
     );
 
     // contextValue encodes both artifact presence and PR state for menu conditions.
@@ -353,7 +364,8 @@ export class SessionItem extends vscode.TreeItem {
     status: DisplayStatus,
     branch: string,
     linkedArtifacts?: LinkedArtifacts,
-    prEnrichment?: PrEnrichment
+    prEnrichment?: PrEnrichment,
+    spawnedWorktreePath?: string
   ): vscode.MarkdownString {
     const md = new vscode.MarkdownString();
     md.appendMarkdown(`**Last activity:** ${timeStr} · _${status}_\n\n`);
@@ -382,6 +394,20 @@ export class SessionItem extends vscode.TreeItem {
         parts.push(noun);
       }
       md.appendMarkdown(`**Linked artifacts:** ${parts.join(' · ')}\n\n`);
+
+      // When artifacts come from a spawned worktree (not the session's own
+      // worktree), surface the spawned path so the user knows where they are.
+      // Use path.relative for cross-platform detection: if relative path starts
+      // with '..', the artifact dir is outside the session's cwd.
+      if (
+        spawnedWorktreePath &&
+        session.cwd &&
+        path.relative(session.cwd, spawnedWorktreePath).startsWith('..')
+      ) {
+        md.appendMarkdown(
+          `**Artifacts from spawned worktree:** \`${spawnedWorktreePath}\`\n\n`
+        );
+      }
     }
 
     // PR section — shown when there is a successfully-fetched PR enrichment
@@ -675,6 +701,9 @@ export function hookEventToStatus(
       return 'idle';
     case 'Notification':
       return 'needs-input';
+    case 'WorktreeSpawned':
+      // No session-status change — correlation handled by applyWorktreeSpawnedEvent
+      return undefined;
   }
 }
 
@@ -723,6 +752,28 @@ export function readSessionFilter(): SessionFilter {
 }
 
 export class SessionsProvider implements vscode.TreeDataProvider<SessionTreeItem> {
+  /**
+   * Path to the plugin data directory (${CLAUDE_PLUGIN_DATA}). Used to load
+   * and append the `worktree-links.ndjson` sidecar. Defaults to the standard
+   * path from `getPluginDataDir()` when not overridden (e.g. in tests).
+   */
+  private readonly pluginDataDir: string;
+
+  /**
+   * In-memory index of spawned-worktree links, keyed by `creatorCwd`.
+   * Loaded from the append-only sidecar at construction and updated live
+   * whenever a `WorktreeSpawned` hook event arrives.
+   */
+  private worktreeLinks = new Map<string, WorktreeLink[]>();
+
+  /**
+   * Map of `sessionId → spawned worktreePath` — set during `buildRootItems()`
+   * when a session's artifacts are resolved from a spawned worktree. Used by
+   * `makeSessionItem()` to pass the spawned path through to the tooltip.
+   * Cleared and rebuilt on every refresh.
+   */
+  private sessionSpawnedWorktrees = new Map<string, string>();
+
   private _onDidChangeTreeData = new vscode.EventEmitter<SessionTreeItem | undefined | void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
@@ -816,6 +867,17 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionTreeItem
    */
   private unreadClearedAt = new Map<string, number>();
 
+  /**
+   * @param pluginDataDirOverride - Optional override for the plugin data dir.
+   *   Defaults to `getPluginDataDir()`. Pass a custom path in tests.
+   */
+  constructor(pluginDataDirOverride?: string) {
+    this.pluginDataDir = pluginDataDirOverride ?? getPluginDataDir();
+    // Load the durable worktree-links sidecar at startup so correlations
+    // established before the current extension session are immediately visible.
+    this.worktreeLinks = loadWorktreeLinks(this.pluginDataDir);
+  }
+
   /** The session directories currently being observed. */
   get sessionDirs(): string[] {
     return this._sessionDirs;
@@ -898,6 +960,75 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionTreeItem
     this.pruneExpiredHookOverrides();
     // Always refresh — Notification events should still update the panel
     this.refresh();
+  }
+
+  /**
+   * Apply a `WorktreeSpawned` hook event received from `HookEventWatcher`.
+   *
+   * Calls `git worktree list --porcelain` from `event.cwd` (the `creatorCwd`)
+   * to resolve the newest spawned worktree not already in the in-memory index.
+   * Appends the resolved link to the durable sidecar and updates the index.
+   *
+   * The `event.cwd` is the correlation key: any visible session whose `cwd`
+   * is a prefix of `event.cwd` will inherit the spawned-worktree artifacts.
+   */
+  async applyWorktreeSpawnedEvent(event: WorktreeSpawnedEvent): Promise<void> {
+    const knownPaths = new Set(
+      [...this.worktreeLinks.values()].flat().map((l) => l.worktreePath)
+    );
+
+    const resolved = await resolveWorktreePath(event.cwd, knownPaths);
+    if (!resolved) {
+      // Could not resolve the spawned worktree — skip silently.
+      // This can happen if the worktree was already known or `git` failed.
+      return;
+    }
+
+    const entry: WorktreeLink = {
+      creatorCwd: event.cwd,
+      worktreePath: resolved.worktreePath,
+      branch: resolved.branch,
+      addedAt: event.ts,
+    };
+
+    this.worktreeLinks = addWorktreeLink(this.worktreeLinks, entry);
+    appendWorktreeLink(this.pluginDataDir, {
+      creatorCwd: event.cwd,
+      commandLine: event.commandLine,
+      addedAt: event.ts,
+    });
+    this.refresh();
+  }
+
+  /**
+   * Find linked artifacts for a session by checking whether any stored
+   * `creatorCwd` is a prefix of (or equal to) `sessionCwd`.
+   *
+   * Longest-prefix semantics: `sessionCwd === creatorCwd` is an exact match;
+   * `sessionCwd.startsWith(creatorCwd + path.sep)` matches sub-directories
+   * of the creator worktree (e.g. sessions started from `apps/api/`).
+   *
+   * Returns the first non-empty `LinkedArtifacts` found, or `{}` when none.
+   */
+  private findSpawnedArtifacts(
+    sessionCwd: string | undefined,
+    artifactDirs: string[]
+  ): LinkedArtifacts {
+    if (!sessionCwd) return {};
+
+    for (const [creatorCwd, links] of this.worktreeLinks) {
+      if (
+        sessionCwd === creatorCwd ||
+        sessionCwd.startsWith(creatorCwd + path.sep)
+      ) {
+        for (const link of links) {
+          const artifacts = findLinkedArtifacts(link.worktreePath, link.branch, artifactDirs);
+          if (hasLinkedArtifacts(artifacts)) return artifacts;
+        }
+      }
+    }
+
+    return {};
   }
 
   /**
@@ -1071,6 +1202,7 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionTreeItem
       status: this.computeStatus(session),
       linkedArtifacts: this.sessionLinks.get(session.sessionId),
       prEnrichment,
+      spawnedWorktreePath: this.sessionSpawnedWorktrees.get(session.sessionId),
     });
   }
 
@@ -1173,16 +1305,38 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionTreeItem
     // that an autonomous-workflow run would have written under.
     this.sessionLinks.clear();
     this.sessionWorktrees.clear();
+    this.sessionSpawnedWorktrees.clear();
     const artifactDirs = getConfiguredArtifactDirs();
     const branchTargets: BranchTarget[] = [];
     for (const [worktreePath, sessions] of buckets) {
       for (const session of sessions) {
         if (!session.gitBranch) continue;
         this.sessionWorktrees.set(session.sessionId, worktreePath);
-        const links = findLinkedArtifacts(worktreePath, session.gitBranch, artifactDirs);
+
+        // Spawned-worktree lookup (keyed by creatorCwd, longest-prefix match).
+        // Spawned artifacts take priority over the session's own worktree artifacts
+        // to prevent a stale `.agent/<main-branch>/` from shadowing a newly-created
+        // child worktree's plan.md.
+        const spawnedLinks = this.findSpawnedArtifacts(session.cwd, artifactDirs);
+        const ownLinks = findLinkedArtifacts(worktreePath, session.gitBranch, artifactDirs);
+        const links = hasLinkedArtifacts(spawnedLinks) ? spawnedLinks : ownLinks;
+
         if (hasLinkedArtifacts(links)) {
           this.sessionLinks.set(session.sessionId, links);
+          // Record spawned worktree path for tooltip display when artifacts came
+          // from a spawned worktree (not the session's own worktree).
+          if (hasLinkedArtifacts(spawnedLinks) && links.artifactDir) {
+            // Derive the spawned worktree path from the artifactDir by stripping
+            // the .agent/<branch> suffix. The artifact dir is
+            // <worktreePath>/<dir>/<branchName>, so two path.dirname calls give
+            // the worktree root.
+            const spawnedWt = path.dirname(path.dirname(links.artifactDir));
+            if (spawnedWt !== worktreePath) {
+              this.sessionSpawnedWorktrees.set(session.sessionId, spawnedWt);
+            }
+          }
         }
+
         // Collect branch targets for PR polling
         branchTargets.push({
           branch: session.gitBranch,

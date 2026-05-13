@@ -99,12 +99,75 @@ if (!eventName || !sessionId) {
   exitOk();
 }
 
+const ts = Date.now();
+
+// ---- PostToolUse: detect git worktree add / gw add ----
+// This branch runs ONLY for Bash PostToolUse events where the command is a
+// worktree-add operation. For all other Bash calls the early-exit guard below
+// makes this essentially free (<0.1ms).
+if (eventName === 'PostToolUse') {
+  const toolName = payload['tool_name'] ?? '';
+  if (toolName === 'Bash') {
+    const command = (payload['tool_input'] && payload['tool_input']['command']) ?? '';
+
+    // Worktree-add detection: match "git worktree add" or "gw add"
+    const WORKTREE_ADD_RE = /\b(git\s+worktree\s+add|gw\s+add)\b/;
+    if (WORKTREE_ADD_RE.test(command)) {
+      // Emit WorktreeSpawned to the per-session NDJSON file
+      const worktreeEvent = {
+        schemaVersion: 1,
+        event: 'WorktreeSpawned',
+        sessionId: String(sessionId),
+        cwd: String(cwd),
+        ts,
+        commandLine: String(command),
+      };
+
+      try {
+        const eventsDir = path.join(pluginDataDir, 'events');
+        fs.mkdirSync(eventsDir, { recursive: true });
+
+        if (elapsed() > HARD_CAP_MS) {
+          exitOk();
+        }
+
+        const filePath = path.join(eventsDir, `${worktreeEvent.sessionId}.ndjson`);
+        fs.appendFileSync(filePath, JSON.stringify(worktreeEvent) + '\n', 'utf8');
+      } catch {
+        // Silently no-op — never block the user
+      }
+
+      if (elapsed() > HARD_CAP_MS) {
+        exitOk();
+      }
+
+      // Append one line to the durable worktree-links.ndjson sidecar.
+      // Single atomic appendFileSync — no read-modify-write race possible.
+      try {
+        const sidecarPath = path.join(pluginDataDir, 'worktree-links.ndjson');
+        const sidecarLine = JSON.stringify({
+          creatorCwd: String(cwd),
+          commandLine: String(command),
+          addedAt: ts,
+        });
+        fs.appendFileSync(sidecarPath, sidecarLine + '\n', 'utf8');
+      } catch {
+        // Silently no-op
+      }
+    }
+  }
+
+  // PostToolUse events never write the standard per-session status event —
+  // they don't correspond to a lifecycle state change. Exit cleanly.
+  exitOk();
+}
+
 const event = {
   schemaVersion: 1,
   event: String(eventName),
   sessionId: String(sessionId),
   cwd: String(cwd),
-  ts: Date.now(),
+  ts,
 };
 
 // ---- Write to per-session NDJSON file ----

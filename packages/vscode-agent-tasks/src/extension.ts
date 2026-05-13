@@ -25,6 +25,7 @@ import {
 import { SessionWatcher } from './watchers/session-watcher';
 import { HookEventWatcher } from './watchers/hook-event-watcher';
 import { PluginInstaller, removeSentinel, isSentinelPresent, setHooksDormantContext } from './lib/plugin-installer';
+import { getPluginDataDir } from './lib/plugin-data-path';
 import { initLogger, log, logError } from './lib/logger';
 import { parsePsOutput, findClaudeDescendant, claimPendingAdoption, type PendingAdoption } from './lib/process-tree';
 import type { SessionMetadata } from './parsers/session-jsonl-parser';
@@ -255,7 +256,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // Sessions panel
   // -------------------------------------------------------------------------
 
-  const sessionsProvider = new SessionsProvider();
+  const sessionsProvider = new SessionsProvider(getPluginDataDir());
 
   // -------------------------------------------------------------------------
   // PR status cache + poller — wired into the sessions provider when enabled.
@@ -465,7 +466,14 @@ export function activate(context: vscode.ExtensionContext): void {
   const hookEventWatcher = new HookEventWatcher();
   hookEventWatcher.onHookEvent((event) => {
     log(`Hook event: ${event.event} for session ${event.sessionId.slice(0, 8)}`);
-    sessionsProvider.applyHookEvent(event);
+    if (event.event === 'WorktreeSpawned') {
+      // Route spawned-worktree events to the dedicated handler.
+      // The handler resolves the actual worktree path via git worktree list
+      // and updates the in-memory index + durable sidecar asynchronously.
+      void sessionsProvider.applyWorktreeSpawnedEvent(event);
+    } else {
+      sessionsProvider.applyHookEvent(event);
+    }
   });
 
   // -------------------------------------------------------------------------

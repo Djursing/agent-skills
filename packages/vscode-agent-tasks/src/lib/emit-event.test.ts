@@ -87,6 +87,19 @@ function makePayload(overrides: Record<string, unknown> = {}): string {
   });
 }
 
+/** Build a valid PostToolUse Bash payload. */
+function makePostToolUsePayload(command: string, overrides: Record<string, unknown> = {}): string {
+  return JSON.stringify({
+    hook_event_name: 'PostToolUse',
+    session_id: 'test-session-ptu',
+    cwd: '/home/user/repo/main',
+    tool_name: 'Bash',
+    tool_input: { command },
+    tool_response: { stdout: '', stderr: '', exit_code: 0 },
+    ...overrides,
+  });
+}
+
 describe('emit-event.js', () => {
   let tmpDir: string;
   let pluginDataDir: string;
@@ -270,6 +283,174 @@ describe('emit-event.js', () => {
     );
     const parsed = JSON.parse(content.trim()) as Record<string, unknown>;
     expect(parsed['event']).toBe(eventName);
+  });
+
+  // ---- PostToolUse: WorktreeSpawned detection ----
+
+  it('emits WorktreeSpawned event for "git worktree add" command', async () => {
+    fs.writeFileSync(sentinelPath, '');
+    const result = await runScript(
+      pluginDataDir,
+      makePostToolUsePayload('git worktree add ../repo-feat-x', {
+        session_id: 'session-ptu-1',
+      })
+    );
+    expect(result.exitCode).toBe(0);
+
+    const eventsDir = path.join(pluginDataDir, 'events');
+    const files = fs.readdirSync(eventsDir);
+    expect(files).toHaveLength(1);
+    expect(files[0]).toBe('session-ptu-1.ndjson');
+
+    const content = fs.readFileSync(path.join(eventsDir, 'session-ptu-1.ndjson'), 'utf8');
+    const parsed = JSON.parse(content.trim()) as Record<string, unknown>;
+    expect(parsed['event']).toBe('WorktreeSpawned');
+    expect(parsed['schemaVersion']).toBe(1);
+    expect(parsed['sessionId']).toBe('session-ptu-1');
+    expect(parsed['cwd']).toBe('/home/user/repo/main');
+    expect(parsed['commandLine']).toBe('git worktree add ../repo-feat-x');
+  });
+
+  it('emits WorktreeSpawned event for "git worktree add -b feat/x" command', async () => {
+    fs.writeFileSync(sentinelPath, '');
+    const result = await runScript(
+      pluginDataDir,
+      makePostToolUsePayload('git worktree add -b feat/x ../repo-feat-x', {
+        session_id: 'session-ptu-2',
+      })
+    );
+    expect(result.exitCode).toBe(0);
+
+    const eventsDir = path.join(pluginDataDir, 'events');
+    const content = fs.readFileSync(path.join(eventsDir, 'session-ptu-2.ndjson'), 'utf8');
+    const parsed = JSON.parse(content.trim()) as Record<string, unknown>;
+    expect(parsed['event']).toBe('WorktreeSpawned');
+    expect(parsed['commandLine']).toBe('git worktree add -b feat/x ../repo-feat-x');
+  });
+
+  it('emits WorktreeSpawned event for "gw add feat/x" command', async () => {
+    fs.writeFileSync(sentinelPath, '');
+    const result = await runScript(
+      pluginDataDir,
+      makePostToolUsePayload('gw add feat/x', {
+        session_id: 'session-ptu-gw',
+      })
+    );
+    expect(result.exitCode).toBe(0);
+
+    const eventsDir = path.join(pluginDataDir, 'events');
+    const content = fs.readFileSync(path.join(eventsDir, 'session-ptu-gw.ndjson'), 'utf8');
+    const parsed = JSON.parse(content.trim()) as Record<string, unknown>;
+    expect(parsed['event']).toBe('WorktreeSpawned');
+    expect(parsed['commandLine']).toBe('gw add feat/x');
+  });
+
+  it('does NOT emit WorktreeSpawned for "git worktree list"', async () => {
+    fs.writeFileSync(sentinelPath, '');
+    const result = await runScript(
+      pluginDataDir,
+      makePostToolUsePayload('git worktree list --porcelain', {
+        session_id: 'session-ptu-list',
+      })
+    );
+    expect(result.exitCode).toBe(0);
+
+    const eventsDir = path.join(pluginDataDir, 'events');
+    const exists = fs.existsSync(eventsDir);
+    if (exists) {
+      const files = fs.readdirSync(eventsDir);
+      expect(files).toHaveLength(0);
+    } else {
+      expect(exists).toBe(false);
+    }
+  });
+
+  it('does NOT emit WorktreeSpawned for a plain "ls" command', async () => {
+    fs.writeFileSync(sentinelPath, '');
+    const result = await runScript(
+      pluginDataDir,
+      makePostToolUsePayload('ls -la', {
+        session_id: 'session-ptu-ls',
+      })
+    );
+    expect(result.exitCode).toBe(0);
+
+    const eventsDir = path.join(pluginDataDir, 'events');
+    const exists = fs.existsSync(eventsDir);
+    if (exists) {
+      const files = fs.readdirSync(eventsDir);
+      expect(files).toHaveLength(0);
+    }
+  });
+
+  it('does NOT emit WorktreeSpawned for "git branch" command', async () => {
+    fs.writeFileSync(sentinelPath, '');
+    await runScript(
+      pluginDataDir,
+      makePostToolUsePayload('git branch -a', { session_id: 'session-ptu-branch' })
+    );
+
+    const eventsDir = path.join(pluginDataDir, 'events');
+    const exists = fs.existsSync(eventsDir);
+    if (exists) {
+      expect(fs.readdirSync(eventsDir)).toHaveLength(0);
+    }
+  });
+
+  it('writes sidecar line to worktree-links.ndjson on WorktreeSpawned detection', async () => {
+    fs.writeFileSync(sentinelPath, '');
+    await runScript(
+      pluginDataDir,
+      makePostToolUsePayload('gw add feat/sidecar-test', {
+        session_id: 'session-ptu-sidecar',
+        cwd: '/home/user/repo/main',
+      })
+    );
+
+    const sidecarPath = path.join(pluginDataDir, 'worktree-links.ndjson');
+    expect(fs.existsSync(sidecarPath)).toBe(true);
+
+    const content = fs.readFileSync(sidecarPath, 'utf8').trim();
+    const parsed = JSON.parse(content) as Record<string, unknown>;
+    expect(parsed['creatorCwd']).toBe('/home/user/repo/main');
+    expect(parsed['commandLine']).toBe('gw add feat/sidecar-test');
+    expect(typeof parsed['addedAt']).toBe('number');
+  });
+
+  it('two detected commands → two sidecar lines (append-only confirmed)', async () => {
+    fs.writeFileSync(sentinelPath, '');
+
+    await runScript(
+      pluginDataDir,
+      makePostToolUsePayload('gw add feat/first', { session_id: 'session-ptu-append-1', cwd: '/home/user/a' })
+    );
+    await runScript(
+      pluginDataDir,
+      makePostToolUsePayload('gw add feat/second', { session_id: 'session-ptu-append-2', cwd: '/home/user/b' })
+    );
+
+    const sidecarPath = path.join(pluginDataDir, 'worktree-links.ndjson');
+    const lines = fs
+      .readFileSync(sidecarPath, 'utf8')
+      .split('\n')
+      .filter((l) => l.trim().length > 0);
+    expect(lines).toHaveLength(2);
+
+    const first = JSON.parse(lines[0] ?? '{}') as Record<string, unknown>;
+    const second = JSON.parse(lines[1] ?? '{}') as Record<string, unknown>;
+    expect(first['creatorCwd']).toBe('/home/user/a');
+    expect(second['creatorCwd']).toBe('/home/user/b');
+  });
+
+  it('PostToolUse without worktree-add does NOT write any sidecar', async () => {
+    fs.writeFileSync(sentinelPath, '');
+    await runScript(
+      pluginDataDir,
+      makePostToolUsePayload('npm install', { session_id: 'session-ptu-npm' })
+    );
+
+    const sidecarPath = path.join(pluginDataDir, 'worktree-links.ndjson');
+    expect(fs.existsSync(sidecarPath)).toBe(false);
   });
 
   // ---- Multiple writes (append) ----

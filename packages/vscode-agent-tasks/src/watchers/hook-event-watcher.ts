@@ -31,6 +31,7 @@ const KNOWN_EVENT_NAMES = new Set<HookEventName>([
   'Notification',
   'SessionStart',
   'SessionEnd',
+  'WorktreeSpawned',
 ] satisfies HookEventName[]);
 
 function isHookEvent(v: unknown): v is HookEvent {
@@ -42,18 +43,28 @@ function isHookEvent(v: unknown): v is HookEvent {
   // pre-0.2.0 plugin events still on disk.
   if (typeof obj['schemaVersion'] === 'number' && obj['schemaVersion'] !== 1) {
     logError(
-      `HookEventWatcher: unknown schemaVersion ${obj['schemaVersion']}, skipping event`
+      `HookEventWatcher: unknown schemaVersion ${obj['schemaVersion']}, skipping event`,
+      undefined
     );
     return false;
   }
 
-  return (
-    typeof obj['event'] === 'string' &&
-    KNOWN_EVENT_NAMES.has(obj['event'] as HookEventName) &&
-    typeof obj['sessionId'] === 'string' &&
-    typeof obj['cwd'] === 'string' &&
-    typeof obj['ts'] === 'number'
-  );
+  if (
+    typeof obj['event'] !== 'string' ||
+    !KNOWN_EVENT_NAMES.has(obj['event'] as HookEventName) ||
+    typeof obj['sessionId'] !== 'string' ||
+    typeof obj['cwd'] !== 'string' ||
+    typeof obj['ts'] !== 'number'
+  ) {
+    return false;
+  }
+
+  // WorktreeSpawned requires the commandLine field
+  if (obj['event'] === 'WorktreeSpawned') {
+    return typeof obj['commandLine'] === 'string';
+  }
+
+  return true;
 }
 
 export class HookEventWatcher implements vscode.Disposable {
