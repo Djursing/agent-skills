@@ -34,6 +34,7 @@ Source: SWE-agent ([NeurIPS 2024](https://proceedings.neurips.cc/paper_files/pap
 - [What counts as a valid repro](#what-counts-as-a-valid-repro)
 - [Path convention](#path-convention)
 - [Best-effort fallback](#best-effort-fallback)
+- [Forbidden reasons to skip Phase 2b](#forbidden-reasons-to-skip-phase-2b)
 - [Bisect fast-path](#bisect-fast-path)
 
 ---
@@ -211,6 +212,61 @@ reproduction steps. Mark it explicitly:
 Do **not** block on this — Phase 3 proceeds. The executor (Phase 6) cannot use it as a
 `FAIL_TO_PASS` contract; the [Phase 7 verifier](./independent-verification.md) will skip its
 `FAIL_TO_PASS` check and rely on the broader test suite plus diff-sanity instead.
+
+---
+
+## Forbidden reasons to skip Phase 2b
+
+Phase 2b is **not optional**. The only valid reasons to mark a repro as best-effort are
+the three listed in [Best-effort fallback](#best-effort-fallback) (race conditions,
+production-only bugs, Heisenbugs) plus rows 7 and 8 of the
+[layer routing table](#layer-routing) (visual-only, performance regression). These five
+reasons — and only these five — are also the closed list the
+[Phase 5 reproduction gate](../SKILL.md#step-5a--reproduction-gate-mechanical) accepts.
+
+The following are **NOT** valid reasons to skip the `/tdd` / `/e2e-testing` /
+`/e2e-testing-mobile` delegation. If the agent finds itself reaching for any of these,
+it has misclassified the bug shape and must climb **down** the routing table instead —
+not sideways into best-effort:
+
+- **"The diff is small."** A two-line fix is exactly the case where a regression test
+  is cheap and load-bearing — the fix is one careless edit away from being reverted
+  and nothing else in the suite prevents that.
+- **"The pattern is already exercised by `<other test>`."** Other tests assert other
+  invariants. The new bug needs its own assertion or the regression cannot be detected
+  by the broader suite.
+- **"A test harness for `<framework>` would be too much scaffolding."** React Testing
+  Library, `renderHook`, `QueryClientProvider`, MSW, Vitest, pytest fixtures, and the
+  standard mocking libraries are existing project conventions in any non-trivial
+  codebase — not new scaffolding the agent has to author. If the project genuinely
+  lacks a test harness for the layer the bug lives at, capture that as a separate
+  project-onboarding ticket; the agent must not silently absorb it as "best-effort."
+- **"The bug is so localised the test would just duplicate the fix."** A test that
+  calls the buggy code path and asserts the corrected behaviour is the `FAIL_TO_PASS`
+  contract — its job is duplication of intent, not duplication of implementation. The
+  fix can change shape later; the assertion stays valid as long as the behaviour does.
+
+The agent's confidence in the fix is not a substitute for the repro. Confidence is
+scored at Phase 4 separately from the repro existence check; both must clear before
+Phase 5 even sees the proposal, and the [Phase 5 gate](../SKILL.md#step-5a--reproduction-gate-mechanical)
+fails-closed (no force-proceed) when the repro is missing.
+
+### Common bugs that trigger this rationalization despite being captureable
+
+If a bug appears in this table, "scaffolding overhead" is not a valid justification —
+the test pattern is already established by the listed routing row.
+
+| Bug shape                                                            | Correct routing                                                            |
+|----------------------------------------------------------------------|----------------------------------------------------------------------------|
+| React Query cache invalidation gap (`onSuccess` did not invalidate)  | Row 3 (hook) — `renderHook` + `QueryClientProvider` + assertion on cached state |
+| Missing dispatch / event listener / subscription                     | Row 3 (hook) or row 2 (component) — depending on where the listener lives  |
+| Wrong conditional branch in a component                              | Row 2 (component) — RTL `render` + role-based assertion                    |
+| Server contract mismatch (wrong key, wrong shape, wrong status code) | Row 4 (integration) — MSW handler returning the buggy contract + assertion |
+| Off-by-one in a pure function                                        | Row 1 (unit) — direct function call + boundary-value assertion             |
+| Stale closure in a `useEffect` / `useCallback`                       | Row 3 (hook) — `renderHook` + `rerender` with new dependency value         |
+
+The list is non-exhaustive. When the bug shape is not listed, climb the routing table
+top-to-bottom and pick the lowest layer that can assert the corrected behaviour.
 
 ---
 

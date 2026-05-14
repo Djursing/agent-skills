@@ -49,6 +49,7 @@
 - Path: <repro/<id>.test.ts | repro/test_<id>.py | repro/<id>.md>
 - Command: <pnpm test repro/<id>.test.ts | pytest repro/test_<id>.py | manual>
 - Status: <failing on HEAD as expected | best-effort>
+- Reason: <required only when Status=best-effort; one of: race | production-only | heisenbug | visual | performance — see rules/reproduction.md>
 - Failing assertion / behaviour: <verbatim output>
 
 ### Bisect result (if run)

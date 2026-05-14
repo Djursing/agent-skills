@@ -418,9 +418,65 @@ Append the score and breakdown to the bug-notes ledger's `Confidence trajectory`
 
 ## Phase 5 — Branch Decision
 
-If `ANALYSE_ONLY=true`, **always return the proposal** regardless of confidence. Skip Phases
-6–8. The output's `Outcome` line indicates `analyse-only (no PR)`. Triage classification is
-included in the output for reference but does not affect behaviour in this mode.
+### Step 5a — Reproduction gate (mechanical)
+
+Before evaluating the confidence-based action below, the skill **must** validate that
+Phase 2b actually produced a usable reproduction artefact. This is a deterministic
+check on the bug-notes ledger; it runs regardless of confidence score and regardless
+of `ANALYSE_ONLY`. There is no force-proceed below this gate — the repro is the
+executor's `FAIL_TO_PASS` contract (Phase 6) and the verifier's primary check (Phase 7),
+and analyse-only consumers need it to be a useful proposal.
+
+Procedure:
+
+1. Read `.agent/<branch-or-slug>/bug-notes.md`.
+2. Locate the `## Reproduction (Phase 2.5)` section.
+3. Extract the `Path:`, `Status:`, and (when present) `Reason:` fields.
+4. Apply the pass conditions:
+
+| # | Pass condition                                                                                                                                                                                                          |
+|---|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1 | `Path:` resolves to an existing file matching the project's test convention (e.g. `repro/*.test.{ts,tsx,js,jsx,mjs}`, `repro/test_*.py`, `repro/*_test.go`, `repro/*.rs`) AND `Status:` contains `failing on HEAD as expected` |
+| 2 | `Path:` resolves to an existing `repro/*.md` file AND `Status:` contains `best-effort` AND `Reason:` is one of: `race`, `production-only`, `heisenbug`, `visual`, `performance`                                          |
+
+If **neither** condition holds, fail with this exact structured error and route back
+to Phase 2b:
+
+```text
+Phase 5 gate failed: Phase 2b did not produce a gate-eligible reproduction.
+
+Bug-notes ledger says:
+  Path:   <verbatim from ledger or "missing">
+  Status: <verbatim from ledger or "missing">
+  Reason: <verbatim from ledger or "missing">
+
+A reproduction must satisfy one of:
+  1. Runnable test at repro/<id>.<test-ext> with Status "failing on HEAD as expected"
+  2. Best-effort marker at repro/<id>.md with Status "best-effort" AND
+     Reason in {race, production-only, heisenbug, visual, performance}
+
+Returning to Phase 2b. Re-invoke /tdd, /e2e-testing, or /e2e-testing-mobile,
+or explicitly document a best-effort reason from the closed list above.
+The forbidden self-justifications ("small diff", "pattern exercised elsewhere",
+"scaffolding overhead", "would duplicate the fix") are not valid reasons —
+see rules/reproduction.md § Forbidden reasons to skip Phase 2b.
+
+There is no force-proceed below this gate.
+```
+
+The closed list of best-effort reasons is taken verbatim from
+[`rules/reproduction.md`](./rules/reproduction.md): `race`, `production-only`, and
+`heisenbug` from [Best-effort fallback](./rules/reproduction.md#best-effort-fallback);
+`visual` and `performance` from rows 7–8 of the
+[layer routing table](./rules/reproduction.md#layer-routing). The gate widens only when
+the spec widens — never inline.
+
+### Step 5b — Confidence-based action
+
+If `ANALYSE_ONLY=true`, **always return the proposal** regardless of confidence (Step 5a
+must have passed first). Skip Phases 6–8. The output's `Outcome` line indicates
+`analyse-only (no PR)`. Triage classification is included in the output for reference
+but does not affect behaviour in this mode.
 
 Otherwise:
 
@@ -442,6 +498,45 @@ and the higher bar on the gate we keep restores the three-gate invariant.
 Runs only when `ANALYSE_ONLY` is unset and Phase 5 cleared at >= 92 % (or the user
 force-proceeded after 70–91 %, in which case lane is forced to standard).
 
+### Step 6.pre — Branch pre-flight assertion (mechanical)
+
+Before any lane selection or dispatch, validate that the current working branch is **not**
+a protected trunk branch. This catches the case where Phase 1–5 happened to run on `main`
+and the agent is about to start implementation work without first creating a worktree.
+
+Procedure:
+
+1. Run `git rev-parse --abbrev-ref HEAD`.
+2. If the result is in the closed protected-branch list `{main, master, develop, trunk}`,
+   fail-closed with the structured error below and refuse to proceed. The agent must run
+   `gw checkout fix/<slug>` (see [`rules/autonomous-handoff.md`](./rules/autonomous-handoff.md#step-6a-fast--create-worktree--planmd))
+   **before** re-entering Phase 6.
+3. If the result is anything else (e.g. `fix/*`, `feat/*`, an existing feature branch),
+   continue to lane selection.
+
+Structured error on fail:
+
+```text
+Phase 6 gate failed: working on protected branch `<branch>`.
+
+Phase 6 implementation work happens inside an isolated worktree on a fix/* branch,
+dispatched via `aw-executor` (which opens a draft PR). Editing files inline on a
+protected trunk branch bypasses:
+  - worktree isolation
+  - draft PR creation
+  - bug-fix-verifier (Phase 7) fresh-context grading
+
+Run `gw checkout fix/<slug>` first, then re-enter Phase 6. There is no force-proceed
+below this gate — committing implementation work directly to a protected branch is
+forbidden by hard invariant in rules/diagnostic-surface.md.
+```
+
+The protected-branch list is conservative: it matches industry default trunk conventions
+and does not match private feature branches. If a project uses a non-standard trunk name,
+extend the closed list in `SKILL.md` Phase 6 — never inline.
+
+### Step 6.main — Lane selection and dispatch
+
 Lane is picked from triage + fast-lane preconditions:
 
 | Lane | Trigger | Plan authored by |
@@ -457,9 +552,61 @@ shape: [`rules/fast-lane-plan-contract.md`](./rules/fast-lane-plan-contract.md).
 pack: [`templates/bug-fix-pack.md`](./templates/bug-fix-pack.md). Phase 7 (verifier) and the
 CEGIS 3-round cap are identical for both lanes; only the round-3 escalation path differs.
 
+**The main agent does not execute file edits inline in Phase 6.** All implementation work
+runs inside the `aw-executor` subagent via `Task(subagent_type="aw-executor", ...)`. The
+[Step 7.pre](#step-7pre--draft-pr-assertion-mechanical) gate fails-closed when no draft PR
+exists for the current branch, catching the case where the main agent bypassed dispatch
+and edited files directly.
+
 ---
 
 ## Phase 7 — Independent Verification
+
+### Step 7.pre — Draft PR assertion (mechanical)
+
+Before spawning `bug-fix-verifier`, validate that Phase 6 actually produced a draft PR. This
+catches the case where the main agent bypassed Phase 6 dispatch entirely (no
+`Task(subagent_type="aw-executor", ...)` invocation, inline edits on a working branch, or
+direct commit / push to a protected branch).
+
+Procedure:
+
+1. Run `gh pr view --json url,isDraft,headRefName 2>/dev/null` for the current branch.
+2. Pass conditions, **all** must hold:
+   - A PR exists (`gh pr view` exits 0 and returns JSON, not the `MISSING` fallback).
+   - `isDraft = true`.
+   - `headRefName` matches the current branch from `git rev-parse --abbrev-ref HEAD`.
+3. On pass, capture the PR URL and proceed to the verifier spawn below.
+4. On any failure, fail-closed with the structured error below. There is no force-proceed
+   below this gate — the verifier cannot grade a PR that does not exist, and skipping the
+   verifier on the grounds of "small diff" is forbidden by hard invariant.
+
+Structured error on fail:
+
+```text
+Phase 7 gate failed: no draft PR exists for branch `<branch>`.
+
+`gh pr view` returned: <verbatim output or "MISSING">
+
+Phase 6 dispatch must produce a draft PR via `Task(subagent_type="aw-executor", ...)`.
+If you find that:
+  - You are still on a protected branch (main / master / develop / trunk)
+  - Implementation files were edited inline by the main agent
+  - `git log` shows implementation commits already on a protected branch
+…then Phase 6 was bypassed. The bug-fix-verifier cannot run in this state.
+
+Recovery:
+  1. Revert / cherry-pick the implementation off the protected branch (manual — destructive).
+  2. Run `gw checkout fix/<slug>` to create the worktree.
+  3. Re-enter Phase 6 via the documented dispatch path (Step 6.main).
+  4. Phase 7 will re-run once aw-executor produces the draft PR.
+
+Skipping the verifier on the grounds of "diff is small", "pattern matches existing code",
+or "verifier exists for diff-sanity grading only" is forbidden — see
+rules/diagnostic-surface.md hard invariants.
+```
+
+### Step 7.main — Spawn the verifier
 
 After the executor opens the draft PR, spawn `bug-fix-verifier` in a **fresh context** with no
 access to planner / executor reasoning. The verifier runs four checks: `FAIL_TO_PASS`,
