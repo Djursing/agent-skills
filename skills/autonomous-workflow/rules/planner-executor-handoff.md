@@ -56,7 +56,7 @@ Phases 0–2 are also the cheapest to redo — no code has been written, no PR e
 
 | Section                | Purpose                                                           |
 | ---------------------- | ----------------------------------------------------------------- |
-| Summary                | One-paragraph description of what's being built and why           |
+| TL;DR                  | 3-5 sentences: what / why / approach (HOW) / done. Human-review surface — readers verify direction here before approving the planner→executor handoff. |
 | Background & Context   | Phase 0 discussion, motivation, links to related work             |
 | Requirements           | Tagged list (must-have / nice-to-have / out-of-scope)             |
 | Out of Scope           | Explicit list of things discussed but excluded                    |

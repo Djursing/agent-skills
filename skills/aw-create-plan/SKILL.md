@@ -124,9 +124,20 @@ approved: true
 
 # Plan: {TASK_DESCRIPTION}
 
-## Summary
+## TL;DR
 
-<!-- What, why, and definition of "done" in 2-3 sentences -->
+<!-- **Human review surface — read this first to verify direction before
+     approving the plan.** 3-5 sentences covering:
+
+     1. WHAT is being changed (one sentence)
+     2. WHY (the problem this solves — one sentence)
+     3. HOW (the technical approach — one sentence; this is the
+        direction-agreement surface)
+     4. DONE when (definition of done — one sentence)
+
+     Technical but brief. A reader should be able to agree or push back on
+     the general direction in under 60 seconds of reading. The rest of the
+     plan justifies and details this TL;DR. -->
 
 ## Background & Context
 
@@ -249,7 +260,7 @@ After writing both files, verify ALL of the following. **Fix any failures immedi
 - [ ] **Older versions untouched**: Pre-existing `plan.v1.md`, `plan.v2.md`, … were not edited or deleted
 - [ ] **Frontmatter complete**: created, branch, task, complexity, status, approved — all filled
 - [ ] **Timestamps**: All timestamps use ISO 8601 with time (`YYYY-MM-DDTHH:MM:SSZ`)
-- [ ] **Summary**: Concise what/why/done definition (2-3 sentences)
+- [ ] **TL;DR**: 3-5 sentences covering what / why / approach (HOW) / done. Frames the section as the human-review surface. Direction can be agreed/disagreed in under 60 seconds.
 - [ ] **Background & Context**: Full motivation — a stranger understands the "why"
 - [ ] **Requirements**: Every requirement tagged `[user-stated]` or `[inferred]`
 - [ ] **Out of Scope**: At least considered (can be "None discussed")
