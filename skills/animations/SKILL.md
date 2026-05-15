@@ -1,21 +1,22 @@
 ---
 name: animations
 description: >
-  Authors performant web animations CSS-first. Covers GPU-safe
-  properties, CSS variable / @property interactive effects, modern
-  entry-exit primitives (@starting-style, transition-behavior,
-  interpolate-size), View Transitions, scroll-driven timelines,
-  state-choreography morphs (list to stacked cards, collapsing nav,
-  grid to detail) with a pre-code planning checklist, React state
-  patterns (Motion, AnimatePresence, Server Components), advanced
-  effects (Liquid Glass, glow, hover-expand, aurora, 3D tilt),
-  external engines (Lottie / dotLottie and Rive), React Three Fiber
-  for 3D, and prefers-reduced-motion compliance. Use when building
-  transitions, hover effects, fades, staggers, collapsing nav,
-  list-to-card morphs, shared-element route changes, glass / glow
-  effects, Lottie or Rive assets, 3D scenes, or when an animation
-  feels janky. Triggers on "animate this", "fade in", "hover
-  effect", "collapse nav", "liquid glass", "lottie", "rive",
+  Authors performant web animations CSS-first AND brainstorms the
+  right feedback for a given interaction (button press, card close,
+  modal open, drag-drop, toggle, delete) via a verb-to-motion
+  catalog. Covers GPU-safe properties, @property interactive
+  effects, modern primitives (@starting-style, interpolate-size),
+  View Transitions, scroll-driven timelines, state-choreography
+  morphs (list to cards, collapsing nav, grid to detail), React
+  state (Motion, AnimatePresence), advanced effects (Liquid Glass,
+  glow, 3D tilt), external engines (Lottie, Rive), React Three
+  Fiber, and prefers-reduced-motion. Use when building transitions,
+  hover effects, fades, staggers, list-to-card morphs, route
+  changes, glass, Lottie / Rive assets, 3D scenes, when an
+  animation feels janky, or when deciding what feedback an
+  interaction should have. Triggers on "animate this", "fade in",
+  "hover effect", "liquid glass", "lottie", "rive", "ideal
+  feedback", "natural animation for", "how should X feel",
   "/animations".
 disable-model-invocation: true
 license: MIT
@@ -34,6 +35,8 @@ metadata:
     - framer-motion-migration
     - react-three-fiber
     - view-transitions
+    - interaction-feedback
+    - microinteractions
 ---
 
 # Animations
@@ -65,6 +68,47 @@ For properties that *seem* unanimatable — `height: auto`, `display:
 none`, list reorders, route changes — modern CSS has native primitives
 that re-express them as GPU work. See
 [`rules/modern-css.md`](./rules/modern-css.md).
+
+---
+
+## Brainstorm Mode — interaction → feedback
+
+Use this entry point when the user asks **what** the animation should
+be, not **how** to build it. Examples that route here, not to the
+technical decision flow below:
+
+- *"What's the ideal feedback when I press this button?"*
+- *"How should closing a card feel?"*
+- *"What's the natural animation when this toggles?"*
+- *"What should happen when a user deletes a row?"*
+
+Procedure:
+
+1. **Run the five-question brainstorm** in
+   [`rules/interaction-feedback.md`](./rules/interaction-feedback.md#brainstorm-framework)
+   — verb, reversibility, initiator, spatial source, affordance load.
+   Answer each in one line before picking a recommendation.
+2. **Look up the interaction in the catalog** in the same file. The
+   catalog covers discrete actions (button presses, toggles, copy),
+   element lifecycle (card open / close, modal, drawer, list add /
+   remove), status states (loading, success, error, skeleton),
+   continuous gestures (drag, swipe, pinch, pull-to-refresh), and
+   navigation (tab, route, accordion, wizard). Each row gives the
+   recommended motion, duration band, easing, property to animate,
+   and the principle behind the choice.
+3. **Pick the intensity rung** (1 — micro-interactions, through 5 —
+   hero moments). Rule of thumb: a rung two levels above the stakes
+   reads as over-designed.
+4. **Apply the direction principle** — motion vector must mirror the
+   interaction's semantic verb (opens scale from the trigger; closes
+   reverse the open; deletes move *away*; selects move *toward*).
+5. **Hand off to the technical workflow below** — the brainstorm
+   tells you *what* (e.g. "scale + opacity, 240 ms, anchored origin");
+   the workflow tells you *how* (which property, which API, which
+   gate).
+
+The full catalog and brainstorm framework live in
+[`rules/interaction-feedback.md`](./rules/interaction-feedback.md).
 
 ---
 
@@ -101,6 +145,7 @@ For any animation task — author or review — walk these phases:
 
 | Phase | Name                  | Rule file                                                                       | Gate                                                                                                       |
 | ----- | --------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| A     | Brainstorm feedback (when entry is "what?") | [`rules/interaction-feedback.md`](./rules/interaction-feedback.md) | If the user describes an *interaction* (verb), the five brainstorm questions are answered and the catalog row selected before moving to Phase 0. If the user describes an *animation primitive* (e.g. "fade in"), skip Phase A. |
 | 0     | Choose the property    | [`rules/safe-properties.md`](./rules/safe-properties.md)                        | Animated property is `transform`, `opacity`, or `filter`. If not, justify with a layout-thrash measurement. |
 | 1     | Choose the pattern     | [`rules/patterns.md`](./rules/patterns.md)                                      | Pattern (fade, stagger, slide, scale) matches the user signal.                                              |
 | 2     | Reach for modern CSS   | [`rules/modern-css.md`](./rules/modern-css.md)                                  | If the need is "entry from hidden", "height auto", "DOM swap", or "scroll-tied", a CSS-only path exists.    |
@@ -124,6 +169,7 @@ Load on demand — do not preload.
 
 | Phase | Files                                                                                                                                                |
 | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A     | [`rules/interaction-feedback.md`](./rules/interaction-feedback.md)                                                                                   |
 | 0     | [`rules/safe-properties.md`](./rules/safe-properties.md)                                                                                             |
 | 1     | [`rules/patterns.md`](./rules/patterns.md)                                                                                                           |
 | 2     | [`rules/modern-css.md`](./rules/modern-css.md)                                                                                                       |
@@ -163,6 +209,12 @@ Load on demand — do not preload.
 7. **Measure before optimising.** A perceived jank can be a 200 ms image
    decode, not the animation. Open Performance, capture, look at the
    frame chart before tuning.
+8. **Brainstorm before you pick.** When the question is *"what feedback
+   should this interaction have?"*, run the five-question brainstorm in
+   [`interaction-feedback.md`](./rules/interaction-feedback.md) first —
+   the verb, the reversibility, the initiator, the spatial source, the
+   affordance load. Skipping straight to "fade or slide?" loses the
+   reasoning that makes the choice defensible.
 
 ---
 
@@ -189,6 +241,13 @@ Load on demand — do not preload.
   ([`three-d.md`](./rules/three-d.md)).
 - Forgetting `prefers-reduced-motion` and shipping vestibular harm
   ([`accessibility.md`](./rules/accessibility.md)).
+- Picking the animation shape before answering the five brainstorm
+  questions ([`interaction-feedback.md`](./rules/interaction-feedback.md)) —
+  you end up with a fade where a slide was needed, a spring where a
+  curve was needed, or hero-grade motion on a toggle.
+- Asymmetric open/close that uses different *shapes* (modal opens with
+  scale, closes with slide) — pick one shape, run it in reverse, and
+  make the exit ~30 % faster.
 
 ---
 
