@@ -67,6 +67,7 @@ Agents live in `agents/` since they require their own model and tool configurati
 - `review-changes` — Review branch changes or PR (dispatches to reviewer)
 - `storybook` — Scaffolds and tests Storybook stories for React (web) and React Native / Expo. Emits visual regression + Playground + interaction-test artefacts. Opt-in OS-keychain auth profiles. See [`skills/storybook/SKILL.md`](./skills/storybook/SKILL.md).
 - `video-analyser` — Analyse a screen recording for bugs: resolves input from a Linear ticket URL, local path, or direct URL; extracts keyframes with ffmpeg; runs optional Tesseract OCR and Whisper transcription; returns structured findings (errors, UI state, repro steps)
+- `visual-design` — Guides and reviews the visual design and brand identity of UI components for web and React Native — named style directions (minimal, swiss, editorial, brutalist, neo-brutalist, glass, soft-UI, terminal, playful, retro), color systems, typography pairing, visual hierarchy, signature details. Owns the generative, brand-aware side; defers WCAG contrast math, size minimums, and dark-mode mechanics back to `/ux`. Modes: `guide` (default), `review`, `direction`. See [`skills/visual-design/SKILL.md`](./skills/visual-design/SKILL.md).
 
 ### Agents
 

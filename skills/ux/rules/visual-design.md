@@ -1,5 +1,13 @@
 # Visual Design Rules
 
+> **Scope of this rule:** foundational mechanics — size minimums, contrast,
+> spacing-scale baseline, dark-mode rules, icon consistency. For the
+> **generative, brand-aware** side (style-direction taxonomy, brand identity,
+> palette construction beyond contrast math, typography pairing, focal-point
+> hierarchy, signature details, generic-AI-app audit), invoke
+> [`/visual-design`](../../visual-design/SKILL.md). The two skills compose:
+> this one enforces the floor, `/visual-design` builds the ceiling.
+
 ## Contents
 
 - Typography

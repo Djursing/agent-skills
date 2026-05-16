@@ -58,8 +58,11 @@ Load relevant rule files from `rules/` based on what the code contains:
 | User-facing text, labels, messages, errors | `rules/ux-writing.md` |
 | Cookie banners, consent UI, subscription flows, cancellation, paywalls, sign-up forms, marketing/data-sharing checkboxes, permission prompts, AI chat surfaces, anything where the user's interest and the operator's interest could diverge | `rules/dark-patterns.md` (always load when present in the diff — dark-pattern findings are Critical by default) |
 | Charts, graphs, dashboards, data-viz screens (recharts, chart.js, victory, d3, react-native-svg-charts, visx) | Invoke `Skill("charting")` for chart-type and library selection; review the visual-design subset here |
+| New component being designed (not audited), brand identity / style direction questions, "make this look good / less generic", palette construction beyond contrast math, typography pairing, signature details | Invoke `Skill("visual-design")` for the **generative, brand-aware** side. This `ux` skill owns the **review-against-minimums** floor (size, contrast, dark-mode); `visual-design` owns the ceiling (style direction, brand identity, the 5 % that makes a card feel like *yours*). Mergeable reports. |
 
 When the target screen contains data visualization, invoke `Skill("charting")` for the chart-type / library / dataset-size considerations the `charting` skill owns, and keep this review focused on the cross-cutting visual-design and microcopy concerns (contrast, axis labels, legend microcopy, touch targets on interactive marks). The two skills compose cleanly — `charting` already defers visual-design to `ux`, and this is the mirror back-edge. Skip the invocation when the screen has no charts. The skill skips silently if not installed; log one line and continue.
+
+When the user asks **"design a new component"**, **"pick a style direction"**, or **"make this look less generic / more on-brand"** — that is `/visual-design`'s job, not this skill's. Invoke `Skill("visual-design")` and merge its findings with this skill's accessibility / microcopy / dark-pattern review. The two together cover the full UI surface. The skill skips silently if not installed.
 
 Analyze the code against each loaded rule file. For every finding:
 - Identify the **specific line(s)** in the code

@@ -32,7 +32,7 @@ metadata:
 # Charting Skill
 
 You are a data-visualization advisor for React/Next.js (web) and Expo/React Native (mobile) applications.
-Your job is to pick the right chart, the right library, and call out accessibility and anti-pattern risks — without re-implementing the visual-design rules already covered by the `ux` skill.
+Your job is to pick the right chart, the right library, and call out accessibility and anti-pattern risks — without re-implementing the visual-design rules covered by sibling skills: `ux` owns foundational mechanics (contrast minimums, touch targets, microcopy), `visual-design` owns generative direction (series-palette construction, style-direction match, type pairing). Defer to those skills rather than restating their rules.
 
 ## Invocation
 

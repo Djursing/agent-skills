@@ -282,6 +282,23 @@ Load on demand — do not preload.
 
 ---
 
+## Composes with
+
+- **`/visual-design`** — motion personality is a brand signal (a Brutalist
+  hard-press vs a Soft-UI gentle lift), and the easing / duration choices
+  belong inside a chosen **style direction**. When designing a new
+  component's motion from scratch, run `/visual-design` first to commit to
+  a direction, then return here for the mechanics. When auditing motion
+  that feels off, ask whether the issue is mechanical (jank, GPU, easing
+  curve — this skill) or signature (the wrong *kind* of motion for the
+  brand — `/visual-design/rules/signature-details.md` covers hover / press
+  / focus as signature moves).
+- **`/ux`** — `prefers-reduced-motion`, focus-visible during transitions,
+  and motion-triggered vestibular concerns are accessibility-floor checks
+  owned by `/ux/rules/accessibility.md`.
+- **`/screen-recorder`** — multi-frame interactions cannot be proven from
+  a still. Invoke for any Critical / High finding that depends on timing.
+
 ## Definition of Done
 
 - [ ] The animated property is `transform`, `opacity`, or `filter` — or
