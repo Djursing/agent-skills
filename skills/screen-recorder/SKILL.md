@@ -14,7 +14,7 @@ description: >
   evidence to PR comments on motion-heavy diffs. Triggers on "record
   this interaction", "capture this animation", "video of this section",
   "validate the transition visually", "screen recording", "/screen-recorder".
-disable-model-invocation: false
+disable-model-invocation: true
 license: MIT
 metadata:
   author: mthines
