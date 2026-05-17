@@ -132,8 +132,8 @@ Decide whether a plan, fix, or analysis is sound before you commit to it.
 | Skill | What it does | Type |
 |-------|--------------|------|
 | **[ux](./skills/ux/SKILL.md)** | Reviews UI for usability, WCAG 2.2 accessibility, platform compliance (Apple HIG, Material Design 3), and **dark-pattern detection**. Hard rule: never recommends a dark pattern. | `auto` |
-| **[screen-recorder](./skills/screen-recorder/SKILL.md)** | Records short cropped videos of UI sections via Playwright + ffmpeg. Validates multi-frame interactions a screenshot can't prove. | `auto` |
 | **[/animations](./skills/animations/SKILL.md)** | CSS-first web animation. Three modes: Brainstorm, Perceived-Performance, technical workflow (CSS → WAAPI → Motion → R3F). | `/` |
+| **[/screen-recorder](./skills/screen-recorder/SKILL.md)** | Records short cropped videos of UI sections via Playwright + ffmpeg. Validates multi-frame interactions a screenshot can't prove. | `/` |
 | **[/visual-design](./skills/visual-design/SKILL.md)** | Generative, brand-aware visual design. Style-direction taxonomy (minimal, swiss, brutalist, glass, …), color systems, typography, signature details. Defers WCAG math to `/ux`. | `/` |
 | **[/charting](./skills/charting/SKILL.md)** | Selects chart type + visualization library for web (React/Next.js) and mobile (Expo/RN). Maps intent → chart → library based on platform and dataset size. | `/` |
 | **[/storybook](./skills/storybook/SKILL.md)** | Scaffolds three artefacts per component: visual regression story, Playground, interaction test. Opt-in OS-keychain auth profiles. | `/` |
@@ -236,15 +236,11 @@ The mode-aware stuck-loop cap at Phase 4 (3 Lite / 5 Full) is the biggest cost-s
 ### Install
 
 ```bash
-npx skills add https://github.com/mthines/agent-skills \
-  --skill autonomous-workflow aw-create-plan aw-create-walkthrough confidence \
-          code-quality holistic-analysis tdd ux documentation \
-          review-changes create-pr ci-auto-fix \
-  --agent claude-code --yes
+npx skills add https://github.com/mthines/agent-skills --all --agent claude-code --yes
 bash ~/.claude/skills/autonomous-workflow/install.sh --global
 ```
 
-For per-project install, drop `--global` from both lines.
+This installs every skill in the repo, which is the shorter command. The companion skills (`tdd`, `ux`, `code-quality`, `documentation`, `ci-auto-fix`, etc.) skip silently if you don't want them — see [Customizing](./skills/autonomous-workflow/README.md) to opt out individually. For a per-project install, drop `--global` from both lines.
 
 ### Usage
 
