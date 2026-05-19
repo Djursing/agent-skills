@@ -537,13 +537,42 @@ From your review findings, identify every actionable item that can be pinned to 
 - **Anchor snippet**: 1–2 lines of the actual code being commented on (so the user can validate without opening the PR)
 
 **Comment writing guidelines:**
-- Be constructive and specific — explain *why* and suggest a concrete fix
-- Friendly, collaborative tone
-- For suggestions with code snippets: always note that the snippet is **illustrative pseudo-code** that should be verified and tested (e.g., _"Pseudo-code — verify and test before applying"_)
-- Praise good patterns — positive reinforcement matters
-- Label nitpicks clearly so the author can prioritize
-- Don't repeat the same comment on every occurrence — comment once and note "same applies to lines X, Y, Z"
-- Group related concerns into a single comment
+
+Keep comments **short, concise, and friendly**. Reviewers scan dozens of comments — a wall of prose gets skipped. Lead with the point, then optionally show a code block.
+
+**Length budget:**
+- **Prose**: 1–2 sentences max (target ≤ 30 words). One sentence is ideal.
+- **Code block (optional)**: only when a concrete snippet clarifies the suggestion. Skip it if prose alone is unambiguous.
+- **No headings, no bullet lists, no multi-paragraph explanations** inside a single inline comment. If a finding needs that much context, it belongs in the terminal summary (Step 3), not on a line.
+
+**Tone:**
+- Friendly and collaborative — a peer pointing something out, not a gatekeeper issuing a verdict.
+- Prefer questions over assertions when there's any chance the author has context you don't (cross-review especially).
+- Soften with words like "maybe", "consider", "could", "what do you think about" — they cost nothing and read as collaborative.
+- Praise good patterns — one warm sentence is plenty.
+
+**Shape:**
+
+```
+<one-sentence point — what + why>
+
+```<lang>
+<optional minimal snippet>
+```
+```
+
+**Examples of the right length:**
+
+- `suggestion: Could use a Map here for clearer iteration semantics.` (no snippet needed)
+- `nitpick: Tiny naming nit — userIds reads clearer than ids in this scope.`
+- `question: Is the empty catch intentional? Curious whether we want to surface the error.`
+- `praise: Nice — the discriminated union makes exhaustiveness checks free.`
+
+**Other rules:**
+- For suggestions with code snippets: add a short trailing italic note _"Pseudo-code — verify before applying"_ so the author doesn't paste it blindly.
+- Don't repeat the same comment on every occurrence — comment once and add `(same applies to L<x>, L<y>)` at the end.
+- Group related concerns into a single comment rather than stacking three on adjacent lines.
+- Never restate the code the comment is pinned to — the reviewer already sees it.
 
 ### 5.4 Confidence Scoring
 
@@ -588,9 +617,9 @@ const cache: Record<string, Value> = {};
 ```
 
 **Comment:**
-Consider using a `Map` instead of a plain object here for better type safety and iteration guarantees:
+Could use a `Map` here for clearer iteration semantics and better key typing.
 
-_Pseudo-code — verify and test before applying:_
+_Pseudo-code — verify before applying:_
 ```typescript
 const cache = new Map<string, Value>();
 ```
@@ -607,12 +636,10 @@ try {
 ```
 
 **Comment:**
-This error is silently swallowed. If `fetchUser` throws, the caller has no way to distinguish "user not found" from "network failure." Consider re-throwing or returning a discriminated result:
+The empty catch swallows network vs. not-found errors — worth surfacing the failure.
 
-_Pseudo-code — verify and test before applying:_
+_Pseudo-code — verify before applying:_
 ```typescript
-try {
-  return await fetchUser(id);
 } catch (err) {
   logger.error("fetchUser failed", { id, err });
   throw err;
@@ -629,7 +656,7 @@ type Result<T> = { ok: true; value: T } | { ok: false; err: Error };
 ```
 
 **Comment:**
-Nice use of discriminated unions here — makes the exhaustiveness checking work for you.
+Nice — the discriminated union makes exhaustiveness checks free.
 
 ---
 ```
@@ -683,11 +710,13 @@ The body MUST NOT include:
 - The confidence score (e.g., `(90%)`) — local proposal only.
 - The `**Code:**` anchor block — local proposal only.
 
-Example posted body:
+Example posted body (short, one sentence, friendly):
 
 ```
-suggestion: `queryDefinitions` from `useQueryDefinitions` always returns an array — splitting the branches would make the intent clearer. **(non-blocking)**
+suggestion: `queryDefinitions` always returns an array — could drop the branch split for clarity. **(non-blocking)**
 ```
+
+If you find yourself writing two or more sentences in a single comment body, re-read the **Length budget** in Step 5.3 and trim before posting. Long inline comments are the #1 reason review feedback gets skimmed.
 
 **Mechanical check before posting** — for each comment in the payload, assert `body` starts with one of the 5 prefixes above. If not, STOP and prepend the prefix derived from the Step 5.3 category. Skipping this check produces comments that violate Conventional Comments conventions used in many repos.
 
@@ -708,13 +737,13 @@ cat > /tmp/review-payload.json <<'JSONEOF'
       "path": "src/foo.ts",
       "line": 42,
       "side": "RIGHT",
-      "body": "suggestion: Consider using a `Map` instead of a plain object here for better type safety. **(non-blocking)**"
+      "body": "suggestion: Could use a `Map` here for clearer iteration semantics. **(non-blocking)**"
     },
     {
       "path": "src/bar.ts",
       "line": 18,
       "side": "RIGHT",
-      "body": "issue: This error is silently swallowed. If `fetchUser` throws, the caller has no way to distinguish failure modes. **(blocking)**"
+      "body": "issue: Empty catch swallows network vs. not-found errors — worth surfacing the failure. **(blocking)**"
     }
   ]
 }
