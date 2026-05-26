@@ -11,7 +11,6 @@ description: >
   the `ux` skill rather than restating them. Triggers on: "what chart should
   I use", "visualize this data", "build a chart", "build a dashboard",
   "data visualization", "pick a chart library", "graph this", "/charting".
-disable-model-invocation: true
 license: MIT
 metadata:
   author: mthines

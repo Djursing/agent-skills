@@ -12,7 +12,6 @@ description: >
   feature). Triggers on "visual design", "make this look good", "brand
   identity", "style direction", "improve the visuals", "review the look",
   "does this look generic", "/visual-design".
-disable-model-invocation: true
 license: MIT
 metadata:
   author: mthines

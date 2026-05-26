@@ -13,7 +13,6 @@ description: >
   evidence delegates to the `reviewer` agent and the `screen-recorder`
   skill. Triggers on "scaffold stories", "add storybook", "story for this
   component", "interaction test for this story", "/storybook".
-disable-model-invocation: true
 argument-hint: "[component-path] [--platform web|native] [--no-interactions] [--no-playground] [--auth <profile>]"
 license: MIT
 metadata:

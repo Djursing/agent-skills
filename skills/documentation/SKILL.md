@@ -1,21 +1,19 @@
 ---
 name: documentation
 description: >
-  Authors, audits, and maintains project documentation across all three surfaces — agent-readable
-  CLAUDE.md / .claude/rules/ for the Claude Code hot path, AGENTS.md for cross-tool agents, README.md
-  for humans, and docs/ trees (root + nested for monorepos) using the Diátaxis framework. Four modes:
-  init scaffolds a tiered docs setup from scratch by analyzing tech stack and complexity; update
-  detects drift (dead @imports, removed files, renamed commands, stale narrative) and incrementally
-  refreshes only what changed via a Placement Resolver that pushes rules to the innermost-ancestor
-  destination; readme writes or audits a README against the standard-readme spec, above-the-fold
-  rule, badge hygiene, and the agent-readable docs pattern; audit produces a comprehensive
-  documentation health report across every surface with prioritized findings. Routes content by kind:
-  hard rules and decision tables to CLAUDE.md, path-scoped patterns to .claude/rules/ with paths
-  globs, narrative and rationale to docs/, marketing and quickstart to README.md. Triggers on
-  "init claude", "bootstrap docs", "scaffold CLAUDE.md", "update docs", "sync CLAUDE.md", "docs
-  drift", "write a README", "audit our docs", "review the README", "set up docs folder", "Diátaxis",
-  "/documentation".
-disable-model-invocation: true
+  Authors, audits, and maintains project documentation across CLAUDE.md /
+  .claude/rules/, AGENTS.md, README.md, and Diátaxis docs/ trees (root +
+  nested for monorepos). Four modes: init scaffolds a tiered docs setup
+  from scratch; update detects drift (dead @imports, renamed commands,
+  stale narrative) and incrementally refreshes via a Placement Resolver
+  that pushes rules to the innermost-ancestor destination; readme writes
+  or audits a README against the standard-readme spec; audit produces a
+  documentation health report across every surface. Routes by kind: hard
+  rules to CLAUDE.md, path-scoped patterns to .claude/rules/, narrative
+  to docs/, marketing to README.md. Triggers on "init claude", "bootstrap
+  docs", "scaffold CLAUDE.md", "update docs", "sync CLAUDE.md", "docs
+  drift", "write a README", "audit our docs", "review the README",
+  "Diátaxis", "/documentation".
 license: MIT
 metadata:
   author: mthines

@@ -14,7 +14,6 @@ description: >
   review, after writing new code, in TDD GREEN/REFACTOR, or when
   asked to "improve quality", "make this readable", "reduce
   complexity", "deduplicate", "clean this up", or "/code-quality".
-disable-model-invocation: true
 license: MIT
 metadata:
   author: mthines
