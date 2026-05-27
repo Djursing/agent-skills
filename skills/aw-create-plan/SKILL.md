@@ -115,12 +115,17 @@ After writing, verify against the checklist at the bottom of this skill. If any 
 ```markdown
 ---
 created: { TIMESTAMP }
+version: { N }
 branch: { BRANCH }
 task: { TASK_DESCRIPTION }
 complexity: { LOW | MEDIUM | HIGH }
 status: approved
 approved: true
 ---
+
+<!-- `version:` is `1` on the initial write and incremented by `1` on every
+     re-write of `plan.md` (user-edit iteration, auto-replan, or any other
+     trigger). Read the existing `version:` value before writing and bump it. -->
 
 # Plan: {TASK_DESCRIPTION}
 
@@ -287,7 +292,8 @@ After writing both files, verify ALL of the following. **Fix any failures immedi
 - [ ] **Identical content**: `plan.md` and `plan.vN.md` have byte-identical bodies (the canonical "latest == newest snapshot" invariant)
 - [ ] **Version monotonic**: `N` is exactly one greater than the highest existing `plan.v*.md` (or 1 on first run)
 - [ ] **Older versions untouched**: Pre-existing `plan.v1.md`, `plan.v2.md`, … were not edited or deleted
-- [ ] **Frontmatter complete**: created, branch, task, complexity, status, approved — all filled
+- [ ] **Frontmatter complete**: created, version, branch, task, complexity, status, approved — all filled
+- [ ] **Version field**: `version:` is present in frontmatter and is a positive integer; on a fresh plan it is `1`; on every re-write of `plan.md` it is exactly one greater than the previous value
 - [ ] **Timestamps**: All timestamps use ISO 8601 with time (`YYYY-MM-DDTHH:MM:SSZ`)
 - [ ] **TL;DR**: 3-5 sentences covering what / why / approach (HOW) / done. Frames the section as the human-review surface. Direction can be agreed/disagreed in under 60 seconds.
 - [ ] **Background & Context**: Full motivation — a stranger understands the "why"

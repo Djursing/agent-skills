@@ -12,7 +12,6 @@ description: >
   "solve these tickets", "implement these tickets", "analyze tickets",
   "/batch-linear-tickets".
 user-invocable: true
-disable-model-invocation: true
 metadata:
   author: mthines
   version: '3.0.0'

@@ -107,13 +107,18 @@ Output the structured handoff message verbatim (canonical format from
 ```
 ✓ Plan ready
 - Path: .agent/{branch}/plan.md
+- Version: N (frontmatter)
 - Confidence: X% (passed gate)
 - Worktree: <path>
 - Files to change: N
 - Acceptance Criteria: M items
 
-Reply "execute" or "continue" to dispatch the executor.
-Reply "review" to inspect the plan first.
+Reply with one of:
+- "execute" / "continue" — dispatch the executor.
+- "review" — inspect the plan first.
+- "iterate" — edit plan.md directly in your editor, then reply
+  "iterate" to have the planner read your edits, re-run the gate, and
+  bump plan.md to version N+1. See User-edit iteration below.
 ```
 
 Then stop. Do not proceed to Phase 3.
@@ -127,18 +132,39 @@ using the below-gate format from [`rules/planner-executor-handoff.md#handoff-mes
 ```
 ⚠️ Plan confidence below 90%
 - Path: .agent/{branch}/plan.md
+- Version: N (frontmatter)
 - Confidence: X% (Y/Z rule checks failed)
 - Concerns:
   1. <concern from confidence output>
   2. ...
 
 Choose:
-- refine — planner does up to 2 more research iterations
-- proceed — accept and dispatch executor anyway (NOT recommended)
-- stop — abandon
+- refine — planner does up to 2 more research iterations (planner-driven).
+- iterate — edit plan.md yourself, then reply "iterate" (user-edit-driven;
+  see User-edit iteration below).
+- proceed — accept and dispatch executor anyway (NOT recommended).
+- stop — abandon.
 ```
 
 Wait for the user's choice before continuing or dispatching.
+
+### User-edit iteration
+
+When the user replies `iterate` to either handoff message, follow the
+procedure at
+[`rules/planner-executor-handoff.md#edit-driven-iteration-loop`](../rules/planner-executor-handoff.md#edit-driven-iteration-loop).
+Summary:
+
+1. Re-read `plan.md` (the user's edits are the new constraints; no diffing required).
+2. Parse the `version:` frontmatter field; the next write bumps it by 1.
+3. Summarise what changed at section level and confirm with the user.
+4. Run the consistency check, re-run `code-quality(plan)` and
+   `confidence(plan)`, invoke `aw-create-plan` to re-write `plan.md` with
+   `version: N+1`, and re-emit the handoff message.
+
+This is **user-edit-driven** — distinct from the planner-driven `refine`
+option in the below-gate branch and from the generic `aw-create-plan`
+trigger.
 
 ## What You Do NOT Do
 

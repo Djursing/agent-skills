@@ -18,6 +18,7 @@ tags:
 - [Handoff contract](#handoff-contract)
 - [Refinement contracts (caller-specified)](#refinement-contracts-caller-specified)
 - [Handoff message format](#handoff-message-format)
+- [Edit-driven iteration loop](#edit-driven-iteration-loop)
 - [Receiving handoff (executor entry point)](#receiving-handoff-executor-entry-point)
 - [What the planner DOES NOT do](#what-the-planner-does-not-do)
 - [What the executor DOES NOT do](#what-the-executor-does-not-do)
@@ -125,13 +126,18 @@ At the end of Phase 2, the planner outputs **one** of the two messages below —
 ```
 ✓ Plan ready
 - Path: .agent/{branch}/plan.md
+- Version: N (frontmatter)
 - Confidence: X% (passed gate)
 - Worktree: <path>
 - Files to change: N
 - Acceptance Criteria: M items
 
-Reply "execute" or "continue" to dispatch the executor.
-Reply "review" to inspect the plan first.
+Reply with one of:
+- "execute" / "continue" — dispatch the executor.
+- "review" — inspect the plan first.
+- "iterate" — edit plan.md directly in your editor, then reply
+  "iterate" to have the planner read your edits, re-run the gate, and
+  bump plan.md to version N+1. See "Edit-driven iteration loop" below.
 ```
 
 The planner then **STOPS**. It does not auto-invoke the executor. The user (or main session) sees the message and decides whether to dispatch.
@@ -141,18 +147,73 @@ The planner then **STOPS**. It does not auto-invoke the executor. The user (or m
 ```
 ⚠️ Plan confidence below 90%
 - Path: .agent/{branch}/plan.md
+- Version: N (frontmatter)
 - Confidence: X% (Y/Z rule checks failed)
 - Concerns:
   1. <concern from confidence output>
   2. ...
 
 Choose:
-- refine — planner does up to 2 more research iterations
-- proceed — accept and dispatch executor anyway (NOT recommended)
-- stop — abandon
+- refine — planner does up to 2 more research iterations (planner-driven).
+- iterate — edit plan.md yourself, then reply "iterate" (user-edit-driven;
+  see "Edit-driven iteration loop" below).
+- proceed — accept and dispatch executor anyway (NOT recommended).
+- stop — abandon.
 ```
 
 The planner **STOPS** and waits for the user's choice. `refine` re-enters Phase 1 research for **up to 2 more iterations** (matching the planner template's pre-escalation retry budget); if still below 90% after those, the planner escalates again with the same below-gate message — no infinite refine loop. `proceed` falls through to the high-confidence handoff message (with the lower score logged); `stop` removes the worktree (Phase 7 cleanup) or leaves it for manual inspection.
+
+---
+
+## Edit-driven iteration loop
+
+**Anchor:** `edit-driven-iteration-loop`
+
+`iterate` is the **user-edit-driven** refinement path. It is distinct from:
+
+- The confidence-retry loop inside Phase 1 ([`phase-1-planning.md#confidence-gate`](./phase-1-planning.md#confidence-gate)), which is planner-driven and re-runs research up to twice.
+- The `aw-create-plan` skill's generic "iterate on plan" trigger, which is the artifact-write primitive consumed by this procedure.
+
+The loop fires whenever the user replies `iterate` to either handoff message. The user has already done the editing — `plan.md` IS the new constraint set. Procedure:
+
+1. **Read `plan.md`** in the worktree end-to-end. Trust the file: the user's edits are the new constraints.
+2. **Parse the `version:` frontmatter field.** If missing, treat as `0` (legacy plan written before this loop existed). The next write will be `version: <current + 1>`.
+3. **Summarise what changed at the section level.** Recap to the user, listing the sections that have moved relative to the planner's last-known mental model and the apparent intent of each (e.g. "Requirements added requirement 4 — multi-tenant support; Acceptance Criteria removed criterion 2 — token caching"). Surface this summary before re-planning:
+
+   ```
+   Iterating on plan.md (version N → N+1).
+   Detected edits:
+   - Requirements: added "..."
+   - Acceptance Criteria: removed "..."
+   - Implementation Order: reordered steps 3 and 4
+
+   Re-running planning with your edits as constraints.
+   Reply "cancel" to abort before the new version is written.
+   ```
+
+4. **Consistency check inside `plan.md`.** Walk the file and check internal coherence:
+   - If the user edited an upstream section (Requirements, Decisions, Technical Approach) but did NOT correspondingly update a downstream section (Implementation Order, File Changes, Tests), **re-derive the downstream sections** rather than blindly preserving them. State the inferred downstream changes back to the user.
+   - If the user edited a downstream section in a way that contradicts an upstream section, **surface the contradiction** and ask whether to update the upstream section, revert the downstream edit, or accept both as-is.
+5. **Re-run planning companions** with the user's edits as constraints:
+   - `Skill("code-quality", "plan")` — surface design concerns introduced by the edits.
+   - `Skill("confidence", "plan")` — re-score the revised plan against the multi-signal gate.
+6. **Invoke `aw-create-plan`** to write `plan.md` with `version: N+1` in the frontmatter. The Progress Log entry for this write MUST cite the user's edits:
+
+   ```markdown
+   - [{TIMESTAMP}] Phase 2: plan.md updated to version {N+1} (user-edit iteration — {short summary of changed sections})
+   ```
+
+7. **Re-emit the handoff message** (high-confidence or below-gate, based on the new `confidence(plan)` score). The user can iterate again, accept, or stop.
+
+### Iteration cap
+
+There is no hard cap on edit-driven iterations — they are user-initiated and each one produces a fresh confidence score and a fresh version. The user is in the loop on every round, so the runaway-iteration failure mode does not apply.
+
+### What this loop does NOT do
+
+- It does not silently accept user edits and skip the confidence gate. Every iteration re-runs `confidence(plan)`.
+- It does not produce additional files. `plan.md` is the single source of truth; the `version:` frontmatter field is the durable iteration counter.
+- It does not start writing production code. The planner agent's scope still ends at the handoff message.
 
 ---
 
