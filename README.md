@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Agent Skills spec](https://img.shields.io/badge/spec-Agent%20Skills-7c3aed)](https://agentskills.io/)
-[![Skills](https://img.shields.io/badge/skills-37-0a7)](#skills-at-a-glance)
+[![Skills](https://img.shields.io/badge/skills-38-0a7)](#skills-at-a-glance)
 [![Agents](https://img.shields.io/badge/agents-4-0a7)](#agents-at-a-glance)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-supported-d97706)](https://claude.com/claude-code)
 
@@ -154,6 +154,7 @@ Decide whether a plan, fix, or analysis is sound before you commit to it.
 | **[/profile-optimizer](./skills/profile-optimizer/SKILL.md)** | Analyses React DevTools Profiler exports or Chrome Performance traces. Maps hotspots to source. Iterates via `confidence(analysis)` until ≥ 90%. | `/` |
 | **[/playwright-trace-analyzer](./skills/playwright-trace-analyzer/SKILL.md)** | Analyses Playwright `trace.zip` (or downloads from a GitHub Actions run URL). Names the race behind a flake, emits a ranked fix plan. | `/` |
 | **[/video-analyser](./skills/video-analyser/SKILL.md)** | Analyses a screen recording for bugs. Resolves input from a Linear ticket URL, local path, or direct URL. Optional Tesseract OCR and Whisper transcription. | `/` |
+| **[rum-tracking](./skills/rum-tracking/SKILL.md)** | Guides product analytics and RUM event tracking for web (React/Next.js) and mobile (React Native/Expo). Decides what to track, what's noise, what's PII; covers OTel semantic conventions, tracking plans, GDPR/CCPA compliance, and clean implement / audit / remove workflows. | `auto` |
 
 ### Docs, meta-skills & memory
 
@@ -367,7 +368,7 @@ Default scan paths are `.agent/` and `.gw/`. Configure via `agentTasks.directori
 ## Repository structure
 
 ```
-skills/                   37 skills, each with SKILL.md (some with rules/, references/, templates/, scripts/)
+skills/                   38 skills, each with SKILL.md (some with rules/, references/, templates/, scripts/)
 agents/                   4 agents (reviewer, linear-ticket-investigator, bug-fix-verifier, feature-pr-verifier)
 plugins/                  1 Claude Code plugin (agent-tasks-hooks)
 packages/                 VS Code extension (vscode-agent-tasks)
