@@ -49,6 +49,7 @@ Named refactors so reviews can cite a recipe by ID instead of describing it from
 - R32: Coordinate Multi-Tab Sync with Web Locks + BroadcastChannel
 - R33: Wire TanStack Query Offline Persistence
 - R34: Replace Prop-Soup Component with Deep-Namespace Compound
+- R35: Trim Verbose Comment
 - Recipe Index by File
 
 ## How to use this catalog
@@ -371,6 +372,23 @@ In authoring mode, recipes are reminders during the REFACTOR phase of TDD.
 
 ---
 
+## R35: Trim Verbose Comment
+
+**Trigger:** A comment is multi-sentence, paragraph-style, or longer than the code it describes; restates the WHAT the code already says; introduces an obvious function with a friendly preamble; bullet-lists multiple concerns above one function; or references the current task / PR / ticket.
+**Replace with:** Walk the decision tree, in order, and stop at the first that fits:
+  1. **Pure WHAT (restates the code)** → delete.
+  2. **Mostly WHAT with one WHY sentence buried inside** → cut the WHAT, keep one line of WHY.
+  3. **Genuine WHY but verbose** → rewrite as one line, lead with the constraint or surprise, drop the preamble.
+  4. **Public API documentation that grew an essay** → convert to a docstring on the function; keep one-sentence summary + params/returns/throws; move rationale to a linked design doc or ADR.
+  5. **Multiple distinct concerns in bullets above one function** → split the function. The bullets become function names; the comment disappears.
+  6. **References the PR / ticket / task** → delete (git blame and the PR description are authoritative).
+
+No hard length cap — a rare comment legitimately needs a paragraph (subtle invariant, hard-won workaround). Keep those; rewrite everything else to one line.
+**Why:** Verbose comments accrete faster than they decay. They restate code, drift from it, lull readers into trusting stale narration, and crowd the diff on every unrelated change. The reader can read the code — comments must add what code can't: the WHY, the constraint, the surprise. Brevity preserves the signal that *this comment is worth reading*.
+**See:** [`comments.md` § Brevity — Trim to the WHY](./comments.md#brevity--trim-to-the-why).
+
+---
+
 ## Recipe Index by File
 
 | File | Recipes |
@@ -389,3 +407,4 @@ In authoring mode, recipes are reminders during the REFACTOR phase of TDD.
 | `stacks/react/autosave.md` | R28, R29, R30 |
 | `stacks/react/offline-sync.md` | R31, R32, R33 |
 | `stacks/react/components.md` | R34 |
+| `comments.md` | R35 |

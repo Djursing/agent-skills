@@ -77,6 +77,23 @@ ALWAYS invoke `review-changes` before pushing. Purpose: catch quality and correc
 Skill("review-changes")
 ```
 
+This is the workflow's final structural review. The reviewer agent loads the
+`code-quality` rubric on substantive diffs and walks the full review
+checklist — not just the comment pass. Expect findings (and, in self-review
+sub-mode, auto-fixes) across:
+
+- **Structure** — function length, nesting, single responsibility, guard clauses (Pass 1).
+- **Naming** — domain accuracy, boolean phrasing, noise words (Pass 2).
+- **Cognitive complexity** — top-to-bottom readability per function (Pass 3).
+- **Comments** — every comment earns its place, **no verbose multi-paragraph blocks** (apply **R35** to trim), no commented-out code, no orphan TODOs (Pass 4).
+- **Error handling, type-driven design, architecture, API design, correctness, testability, collaboration, future-proofing** — Passes 5–14.
+
+The autonomous-workflow runs as the PR author, so the reviewer enters
+**self-review sub-mode** (Step 4 auto-fix + Step 5.8 inline terminal
+report). Mechanical fixes — including comment trims under R35 — are applied
+directly to the working tree before the PR opens. Non-mechanical findings
+surface in the inline report for the user to act on.
+
 | Property                  | Value                                                                  |
 | ------------------------- | ---------------------------------------------------------------------- |
 | Runs in Full Mode         | Yes                                                                    |

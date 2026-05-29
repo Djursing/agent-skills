@@ -16,6 +16,7 @@ something the code itself cannot.
 ## Contents
 
 - [When a Comment Earns Its Place](#when-a-comment-earns-its-place)
+- [Brevity — Trim to the WHY](#brevity--trim-to-the-why)
 - [When to Delete a Comment](#when-to-delete-a-comment)
 - [Docstrings / API Documentation](#docstrings--api-documentation)
 - [Comments in Tests](#comments-in-tests)
@@ -39,6 +40,51 @@ Keep a comment if it captures one of these:
 5. **A surprising performance choice.** "Using a `Map` here even though
    the list is small — measured 30% faster than `Array.find` on real input
    profiles."
+
+## Brevity — Trim to the WHY
+
+A comment that earns its place still has to stay short. There is no hard
+length cap — a genuinely subtle constraint may justify a paragraph — but
+the default is **the shortest form that preserves the WHY**. Multi-sentence
+narration, paragraph blocks above a 3-line function, and friendly
+"introductions" to obvious code are noise, even if every sentence is true.
+
+Heuristics, in order:
+
+1. **One line by default.** If you cannot say it in one line, ask whether
+   half of what you wrote is the WHAT (which the code already says) and
+   delete that half.
+2. **Cut the preamble.** "This function does X. The reason we do it this
+   way is Y." → "Y." The reader is already reading the function.
+3. **No restating the diff.** "Added Z to fix bug N." belongs in the commit
+   message and PR description, not in the source.
+4. **Two paragraphs ⇒ docstring or design doc.** If the explanation
+   genuinely needs paragraphs, it is API documentation (move to the
+   docstring) or design rationale (move to `docs/`, an ADR, or a linked
+   issue) — not an inline comment.
+5. **Bullet lists in comments are a smell.** Three bullets above one
+   function usually means three separate things are happening in that
+   function — split the function instead.
+
+```javascript
+// Bad: paragraph above a 3-line function, mostly restating the code
+// This function computes the discounted total for a cart. It walks each
+// line item, applies the per-item discount, then sums the result. We do
+// this on the server so the client cannot tamper with the price. Note
+// that tax is applied after this step, not here.
+function discountedTotal(items) {
+  return items.reduce((sum, i) => sum + i.price * (1 - i.discount), 0);
+}
+
+// Good: one line, captures the only thing the code doesn't say
+// Tax applied later — keep this in sync with applyTax().
+function discountedTotal(items) {
+  return items.reduce((sum, i) => sum + i.price * (1 - i.discount), 0);
+}
+```
+
+When in doubt, **trim first, delete second, keep third**. See refactor
+recipe **R35: Trim Verbose Comment** for the mechanical procedure.
 
 ## When to Delete a Comment
 

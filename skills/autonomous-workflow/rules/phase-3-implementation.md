@@ -305,7 +305,7 @@ Skill("code-quality", "code")
 | Behavior                       | Detail                                                              |
 | ------------------------------ | ------------------------------------------------------------------- |
 | Frequency                      | Exactly once per phase                                              |
-| Purpose                        | Catch cognitive complexity, naming, and structural smells that emerged during implementation |
+| Purpose                        | Catch cognitive complexity, naming, structural smells, and **comment hygiene** (apply **R35** to trim any verbose multi-paragraph block) that emerged during implementation. Walks the full `code-quality` review checklist, not just one pass. |
 | If skill missing               | Log `code-quality(code) — not available, continuing`                |
 | Progress Log entry             | `[TIMESTAMP] Phase 3: code-quality(code) — invoked` (or `not available, continuing`) |
 
