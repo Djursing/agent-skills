@@ -20,15 +20,13 @@ npx skills add https://github.com/mthines/agent-skills --all --agent claude-code
 
 - [Install](#install)
 - [Skills at a glance](#skills-at-a-glance)
-  - [Autonomous workflows](#autonomous-workflows)
-  - [Analysis & validation](#analysis--validation)
-  - [Testing](#testing)
-  - [UI, UX & visual design](#ui-ux--visual-design)
-  - [Code review & PRs](#code-review--prs)
-  - [Performance & debugging](#performance--debugging)
-  - [Docs, meta-skills & memory](#docs-meta-skills--memory)
-  - [AI engineering & DX](#ai-engineering--dx)
-  - [Workflow companions](#workflow-companions)
+  - [`workflow/` — end-to-end orchestrators](#workflow--end-to-end-orchestrators)
+  - [`quality/` — code, tests, plans, AI apps](#quality--code-tests-plans-ai-apps)
+  - [`delivery/` — Git, PR, CI](#delivery--git-pr-ci)
+  - [`testing/` — E2E and fixture tooling](#testing--e2e-and-fixture-tooling)
+  - [`design/` — UI, visual, interaction](#design--ui-visual-interaction)
+  - [`analysis/` — investigate data, diagnose issues](#analysis--investigate-data-diagnose-issues)
+  - [`authoring/` — skills about Claude Code itself](#authoring--skills-about-claude-code-itself)
 - [Agents at a glance](#agents-at-a-glance)
 - [Claude Code plugins](#claude-code-plugins)
 - [Featured: autonomous workflow](#featured-autonomous-workflow)
@@ -91,12 +89,13 @@ Most tools auto-discover skills from `~/.agents/skills/`.
 
 ## Skills at a glance
 
-Two invocation styles:
+Skills are grouped by directory category. Each row shows the invocation type:
 
-- **`auto`** — the model invokes the skill when it detects a matching task. Its `description` field sits in your available-skills list every session (~50–150 tokens). The body loads only on invocation.
-- **`/name`** — slash command only. Zero baseline context cost; loads only when you type `/name` or another skill calls it via `Skill()`.
+- **`auto`** — model-invokable via `Skill()`. Description sits in your available-skills list every session (~50–150 tokens); body loads only on invocation.
+- **`/`** — slash command only. Zero baseline context cost; loads only when you type `/name` or another skill calls it via `Skill()`.
+- **`Skill()`** — internal companion. Not user-invocable; only called by another skill.
 
-### Autonomous workflows
+### `workflow/` — end-to-end orchestrators
 
 Coordinate other skills to ship complete changes.
 
@@ -106,84 +105,76 @@ Coordinate other skills to ship complete changes.
 | **[fix-bug](./skills/workflow/fix-bug/SKILL.md)** | 10-phase bug pipeline: intake → triage → evidence → repro-lock → analyse → gate → handoff → verify → telemetry. Lane-split: fast for simple, standard for complex. | `/` |
 | **[batch-linear-tickets](./skills/workflow/batch-linear-tickets/SKILL.md)** | Fan out `/fix-bug --analyse-only` across many Linear tickets, gate user approval, then dispatch planners and executors in parallel. Requires Linear MCP. | `/` |
 | **[implement-suggestion](./skills/workflow/implement-suggestion/SKILL.md)** | Apply reviewer suggestions across one or more PRs. Reads humans and AI bots (`claude[bot]`, `coderabbit`, `sourcery`), validates each via `/critical` + `/confidence`, applies in the existing branch. | `/` |
+| **[aw-create-plan](./skills/workflow/aw-create-plan/SKILL.md)** | Generates `.agent/{branch}/plan.md` — the source of truth a new session can resume from. | `Skill()` |
+| **[aw-create-walkthrough](./skills/workflow/aw-create-walkthrough/SKILL.md)** | Generates `.agent/{branch}/walkthrough.md` — the PR-delivery summary. | `Skill()` |
+| **[aw-review-quality-gate](./skills/workflow/aw-review-quality-gate/SKILL.md)** | Self-check quality gate for review findings: filters noise, dedupes, ranks severity. | `Skill()` |
 
-### Analysis & validation
+### `quality/` — code, tests, plans, AI apps
 
-Decide whether a plan, fix, or analysis is sound before you commit to it.
+Decide whether something is good before you commit to it.
 
 | Skill | What it does | Type |
 |-------|--------------|------|
+| **[code-quality](./skills/quality/code-quality/SKILL.md)** | Authors and reviews code for low cognitive complexity, guard clauses, early returns, single-responsibility. | `auto` |
 | **[confidence](./skills/quality/confidence/SKILL.md)** | Rates confidence that work fully solves the requirement. Modes: `plan`, `code`, `analysis`. Multi-signal gate; deterministic rule checks cap LLM score. | `auto` |
 | **[critical](./skills/quality/critical/SKILL.md)** | Adversarial pre-mortem: hostile-persona walk through failure modes, blast radius, rollback, hidden coupling, and a mandatory steelman alternative. Never iterates. | `auto` |
-| **[holistic-analysis](./skills/analysis/holistic-analysis/SKILL.md)** | Forces a full entry-to-exit execution-path trace when incremental fixes aren't working. | `auto` |
-| **[code-quality](./skills/quality/code-quality/SKILL.md)** | Authors and reviews code for low cognitive complexity, guard clauses, early returns, single-responsibility. | `auto` |
-
-### Testing
-
-| Skill | What it does | Type |
-|-------|--------------|------|
 | **[tdd](./skills/quality/tdd/SKILL.md)** | Strict RED-GREEN-REFACTOR cycles. Writes one failing test, implements minimal code, refactors. | `auto` |
 | **[test-provenance-guard](./skills/quality/test-provenance-guard/SKILL.md)** | Detects tests that pass by construction (re-declare the SUT instead of importing it) via static + mutation checks. Self-heals by extracting inline logic and rewriting the test. | `auto` |
-| **[/e2e-testing](./skills/testing/e2e-testing/SKILL.md)** | Spec-first Playwright Test Agents loop (Planner / Generator / Healer, v1.56). Locator ladder, `data-testid` source diffs, 3-attempt heal cap. | `/` |
-| **[/e2e-testing-mobile](./skills/testing/e2e-testing-mobile/SKILL.md)** | Mobile counterpart on Maestro YAML flows for Expo / React Native. `testID`-first locator ladder; runs on Maestro Cloud via EAS Workflow. | `/` |
+| **[/ai-engineering](./skills/quality/ai-engineering/SKILL.md)** | Reviews LLM/AI application engineering across 13 concerns: prompts, caching, RAG, agents, resilience, memory, evals, safety, observability. | `/` |
+| **[/dx](./skills/quality/dx/SKILL.md)** | Reviews CLI tools, shell scripts, and developer tooling against clig.dev, 12 Factor CLI, and Heroku CLI Style Guide. | `/` |
+| **[/review-changes](./skills/quality/review-changes/SKILL.md)** | Reviews branch changes or a PR. Dispatches to the [`reviewer`](#agents-at-a-glance) agent. | `/` |
 
-### UI, UX & visual design
+### `delivery/` — Git, PR, CI
 
-| Skill | What it does | Type |
-|-------|--------------|------|
-| **[ux](./skills/design/ux/SKILL.md)** | Reviews UI for usability, WCAG 2.2 accessibility, platform compliance (Apple HIG, Material Design 3), and **dark-pattern detection**. Hard rule: never recommends a dark pattern. | `auto` |
-| **[animations](./skills/design/animations/SKILL.md)** | CSS-first web animation. Three modes: Brainstorm, Perceived-Performance, technical workflow (CSS → WAAPI → Motion → R3F). | `auto` |
-| **[/screen-recorder](./skills/analysis/screen-recorder/SKILL.md)** | Records short cropped videos of UI sections via Playwright + ffmpeg. Validates multi-frame interactions a screenshot can't prove. | `/` |
-| **[visual-design](./skills/design/visual-design/SKILL.md)** | Generative, brand-aware visual design. Style-direction taxonomy (minimal, swiss, brutalist, glass, …), color systems, typography, signature details. Defers WCAG math to `/ux`. | `auto` |
-| **[charting](./skills/design/charting/SKILL.md)** | Selects chart type + visualization library for web (React/Next.js) and mobile (Expo/RN). Maps intent → chart → library based on platform and dataset size. | `auto` |
-| **[storybook](./skills/design/storybook/SKILL.md)** | Scaffolds three artefacts per component: visual regression story, Playground, interaction test. Opt-in OS-keychain auth profiles. | `auto` |
-
-### Code review & PRs
+Plumbing for shipping code.
 
 | Skill | What it does | Type |
 |-------|--------------|------|
 | **[/create-pr](./skills/delivery/create-pr/SKILL.md)** | Narrative PR description, push, open PR, watch CI, auto-fix simple failures. Flags: `--split` (multi-PR breakdown), `--review` (Claude GitHub App + auto-implement loop). | `/` |
-| **[/review-changes](./skills/quality/review-changes/SKILL.md)** | Reviews branch changes or a PR. Dispatches to the [`reviewer`](#agents-at-a-glance) agent. | `/` |
 | **[/ci-auto-fix](./skills/delivery/ci-auto-fix/SKILL.md)** | Diagnoses a failed CI check, applies a minimal fix, pushes, iterates until green. Refuses to disable or weaken checks. | `/` |
 | **[/resolve-conflicts](./skills/delivery/resolve-conflicts/SKILL.md)** | Detects merge/rebase conflicts, shows both sides with context, proposes resolutions, asks for ambiguous cases. | `/` |
+| **[/changelog](./skills/delivery/changelog/SKILL.md)** | Generates a personal markdown changelog of merged PRs and closed Linear tickets over a configurable window (default 7 days). | `/` |
+| **[/github-actions-author](./skills/delivery/github-actions-author/SKILL.md)** | Authors and reviews fast, cheap, maintainable GitHub Actions workflows (2026 best practices). Modes: `scaffold`, `review`. | `/` |
 
-### Performance & debugging
+### `testing/` — E2E and fixture tooling
 
 | Skill | What it does | Type |
 |-------|--------------|------|
+| **[/e2e-testing](./skills/testing/e2e-testing/SKILL.md)** | Spec-first Playwright Test Agents loop (Planner / Generator / Healer, v1.56). Locator ladder, `data-testid` source diffs, 3-attempt heal cap. | `/` |
+| **[/e2e-testing-mobile](./skills/testing/e2e-testing-mobile/SKILL.md)** | Mobile counterpart on Maestro YAML flows for Expo / React Native. `testID`-first locator ladder; runs on Maestro Cloud via EAS Workflow. | `/` |
+| **[/optimize-mock-data](./skills/testing/optimize-mock-data/SKILL.md)** | Optimizes JSON/JSONL fixture directories via shared-schema inference, drift detection, safe shrink/normalize. | `/` |
+
+### `design/` — UI, visual, interaction
+
+| Skill | What it does | Type |
+|-------|--------------|------|
+| **[animations](./skills/design/animations/SKILL.md)** | CSS-first web animation. Three modes: Brainstorm, Perceived-Performance, technical workflow (CSS → WAAPI → Motion → R3F). | `auto` |
+| **[charting](./skills/design/charting/SKILL.md)** | Selects chart type + visualization library for web (React/Next.js) and mobile (Expo/RN). Maps intent → chart → library based on platform and dataset size. | `auto` |
+| **[storybook](./skills/design/storybook/SKILL.md)** | Scaffolds three artefacts per component: visual regression story, Playground, interaction test. Opt-in OS-keychain auth profiles. | `auto` |
+| **[ux](./skills/design/ux/SKILL.md)** | Reviews UI for usability, WCAG 2.2 accessibility, platform compliance (Apple HIG, Material Design 3), and **dark-pattern detection**. Hard rule: never recommends a dark pattern. | `auto` |
+| **[visual-design](./skills/design/visual-design/SKILL.md)** | Generative, brand-aware visual design. Style-direction taxonomy (minimal, swiss, brutalist, glass, …), color systems, typography, signature details. Defers WCAG math to `/ux`. | `auto` |
+
+### `analysis/` — investigate data, diagnose issues
+
+| Skill | What it does | Type |
+|-------|--------------|------|
+| **[holistic-analysis](./skills/analysis/holistic-analysis/SKILL.md)** | Forces a full entry-to-exit execution-path trace when incremental fixes aren't working. | `auto` |
+| **[rum-tracking](./skills/analysis/rum-tracking/SKILL.md)** | Guides product analytics and RUM event tracking for web (React/Next.js) and mobile (React Native/Expo). Decides what to track, what's noise, what's PII; covers OTel semantic conventions, tracking plans, GDPR/CCPA compliance, and clean implement / audit / remove workflows. | `auto` |
+| **[video-analyser](./skills/analysis/video-analyser/SKILL.md)** | Analyses a screen recording for bugs. Resolves input from a Linear ticket URL, local path, or direct URL. Optional Tesseract OCR and Whisper transcription. | `auto` |
 | **[/profile-optimizer](./skills/analysis/profile-optimizer/SKILL.md)** | Analyses React DevTools Profiler exports or Chrome Performance traces. Maps hotspots to source. Iterates via `confidence(analysis)` until ≥ 90%. | `/` |
 | **[/playwright-trace-analyzer](./skills/analysis/playwright-trace-analyzer/SKILL.md)** | Analyses Playwright `trace.zip` (or downloads from a GitHub Actions run URL). Names the race behind a flake, emits a ranked fix plan. | `/` |
-| **[video-analyser](./skills/analysis/video-analyser/SKILL.md)** | Analyses a screen recording for bugs. Resolves input from a Linear ticket URL, local path, or direct URL. Optional Tesseract OCR and Whisper transcription. | `auto` |
-| **[rum-tracking](./skills/analysis/rum-tracking/SKILL.md)** | Guides product analytics and RUM event tracking for web (React/Next.js) and mobile (React Native/Expo). Decides what to track, what's noise, what's PII; covers OTel semantic conventions, tracking plans, GDPR/CCPA compliance, and clean implement / audit / remove workflows. | `auto` |
+| **[/screen-recorder](./skills/analysis/screen-recorder/SKILL.md)** | Records short cropped videos of UI sections via Playwright + ffmpeg. Validates multi-frame interactions a screenshot can't prove. | `/` |
 
-### Docs, meta-skills & memory
+### `authoring/` — skills about Claude Code itself
+
+Meta — scaffolding new skills, maintaining docs, persisting memory.
 
 | Skill | What it does | Type |
 |-------|--------------|------|
 | **[documentation](./skills/authoring/documentation/SKILL.md)** | Authors and audits `CLAUDE.md`, `AGENTS.md`, `README.md`, and Diátaxis `docs/` trees. Modes: `init`, `update`, `readme`, `audit`. | `auto` |
 | **[/create-skill](./skills/authoring/create-skill/SKILL.md)** | Scaffold, review, upgrade, or diagnose agent skills. `diagnose <target>` is the retrospective self-improvement entry point. | `/` |
 | **[/optimize-claude-md](./skills/authoring/optimize-claude-md/SKILL.md)** | Audits `CLAUDE.md` for context bloat. Modes: `audit`, `trim`, `extract`. Flags rarely-used agent-invokable skills that should become slash-only. | `/` |
-| **[/optimize-mock-data](./skills/testing/optimize-mock-data/SKILL.md)** | Optimizes JSON/JSONL fixture directories via shared-schema inference, drift detection, safe shrink/normalize. | `/` |
-| **[/changelog](./skills/delivery/changelog/SKILL.md)** | Generates a personal markdown changelog of merged PRs and closed Linear tickets over a configurable window (default 7 days). | `/` |
 | **[/persistent-memory](./skills/authoring/persistent-memory/SKILL.md)** | Persists context across conversations as plain markdown, scoped per topic. Operations: `write`, `read`, `consolidate`, `forget`. Three storage tiers. | `/` |
-
-### AI engineering & DX
-
-| Skill | What it does | Type |
-|-------|--------------|------|
-| **[/ai-engineering](./skills/quality/ai-engineering/SKILL.md)** | Reviews LLM/AI application engineering across 13 concerns: prompts, caching, RAG, agents, resilience, memory, evals, safety, observability. | `/` |
-| **[/dx](./skills/quality/dx/SKILL.md)** | Reviews CLI tools, shell scripts, developer tooling against clig.dev, 12 Factor CLI, Heroku CLI Style Guide. | `/` |
-| **[/github-actions-author](./skills/delivery/github-actions-author/SKILL.md)** | Authors and reviews fast, cheap, maintainable GitHub Actions workflows (2026 best practices). Modes: `scaffold`, `review`. | `/` |
-
-### Workflow companions
-
-Slash-only. Called by `autonomous-workflow` via `Skill()` at runtime. Install on their own to reuse the artifact-generation logic.
-
-| Skill | What it does |
-|-------|--------------|
-| **[aw-create-plan](./skills/workflow/aw-create-plan/SKILL.md)** | Generates `.agent/{branch}/plan.md` — the source of truth a new session can resume from. |
-| **[aw-create-walkthrough](./skills/workflow/aw-create-walkthrough/SKILL.md)** | Generates `.agent/{branch}/walkthrough.md` — the PR-delivery summary. |
-| **[aw-review-quality-gate](./skills/workflow/aw-review-quality-gate/SKILL.md)** | Self-check quality gate for review findings: filters noise, dedupes, ranks severity. |
 
 ## Agents at a glance
 
