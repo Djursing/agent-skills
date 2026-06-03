@@ -142,6 +142,7 @@ Plumbing for shipping code.
 |-------|--------------|------|
 | **[/e2e-testing](./skills/testing/e2e-testing/SKILL.md)** | Spec-first Playwright Test Agents loop (Planner / Generator / Healer, v1.56). Locator ladder, `data-testid` source diffs, 3-attempt heal cap. | `/` |
 | **[/e2e-testing-mobile](./skills/testing/e2e-testing-mobile/SKILL.md)** | Mobile counterpart on Maestro YAML flows for Expo / React Native. `testID`-first locator ladder; runs on Maestro Cloud via EAS Workflow. | `/` |
+| **[/e2e-pr-stabilizer](./skills/testing/e2e-pr-stabilizer/SKILL.md)** | Stabilizes (or optimizes) Playwright E2E on one PR by orchestrating `playwright-test-healer`, `/playwright-trace-analyzer`, and `/ci-auto-fix`. Pulls Dash0 MCP spans (`git.pull_request_link` filter) plus `trace.zip` artifacts as evidence, scores root-cause confidence ≥ 90%. Modes: `stabilize` (default, applies fixes + push-verify up to 3×, refuses `.skip` / `.fixme` / `waitForTimeout`) and `optimize` (report-only, ranks slow-action wins by measured ms saved). | `/` |
 | **[/optimize-mock-data](./skills/testing/optimize-mock-data/SKILL.md)** | Optimizes JSON/JSONL fixture directories via shared-schema inference, drift detection, safe shrink/normalize. | `/` |
 
 ### `design/` — UI, visual, interaction
@@ -359,7 +360,7 @@ Default scan paths are `.agent/` and `.gw/`. Configure via `agentTasks.directori
 ## Repository structure
 
 ```
-skills/                   38 skills, each with SKILL.md (some with rules/, references/, templates/, scripts/)
+skills/                   39 skills, each with SKILL.md (some with rules/, references/, templates/, scripts/)
 agents/                   4 agents (reviewer, linear-ticket-investigator, bug-fix-verifier, feature-pr-verifier)
 plugins/                  1 Claude Code plugin (agent-tasks-hooks)
 packages/                 VS Code extension (vscode-agent-tasks)

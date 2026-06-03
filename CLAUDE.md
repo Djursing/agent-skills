@@ -56,6 +56,7 @@ Type markers: `auto` = model-invokable via `Skill()`; `/` = slash command only; 
 
 - `e2e-testing` (`/`) — spec-first Playwright Test Agents loop; locator ladder; `data-testid` source diffs; 3-attempt heal cap
 - `e2e-testing-mobile` (`/`) — Maestro YAML flows for Expo / React Native; `testID`-first locator ladder; runs on Maestro Cloud via EAS
+- `e2e-pr-stabilizer` (`/`) — orchestrates `playwright-test-healer` + `playwright-trace-analyzer` + `ci-auto-fix` against one PR; Dash0 MCP spans (`git.pull_request_link` filter) + `trace.zip` artifacts as evidence; two modes: `stabilize` (default, applies fixes + max 3 push-verify iterations; refuses `.skip` / `.fixme` / `waitForTimeout`) and `optimize` (report-only, ranks slow-action wins by measured ms saved, no commits)
 - `optimize-mock-data` (`/`) — JSON/JSONL fixture analyze / normalize / shrink
 
 ### `design/` — UI, visual, interaction
