@@ -56,7 +56,7 @@ Type markers: `auto` = model-invokable via `Skill()`; `/` = slash command only; 
 
 - `e2e-testing` (`/`) — spec-first Playwright Test Agents loop; locator ladder; `data-testid` source diffs; 3-attempt heal cap
 - `e2e-testing-mobile` (`/`) — Maestro YAML flows for Expo / React Native; `testID`-first locator ladder; runs on Maestro Cloud via EAS
-- `e2e-pr-stabilizer` (`/`) — orchestrates `playwright-test-healer` + `playwright-trace-analyzer` + `ci-auto-fix` against one PR; Dash0 MCP spans (`git.pull_request_link` filter) + `trace.zip` artifacts as evidence; two modes: `stabilize` (default, applies fixes + max 3 push-verify iterations; refuses `.skip` / `.fixme` / `waitForTimeout`) and `optimize` (report-only, ranks slow-action wins by measured ms saved, no commits)
+- `e2e-pr-stabilizer` (`/`) — local-first stabilizer for Playwright E2E on one PR; Dash0 MCP spans (`git.pull_request_link`) as historical baseline, then iterates locally with `--trace=on` and the same OTel exporter. Two confidence gates per fix — `Skill('confidence','analysis')` on the root cause and `Skill('confidence','code')` on the diff — plus a static + live selector-existence check that refuses hallucinated locators. Commits only after 3 consecutive local passes; pushes once and watches one CI run as ratification. Refuses `.skip` / `.fixme` / `waitForTimeout`. Two modes: `stabilize` (default) and `optimize` (report-only, ranks slow-action wins by measured ms saved, no commits)
 - `optimize-mock-data` (`/`) — JSON/JSONL fixture analyze / normalize / shrink
 
 ### `design/` — UI, visual, interaction

@@ -31,11 +31,17 @@ Every entry below is a hard refusal: the skill never emits these edits and never
 
 ## Forbidden meta-actions
 
-- Pushing a fix **without** re-pulling telemetry.
-- Closing the loop based on a single passing CI run when the baseline showed a < 100% failure rate (a flake can pass once by chance).
-- Marking a fix `confident` when `Skill('confidence', 'analysis')` returned < 90%.
+- Pushing a fix **before** the local 3-consecutive-pass gate in Phase 6 has cleared (or before the 10-attempt budget marks the test `requires-human-judgment`).
+- Pushing more than once per skill invocation — Phase 7 is a single push, single watch, single verdict event.
+- Pushing a fix **without** re-pulling telemetry post-CI-run for the comparison against baseline.
+- Closing the loop based on a single passing local run — three consecutive passes is the gate, not one.
+- Closing the loop based on a single passing CI run when the baseline showed a < 100 % failure rate (a flake can pass once by chance).
+- Marking a fix `confident` when `Skill('confidence', 'analysis')` returned < 90 %.
+- Marking a fix shippable when `Skill('confidence', 'code')` returned < 90 % and the selector was not verified against source or live app — that is the failure mode this skill exists to prevent.
+- Committing a fix whose new locator(s) the static + live selector checks could not find.
+- Re-drafting a fix after a selector-validity refusal without re-entering Phase 4 — repeated drafts without a new diagnosis just hallucinate different selectors.
 - Editing product code (`src/`, `components/`, `apps/`) when the trace evidence points there — that becomes a recommendation, never an autonomous change.
-- Running parallel iterations — one push, one watch, one verify, in sequence.
+- Running parallel iterations — local Phase 6 runs are sequential per test; Phase 7 is a single push and watch.
 
 ## Allowed edits with conditions
 

@@ -1,17 +1,25 @@
 ---
-title: Phases 3–5 — Root-cause synthesis and fix application
+title: Phases 3–5 — Root-cause synthesis, fix drafting, selector-validity gate
 impact: HIGH
 tags:
   - root-cause
   - confidence
   - playwright-test-healer
   - fix-patterns
+  - selector-validity
 ---
 
-# Phases 3–5 — Root-cause synthesis and fix application
+# Phases 3–5 — Root-cause synthesis, fix drafting, selector-validity gate
 
-Every fix has three citations: a span-side signature, a trace-side hotspot, and a confidence score ≥ 90%.
+Every fix carries **four** citations before it is committed:
+
+1. A span-side signature (from Phase 1 — historical evidence).
+2. A trace-side hotspot (from Phase 2 — local reproduction).
+3. `Skill('confidence', 'analysis')` ≥ 90 % (this file, Phase 4).
+4. `Skill('confidence', 'code')` ≥ 90 % + selector existence verified ([`fix-validation.md`](./fix-validation.md), Phase 5 sub-step).
+
 No citations, no fix.
+Two confidence calls exist because diagnosis and diff are independently wrong-able.
 
 ## Phase 4 — Confidence-gated RCA
 
@@ -54,7 +62,7 @@ Apply this gate:
 Iterate at most twice per dossier.
 If still below 90% after two passes, mark the dossier `requires-human-judgment` and continue with the next test.
 
-## Phase 5 — Fix application (stabilize only)
+## Phase 5 — Fix drafting + selector-validity gate (stabilize only)
 
 **Skip this phase entirely in `optimize` mode.**
 Optimize mode produces recommendations, not edits — jump from Phase 4 directly to the report.
@@ -62,6 +70,15 @@ See the "Optimize-mode finding catalogue" section below for what to put *in* tho
 
 Drive code edits through the [`playwright-test-healer`](../../../agents/playwright-test-healer.md) methodology.
 The healer agent's principles are non-negotiable.
+
+Phase 5 has **three sub-steps** in v2:
+
+1. **Draft** the diff per the fix-pattern catalogue below.
+2. **Validate** the draft against [`fix-validation.md`](./fix-validation.md) — `Skill('confidence', 'code')` ≥ 90 % **and** every new locator proven to resolve (static + live where ambiguous).
+3. **Commit locally only after validation passes.** Do not push — pushing is Phase 7's single deliberate action after Phase 6 ratifies the fix locally.
+
+If the validation step refuses the draft, discard it and re-enter Phase 4 with the refusal evidence — see [`fix-validation.md`](./fix-validation.md) Step 4.
+Do not retry blindly with a different selector.
 
 ### Fix-pattern catalogue
 
@@ -144,13 +161,16 @@ Suggested next step: <concrete diagnostic, e.g. "re-run with --trace=on">.
 
 ### Editing rules
 
-1. **One test, one commit.** Each fix is a separate commit so the verification loop can attribute regression risk.
-2. **Edit the test, not the framework.** Helpers in `tests/e2e/src/lib/` are fair game when the dossier shows the bug originates there.
-3. **No product-code edits without explicit user OK.** If the trace points to product code, write the proposed change to the report under `Recommendations` and stop — do not silently mutate `src/` or `components/`.
-4. **Mirror the repo style.** Read at least one neighbouring spec before editing — locator helpers, `expect.poll`, and assertion patterns vary across teams. Conformance matters more than novelty.
-5. **No `.skip` / `.fixme` as a fix.** See [`guard-rails.md`](./guard-rails.md). The healer agent allows `.fixme` only when the test is provably correct *and* the failure is in app code — and even then, the stabilizer surfaces it as a recommendation rather than applying it autonomously.
+1. **One test, one commit.** Each fix is a separate commit so Phase 6's local 3-pass gate and Phase 7's CI ratification can attribute regression risk per test.
+2. **Commit only after the selector-validity gate passes.** See [`fix-validation.md`](./fix-validation.md). A draft that fails the gate is discarded, not committed and "tested in CI".
+3. **Edit the test, not the framework.** Helpers in `tests/e2e/src/lib/` are fair game when the dossier shows the bug originates there.
+4. **No product-code edits without explicit user OK.** If the trace points to product code, write the proposed change to the report under `Recommendations` and stop — do not silently mutate `src/` or `components/`.
+5. **Mirror the repo style.** Read at least one neighbouring spec before editing — locator helpers, `expect.poll`, and assertion patterns vary across teams. Conformance matters more than novelty.
+6. **No `.skip` / `.fixme` as a fix.** See [`guard-rails.md`](./guard-rails.md). The healer agent allows `.fixme` only when the test is provably correct *and* the failure is in app code — and even then, the stabilizer surfaces it as a recommendation rather than applying it autonomously.
 
 ### Per-test commit message
+
+Commit message format records **both** confidence scores and the selector check — the gate's evidence travels with the commit so reviewers (and the Phase 7 CI verdict) can audit it.
 
 ```text
 fix(e2e): <test.name>
@@ -158,7 +178,9 @@ fix(e2e): <test.name>
 Pattern: P<N> — <name>
 Span signature: failure_rate=<X>%, attempts=<N>, error=<class>
 Trace hotspot:  <action> dur=<ms> @ <file>:<line>
-Confidence:    <score>%
+Confidence (analysis): <score>%
+Confidence (code):     <score>%
+Selector check:        static=<verified|n/a> live=<verified|n/a>
 
 <one-sentence reason>.
 ```
@@ -167,11 +189,12 @@ Confidence:    <score>%
 
 Phase 5 is complete when every promoted dossier has either:
 
-- A committed fix on the branch, or
-- A `requires-human-judgment` entry in the report, or
+- A locally-committed fix on the branch that passed the [`fix-validation.md`](./fix-validation.md) gate (Step 1 + Step 2 / Step 3), **or**
+- A `requires-human-judgment` entry in the report (gate refused twice, or Phase 4 confidence stuck below threshold), **or**
 - A `recommendation-only` entry citing product-code evidence.
 
-Move to [`verification-loop.md`](./verification-loop.md) for Phase 6.
+Move to [`local-iteration.md`](./local-iteration.md) Phase 6 for the local 3-consecutive-pass gate.
+Phase 7 (single CI push + watch) lives in [`verification-loop.md`](./verification-loop.md).
 
 ---
 

@@ -70,6 +70,27 @@ Once you have the failing root span, drill into its children to see the Playwrig
 Drop `otel.parent.id is_not_set` so children are included.
 Sort by `start_time` to reconstruct the action timeline.
 
+### Local runs (Phase 2 / Phase 6)
+
+When the repo's Playwright reporter is wired to the OTel exporter, local runs emit spans to Dash0 with `ci.is_ci=false`.
+Phase 2 (local reproduction) and Phase 6 (3-consecutive-pass gate) can query those spans alongside the trace.zip evidence:
+
+```jsonc
+[
+  { "key": "service.name",          "operator": "is",         "value":  "ui-e2e" },
+  { "key": "otel.parent.id",        "operator": "is_not_set" },
+  { "key": "ci.is_ci",              "operator": "is_one_of",  "values": ["false"] },
+  { "key": "vcs.ref.head.revision", "operator": "is_one_of",  "values": ["<local_head_sha>"] }
+]
+```
+
+`vcs.ref.head.revision` is what isolates this developer's local runs from anyone else's.
+Drop `git.pull_request_link` — local runs may not set it.
+Time range: since the local run started; a 10-minute window is usually safe.
+
+If the local OTel exporter is not configured, mark the dossier `local-spans: not-emitted` and rely on the trace.zip plus the Phase 1 historical baseline.
+The trace.zip alone is sufficient evidence for the selector-validity gate ([`../rules/fix-validation.md`](../rules/fix-validation.md)).
+
 ### All flakes in the suite (no PR)
 
 Useful when you want repo-wide flake context — for example, "is this test flaky on main too?".

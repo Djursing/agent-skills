@@ -1,20 +1,21 @@
 ---
-title: Phases 1–2 — Pull telemetry and trace artifacts
+title: Phase 1 — Pull historical telemetry from Dash0
 impact: HIGH
 tags:
   - telemetry
   - dash0-mcp
-  - playwright-trace
-  - github-actions
-  - artifacts
+  - historical-baseline
 ---
 
-# Phases 1–2 — Pull telemetry and trace artifacts
+# Phase 1 — Pull historical telemetry from Dash0
 
-This is the only phase that decides what to fix.
-If the telemetry is empty or the traces are missing, **stop and surface that to the user** — never proceed on guesses.
+Phase 1 establishes the baseline.
+It answers "which tests are actually flaky on this PR, and how often" using span history from CI runs that have already happened.
+The trace evidence used for root cause comes from **local** runs in Phase 2 — see [`local-iteration.md`](./local-iteration.md).
 
-## Phase 1 — Dash0 MCP spans
+If the historical telemetry is empty, **stop and surface that to the user** — never proceed on guesses.
+
+## Dash0 MCP spans
 
 The Dash0 MCP exposes every E2E run as OpenTelemetry spans tagged with PR metadata.
 Two layers of signal:
@@ -105,46 +106,23 @@ Phase 1 is complete when the aggregated table is printed.
 - `stabilize`: if the table is empty, the PR has no measurable E2E failure — stop and report `no-signal`.
 - `optimize`: if every test runs in roughly the same time (no `p95` outliers, no top-10 long tail), stop and report `no-headroom`.
 
-## Phase 2 — Trace artifacts
+## Phase 2 — Local reproduction, not CI artifact download
 
-For every `run_id` referenced by a queued test span (failing in `stabilize`, slow in `optimize`), download the Playwright artifacts.
-In `optimize` mode, prefer traces from runs where the test **passed** — slow-but-passing traces are the right evidence shape for optimization; failing traces contain noise from the failure path.
+In v2 of this skill, trace evidence comes from **local** Playwright runs with `--trace=on`, not from `gh run download`.
+See [`local-iteration.md`](./local-iteration.md) for the full procedure.
 
-### Download recipe
+Why this changed:
 
-```bash
-mkdir -p .artifacts/<PR_NUMBER>
-cd .artifacts/<PR_NUMBER>
+| Concern | v1 (CI artifacts) | v2 (local runs) |
+|---------|-------------------|-----------------|
+| Per-iteration wall-clock | 3–10 min | 5–60 s |
+| Trace schema | `trace.zip` from artifact | Identical `trace.zip` from `test-results/` |
+| OTel spans during the iteration | Already in Dash0 with `ci.is_ci=true` | Emitted to Dash0 with `ci.is_ci=false` (same exporter) |
+| Selector-existence verification | Inferred from trace `before` snapshot | Direct against the live app |
+| Artifact retention | 90 days by default | Local — no retention concern |
 
-# List artifacts available for this run.
-gh run view "<run_id>" --json artifacts \
-  --jq '.artifacts[] | select(.name | test("playwright|trace|test-results"; "i")) | .name'
-
-# Download all matching artifacts.
-gh run download "<run_id>" \
-  --pattern "playwright-*" \
-  --pattern "*-traces" \
-  --pattern "test-results*"
-```
-
-Repeat per `run_id`.
-Most CI configurations upload one combined artifact per shard.
-Unpack nested zips with the [`/playwright-trace-analyzer`](../../../analysis/playwright-trace-analyzer/SKILL.md) extractor:
-
-```bash
-node <skill_dir>/scripts/trace-extract.mjs <path/to/trace.zip>
-```
-
-Tracking which artifact belongs to which test:
-
-- Each artifact name contains the run shard index.
-- Each unpacked `trace.zip` contains `test-results/<test-id>/trace.zip` keyed by Playwright's hash of the test title.
-- Cross-reference `test.name` from the span with the directory name in `test-results/`.
-
-### Gate
-
-Phase 2 is complete when every test in the fix queue (from Phase 1) has at least one unpacked `trace.zip` directory.
-If an artifact retention window has expired, mark the test `evidence-stale` and skip it — do not infer from the span alone.
+`gh run download` is **retained as a fallback** for when a flake cannot be reproduced locally (env divergence, CI-only fixture).
+In that case follow the v1 recipe, but treat it as an exception, not the default — note `evidence-from-ci-artifact` in the dossier so the report records the lower-fidelity path.
 
 ## Phase 3 — Correlate spans ↔ traces
 
