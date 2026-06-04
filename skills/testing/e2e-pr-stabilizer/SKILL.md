@@ -51,16 +51,6 @@ This skill never proposes a fix without a measurement to point at, and never com
 
 ---
 
-## Design intent (v2.0 — local-first)
-
-v1 used CI as the iteration engine — push, watch, fetch artifacts, re-verify, repeat (up to 3 minutes per loop).
-v2 inverts that: **iterate locally** with `--trace=on` so every loop is seconds, not minutes, and use CI once at the end as the ratification step.
-
-CI was never load-bearing for evidence — Playwright emits the same trace artifacts locally, and the repo's OTel reporter emits the same spans to Dash0 from `localhost` (just with `ci.is_ci=false`).
-Moving the loop on-machine removes the platform-setup tax, lets the skill run the same test dozens of times to build confidence, and turns the push into a "this is definitely fixed" event instead of "please tell me if this is fixed".
-
----
-
 ## What this skill combines
 
 | Source | Role |

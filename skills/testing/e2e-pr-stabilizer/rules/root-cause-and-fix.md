@@ -71,7 +71,7 @@ See the "Optimize-mode finding catalogue" section below for what to put *in* tho
 Drive code edits through the [`playwright-test-healer`](../../../agents/playwright-test-healer.md) methodology.
 The healer agent's principles are non-negotiable.
 
-Phase 5 has **three sub-steps** in v2:
+Phase 5 has **three sub-steps**:
 
 1. **Draft** the diff per the fix-pattern catalogue below.
 2. **Validate** the draft against [`fix-validation.md`](./fix-validation.md) — `Skill('confidence', 'code')` ≥ 90 % **and** every new locator proven to resolve (static + live where ambiguous).

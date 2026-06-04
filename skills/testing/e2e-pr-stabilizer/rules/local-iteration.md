@@ -11,25 +11,11 @@ tags:
 
 # Phases 2 + 6 — Local reproduction and the 3-consecutive-pass gate
 
-The local runner is the primary evidence source in v2 of this skill.
+The local runner is the primary evidence source.
 Phase 2 runs the queued tests locally to capture trace artifacts that match what CI would produce.
 Phase 6 re-runs each fixed test until it passes three consecutive times before we are willing to commit a CI cycle to it.
 
 Both phases share the same execution machinery, so they live in one rule file.
-
----
-
-## Why local-first
-
-| Property | CI loop (v1) | Local loop (v2) |
-|----------|--------------|-----------------|
-| Wall-clock per iteration | 3–10 minutes (queue + build + run + artifact upload) | 5–60 seconds (`playwright test --grep ...`) |
-| Trace artifacts | `trace.zip` per test in run artifacts | Identical `trace.zip` under `test-results/<id>/trace.zip` |
-| OTel spans | Emitted to Dash0 with `ci.is_ci=true` | Emitted to Dash0 with `ci.is_ci=false` (same exporter, same schema) |
-| Selector-existence verification | Inferred from trace `before` snapshot | Direct — run `locator.count()` against the live app |
-| Iteration budget | 3 outer loops | 10 attempts per fix, ≥ 3 must be consecutive passes |
-
-The local loop matches CI on the two things that matter (traces + spans) and beats CI on speed by two orders of magnitude.
 
 ---
 
@@ -117,7 +103,7 @@ mkdir -p ".artifacts/<PR_NUMBER>/local/$RUN_ID"
 cp -R tests/e2e/test-results/* ".artifacts/<PR_NUMBER>/local/$RUN_ID/"
 ```
 
-Feed the resulting directory to [`/playwright-trace-analyzer`](../../../analysis/playwright-trace-analyzer/SKILL.md) exactly as Phase 2 did in v1 — the trace schema is identical.
+Feed the resulting directory to [`/playwright-trace-analyzer`](../../../analysis/playwright-trace-analyzer/SKILL.md) — the trace schema is identical to what CI produces.
 
 ### Local Dash0 spans (when configured)
 

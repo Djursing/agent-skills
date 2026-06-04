@@ -128,7 +128,7 @@ The report template ([`stabilization-report.md`](../templates/stabilization-repo
 
 ## When the local gate passed but CI does not
 
-This is the most important non-success path in v2.
+This is the most important non-success path.
 A fix that passes 3 / 3 locally but fails on CI implies one of:
 
 | Hypothesis | Evidence | Response |

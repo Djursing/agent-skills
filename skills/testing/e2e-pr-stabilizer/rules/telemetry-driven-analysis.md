@@ -106,23 +106,13 @@ Phase 1 is complete when the aggregated table is printed.
 - `stabilize`: if the table is empty, the PR has no measurable E2E failure — stop and report `no-signal`.
 - `optimize`: if every test runs in roughly the same time (no `p95` outliers, no top-10 long tail), stop and report `no-headroom`.
 
-## Phase 2 — Local reproduction, not CI artifact download
+## Phase 2 — Local reproduction
 
-In v2 of this skill, trace evidence comes from **local** Playwright runs with `--trace=on`, not from `gh run download`.
+Trace evidence comes from **local** Playwright runs with `--trace=on`, not from CI artifact downloads.
 See [`local-iteration.md`](./local-iteration.md) for the full procedure.
 
-Why this changed:
-
-| Concern | v1 (CI artifacts) | v2 (local runs) |
-|---------|-------------------|-----------------|
-| Per-iteration wall-clock | 3–10 min | 5–60 s |
-| Trace schema | `trace.zip` from artifact | Identical `trace.zip` from `test-results/` |
-| OTel spans during the iteration | Already in Dash0 with `ci.is_ci=true` | Emitted to Dash0 with `ci.is_ci=false` (same exporter) |
-| Selector-existence verification | Inferred from trace `before` snapshot | Direct against the live app |
-| Artifact retention | 90 days by default | Local — no retention concern |
-
 `gh run download` is **retained as a fallback** for when a flake cannot be reproduced locally (env divergence, CI-only fixture).
-In that case follow the v1 recipe, but treat it as an exception, not the default — note `evidence-from-ci-artifact` in the dossier so the report records the lower-fidelity path.
+In that case, download the run's `trace.zip`, unpack it with the [`/playwright-trace-analyzer`](../../../analysis/playwright-trace-analyzer/SKILL.md) extractor, and note `evidence-from-ci-artifact` in the dossier so the report records the lower-fidelity path.
 
 ## Phase 3 — Correlate spans ↔ traces
 
