@@ -2,22 +2,25 @@
 name: create-pr
 description: >
   Generate a short, narrative GitHub pull request description (≤ 25 lines, hard
-  ceiling 40), push the branch, open the PR, then watch CI and auto-fix simple
-  failures (lint, format, lockfiles) before handing back. With --split,
-  analyses the branch diff and breaks it into 2–4 focused, dependency-ordered
-  draft PRs after user approval, so reviewers don't have to digest a sprawling
-  change in one sitting. With --review, posts an "@claude review" comment after
-  PR creation so Claude's GitHub App performs a fresh-session code review,
-  waits up to 10 minutes for the review to land, then dispatches
-  /implement-suggestion to auto-apply actionable feedback — runs in parallel
-  with the CI watch + auto-fix loop. Escalates judgment-required failures via
-  /confidence rather than guessing. Invoke with /create-pr, /create-pr --split,
-  or /create-pr --review.
+  ceiling 40), run a quick code-quality pass over the branch diff and auto-fix
+  mechanical issues (dead comments, cryptic names, dead code, guard-clause
+  flips, magic numbers) before pushing, then push the branch, open the PR, and
+  watch CI to auto-fix simple failures (lint, format, lockfiles) before handing
+  back. With --split, analyses the branch diff and breaks it into 2–4 focused,
+  dependency-ordered draft PRs after user approval, so reviewers don't have to
+  digest a sprawling change in one sitting. With --review, posts an "@claude
+  review" comment after PR creation so Claude's GitHub App performs a
+  fresh-session code review, waits up to 10 minutes for the review to land,
+  then dispatches /implement-suggestion to auto-apply actionable feedback —
+  runs in parallel with the CI watch + auto-fix loop. Escalates
+  judgment-required failures via /confidence rather than guessing. Invoke with
+  /create-pr, /create-pr --split, /create-pr --review, or pass --no-quality to
+  skip the pre-push quality pass.
 disable-model-invocation: true
 license: MIT
 metadata:
   author: mthines
-  version: '1.3.0'
+  version: '1.4.0'
   workflow_type: command
 ---
 
@@ -37,6 +40,7 @@ Parse `$ARGUMENTS`. `--split` selects an alternate workflow; `--review` is an **
 | `default`   | No flag                                                                                  | One PR for the whole branch. Follow Steps 1–10 below.                                                                                                                                                    |
 | `split`     | `--split`, `-s`, or first positional token `split`                                       | Analyse the branch diff, propose 2–4 dependency-ordered draft PRs (hard cap 5), execute only after user approval. Jump to the **Split Mode** section after reading Core Principles.                       |
 | `review`    | `--review`, `-r`, or phrase `with claude review` / `claude review` anywhere in arguments | After Step 6, post `@claude review` on the PR, dispatch a background subagent that waits for Claude's review and runs `/implement-suggestion`, then continue with Steps 7+ in parallel. See **Review Mode**. |
+| `no-quality` | `--no-quality` anywhere in arguments                                                    | Skip the Step 5.5 pre-push code-quality pass. Composes with `default`, `split`, and `review`. Use when you want a hands-off push without the auto-fix sweep.                                                |
 
 In split mode, skip Step 5's "PR too big" trim — the split *is* the response to that signal.
 Each resulting sub-PR must still pass it on its own.
@@ -146,6 +150,56 @@ Count the rendered lines of the body. If it's over 25, cut. Common cuts:
 - **Drop sub-bullets entirely.** If a bullet needs a sub-bullet, split it into two top-level bullets or remove the detail.
 
 If you've cut as much as you can and it's still over 40 lines, the PR is too big. Stop and offer the user `/create-pr --split` before pushing.
+
+## Step 5.5: Quick code-quality pass (before pushing)
+
+Run a fast review over the branch diff and apply mechanical fixes inline. The goal is to catch obvious noise — restated-WHAT comments, task-coupled comments (`// added for this PR`), cryptic local names, `else` after `return`, magic numbers, dead code — *before* reviewers see them. This is not a deep refactor.
+
+Skip this step entirely if any of the following hold:
+
+- `--no-quality` was passed in `$ARGUMENTS`.
+- The branch diff is non-code only (docs, generated artefacts, lockfiles, asset binaries). Decide from the file list, not the line count.
+
+Otherwise, invoke the code-quality skill in review mode against the branch diff:
+
+```
+Skill('code-quality', 'review')
+```
+
+Scope: the same diff already in working memory from Step 1 (`git diff main...HEAD`). The skill returns a `## Code Quality Review` block grouped by High / Medium / Low impact, with recipe IDs (R1, R6, ...).
+
+**Auto-apply** findings that meet **all three** criteria — these are the "comments and coding style" fixes the user actually wants automated:
+
+- Footprint stays inside files already in this PR's diff (no new files, no edits outside the diff).
+- The fix is mechanical, not a judgment call. Concretely: removing or rewriting a plain inline comment that explains WHAT or references the current task; renaming a local variable to a domain noun; dropping `else` after `return`/`throw`; extracting a magic number to a named constant; deleting unreachable / dead code introduced on this branch; flipping a single guard clause to an early return.
+- The fix does not change behaviour observable from a test or a caller.
+
+**Docstring / JSDoc / TSDoc / Python-docstring blocks attached to a function, method, class, type, or exported constant are a special case.** Never delete the block as a noise-removal action — IDE hover, type strippers, and doc generators read it. Instead, apply `Skill('code-quality')` recipe **R35 step 4**: trim verbose prose to a one-sentence summary plus the structured tags (`@param`, `@returns`, `@throws`, `@deprecated`, `@since`, `@example`, `@see`, `@internal`, `@experimental`). Keep the block, keep the summary line, keep every contract-bearing tag; drop the restated-WHAT prose only. If the block would be empty after trimming, surface it as a judgment-required finding instead of removing it. License / SPDX headers and linter pragmas (`eslint-disable-next-line`, `@ts-expect-error`, `# noqa`) are also never removed.
+
+**Surface but do NOT auto-apply** — these are out of scope for a quick pre-push pass:
+
+- Structural refactors (consolidating parallel maps across files, hoisting shared constants, schema-first migrations).
+- Type-driven design changes (branded primitives, discriminated unions, generic narrowing).
+- Anything that would expand the PR's blast radius or require updating callers in files not currently in the diff.
+- Anything where a sibling test would need updating.
+
+If you applied autofixes, commit them as a separate commit so the diff stays traceable:
+
+```bash
+git add -u
+git commit -m "chore: code-quality pass (comments, naming, dead code)"
+```
+
+If the review surfaced judgment-required findings worth a reviewer's eye, append at most one bullet under "Notes for reviewers" in the description naming the largest one (e.g., `Reviewer note: parallel LABELS/COLORS maps over Status — left as-is, R1 cleanup is a follow-up`). Don't enumerate every finding; the description is for reviewers, not for you to argue with the skill.
+
+If the review found nothing, continue silently.
+
+**Hard rules for this pass:**
+
+- Never delete or weaken a test to satisfy a finding.
+- Never apply a fix that changes public API or exported types.
+- If you're unsure whether a fix is mechanical or judgment-required, treat it as judgment-required and skip it.
+- Cap: one code-quality pass per PR creation. Don't loop.
 
 ## Step 6: Push and Create Draft PR
 

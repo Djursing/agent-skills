@@ -379,7 +379,7 @@ In authoring mode, recipes are reminders during the REFACTOR phase of TDD.
   1. **Pure WHAT (restates the code)** → delete.
   2. **Mostly WHAT with one WHY sentence buried inside** → cut the WHAT, keep one line of WHY.
   3. **Genuine WHY but verbose** → rewrite as one line, lead with the constraint or surprise, drop the preamble.
-  4. **Public API documentation that grew an essay** → convert to a docstring on the function; keep one-sentence summary + params/returns/throws; move rationale to a linked design doc or ADR.
+  4. **Public API documentation that grew an essay** → convert to a docstring on the function; keep one-sentence summary + structured tags (`@param`, `@returns`, `@throws`, `@deprecated`, `@since`, `@example`, etc.); move rationale to a linked design doc or ADR. **Never delete a JSDoc / TSDoc / docstring block to satisfy this recipe** — the block is part of the function's API surface (IDE hover, type strippers, doc generators read it). Trim the prose; preserve the block, the summary line, and every contract-bearing tag. See `comments.md` § "Docstrings / API Documentation → Hard rule for auto-fix runs".
   5. **Multiple distinct concerns in bullets above one function** → split the function. The bullets become function names; the comment disappears.
   6. **References the PR / ticket / task** → delete (git blame and the PR description are authoritative).
 

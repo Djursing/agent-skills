@@ -86,9 +86,20 @@ function discountedTotal(items) {
 When in doubt, **trim first, delete second, keep third**. See refactor
 recipe **R35: Trim Verbose Comment** for the mechanical procedure.
 
+## What to Never Delete (trim instead)
+
+Before you reach for the delete key, these categories are **always trimmed, never removed**:
+
+1. **Docstring / JSDoc / TSDoc / Python docstring / KDoc / JavaDoc blocks attached to a function, method, class, type, interface, hook, or exported constant.** Even if the block currently restates the code, it is structured API documentation that tools (IDE hover, type generators, doc sites, LSP completions) read. Apply **R35 step 4**: keep the one-sentence summary plus `@param` / `@returns` / `@throws` (or the language equivalent), drop the prose essay and any restated WHAT. Do not delete the block to get to zero comments — the reader loses hover docs.
+2. **License / copyright / SPDX headers** at the top of a file. These are policy artefacts.
+3. **`@deprecated`, `@internal`, `@experimental`, `@since`, `@see`** and other contract-bearing JSDoc tags. They participate in tooling contracts even when the surrounding prose is verbose.
+4. **Linter or type-checker pragmas** (`eslint-disable-next-line`, `@ts-expect-error`, `# noqa`, `# type: ignore`). These are behaviour, not commentary.
+
+The category test is structural, not semantic: if the block sits directly above an exported or otherwise documented declaration and uses the language's doc-comment syntax (`/** … */`, `"""…"""`, `///`), it is in this category. Trim verbosely; never delete.
+
 ## When to Delete a Comment
 
-Delete or replace with code if the comment is one of these:
+Delete or replace with code if the comment is one of these — **and** it is not in the "never delete" categories above:
 
 1. **Restates what the code obviously does.**
    ```javascript
@@ -129,6 +140,37 @@ benefit from docstrings that document:
 
 For private/internal functions, types and good names usually suffice; a
 docstring is overhead.
+
+### Hard rule for auto-fix runs
+
+When the skill runs as part of an automated pass (e.g. `create-pr` Step 5.5,
+the `tdd` REFACTOR phase, or any non-interactive review): **never delete a
+docstring/JSDoc block as a noise-removal action**. The block is part of
+the function's API surface — IDEs read it, type stripping tools read it,
+documentation generators read it, and the next reader hovers it.
+
+What the auto-fix runner is allowed to do to a docstring block:
+
+- **Trim verbose prose** down to a one-sentence summary plus the structured
+  tags (`@param`, `@returns`, `@throws`, `@example`, `@see`, `@deprecated`,
+  `@since`, `@internal`, `@experimental`).
+- **Remove restated-WHAT sentences** inside the block (the prose that just
+  paraphrases the code), but keep at least the summary line.
+- **Rewrite a paragraph essay** into one or two terse sentences using
+  **R35 step 4**.
+
+What the auto-fix runner must **not** do:
+
+- Delete the whole `/** … */` (or `"""…"""`, `///`) block, even if the
+  current contents look like pure WHAT. Trim it instead. A one-line
+  summary is fine; zero is not.
+- Strip the structured tags. `@deprecated` and `@param` outlive the
+  surrounding prose and feed tooling contracts.
+- Merge two adjacent function-level docstrings into a file-level comment.
+
+If the docstring is genuinely empty after trimming (no summary, no tags,
+no contract-bearing content remains), surface it to the human reviewer as
+a judgment-required finding — do not silently remove it.
 
 ## Comments in Tests
 

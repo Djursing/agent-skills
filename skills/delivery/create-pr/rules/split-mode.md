@@ -124,8 +124,9 @@ For each PR in dependency order:
    - For pure-rename PRs (`R` rows in `git diff --name-status`), include **both** the old and new paths in the file list so the rename is captured as a rename, not as add+delete.
    - Dry-run first: `git diff <parent-branch> <original-sha> -- <files> | git apply --check`. If `--check` fails, the file-level split is wrong (a file's hunks depend on a sibling that's in another group) — stop, report which file(s) failed, and ask the user.
 3. **Sanity check the result.** If the user has a quick build/lint/type command, run it. A failure here means a coupling category from Step S3 was missed — stop, report, and ask the user (do **not** silently pull in extra files to make it green).
-4. **Commit** with a message that matches the proposed title.
-5. **Push with explicit upstream and create the draft PR.** New branches have no tracking, so the default-mode `git push` will fail — use `-u`:
+4. **Quick code-quality pass** (skip if `--no-quality` is in `$ARGUMENTS`). Run `Skill('code-quality', 'review')` scoped to this PR's staged diff (`git diff --cached`). Auto-apply the same mechanical-only subset described in default-mode Step 5.5 (comments, naming, dead code, guard-clause flips, magic numbers); surface judgment-required findings without applying. Fold any fixes into the same commit in the next step — do NOT create a separate cleanup commit per split PR; it bloats the stack.
+5. **Commit** with a message that matches the proposed title.
+6. **Push with explicit upstream and create the draft PR.** New branches have no tracking, so the default-mode `git push` will fail — use `-u`:
    ```bash
    git push -u origin HEAD
    gh pr create --draft --base <parent-branch> --title "..." --body "$(cat <<'EOF'
@@ -134,7 +135,7 @@ For each PR in dependency order:
    )"
    ```
    For stacked PRs, `<parent-branch>` is the previous split branch's name on origin — confirm it was pushed before creating PR N+1.
-6. Record the PR URL and the branch name.
+7. Record the PR URL and the branch name.
    If subsequent PRs stack on this one, use this branch as their parent in iteration N+1.
 
 ## Step S6: Watch CI bottom-up; rebase the stack after auto-fix
