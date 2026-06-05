@@ -137,7 +137,10 @@ Reply with one of:
 - "review" — inspect the plan first.
 - "iterate" — edit plan.md directly in your editor, then reply
   "iterate" to have the planner read your edits, re-run the gate, and
-  bump plan.md to version N+1. See "Edit-driven iteration loop" below.
+  bump plan.md to version N+1. You can also leave inline notes as HTML
+  comments (<!-- ... -->) anywhere in plan.md — the iterate loop scans
+  for them and treats each one as a hard constraint. See "Edit-driven
+  iteration loop" below.
 ```
 
 The planner then **STOPS**. It does not auto-invoke the executor. The user (or main session) sees the message and decides whether to dispatch.
@@ -156,7 +159,8 @@ The planner then **STOPS**. It does not auto-invoke the executor. The user (or m
 Choose:
 - refine — planner does up to 2 more research iterations (planner-driven).
 - iterate — edit plan.md yourself, then reply "iterate" (user-edit-driven;
-  see "Edit-driven iteration loop" below).
+  inline <!-- ... --> comments are picked up as hard constraints; see
+  "Edit-driven iteration loop" below).
 - proceed — accept and dispatch executor anyway (NOT recommended).
 - stop — abandon.
 ```
@@ -178,7 +182,28 @@ The loop fires whenever the user replies `iterate` to either handoff message. Th
 
 1. **Read `plan.md`** in the worktree end-to-end. Trust the file: the user's edits are the new constraints.
 2. **Parse the `version:` frontmatter field.** If missing, treat as `0` (legacy plan written before this loop existed). The next write will be `version: <current + 1>`.
-3. **Summarise what changed at the section level.** Recap to the user, listing the sections that have moved relative to the planner's last-known mental model and the apparent intent of each (e.g. "Requirements added requirement 4 — multi-tenant support; Acceptance Criteria removed criterion 2 — token caching"). Surface this summary before re-planning:
+3. **Scan for inline user feedback (HTML comments).** Users leave inline notes as `<!-- ... -->` blocks anywhere in `plan.md`. **These are hard constraints — never skip them.** Two kinds of HTML comments coexist in the file:
+
+   | Kind | Origin | Treat as |
+   |------|--------|----------|
+   | Template instructional comments | Carried in from the `aw-create-plan` template (e.g. `<!-- Why is this needed? ... -->`, `<!-- ALL requirements from Phase 0. ... -->`). Already addressed by the section content beneath them. | Ignore. |
+   | User feedback comments | Added by the user inline to direct this iteration (e.g. `<!-- this also needs to handle the timeout case -->`, `<!-- use the existing logger, not a new one -->`). | **Hard constraint** — must be addressed in version N+1. |
+
+   To separate them reliably, diff against the previous immutable snapshot — `aw-create-plan` guarantees one exists for every prior version ([`aw-create-plan/SKILL.md`](../../aw-create-plan/SKILL.md)):
+
+   ```bash
+   DIR=".agent/$(git branch --show-current)"
+   PREV=$(ls "${DIR}"/plan.v*.md 2>/dev/null | sort -V | tail -n 1)
+   if [ -n "${PREV}" ]; then
+     diff -u "${PREV}" "${DIR}/plan.md" | grep -E '^\+.*<!--|^\+.*-->' || echo "(no new comments)"
+   fi
+   ```
+
+   Every added line containing `<!--` or `-->` in that diff is user feedback introduced in this iteration. For each one, record the enclosing section heading, the comment text, and the apparent intent (e.g. "Acceptance Criteria → user comment: 'cover the offline case' → add an acceptance criterion for offline mode").
+
+   If no previous `plan.v*.md` snapshot exists (rare — only when iterating before any prior version was written), walk every `<!-- ... -->` block and flag any whose content is **directive, conversational, or critical** ("change this", "make sure X", "use Y instead", "this is wrong because…"). Treat those as user feedback; ignore template instructional prose.
+
+4. **Summarise what changed at the section level AND list every user comment.** Recap to the user, listing the sections that have moved relative to the planner's last-known mental model and **every** user feedback comment from step 3 with its location and how you plan to address it. Surface this summary before re-planning:
 
    ```
    Iterating on plan.md (version N → N+1).
@@ -187,23 +212,32 @@ The loop fires whenever the user replies `iterate` to either handoff message. Th
    - Acceptance Criteria: removed "..."
    - Implementation Order: reordered steps 3 and 4
 
-   Re-running planning with your edits as constraints.
+   Detected inline comments (HTML <!-- -->):
+   - Acceptance Criteria → "cover the offline case"
+       → will add an acceptance criterion for offline mode
+   - File Changes → "use the existing logger, not a new one"
+       → will reuse src/lib/logger.ts instead of adding a new module
+
+   Re-running planning with your edits AND comments as constraints.
    Reply "cancel" to abort before the new version is written.
    ```
 
-4. **Consistency check inside `plan.md`.** Walk the file and check internal coherence:
+   If there are zero detected comments, state "Detected inline comments: none" explicitly — silence on this line is a bug (it means the scan was skipped). The new `plan.v{N+1}.md` must address every listed comment; the comments themselves are NOT carried forward to the new version (they've been incorporated into the content).
+
+5. **Consistency check inside `plan.md`.** Walk the file and check internal coherence:
    - If the user edited an upstream section (Requirements, Decisions, Technical Approach) but did NOT correspondingly update a downstream section (Implementation Order, File Changes, Tests), **re-derive the downstream sections** rather than blindly preserving them. State the inferred downstream changes back to the user.
    - If the user edited a downstream section in a way that contradicts an upstream section, **surface the contradiction** and ask whether to update the upstream section, revert the downstream edit, or accept both as-is.
-5. **Re-run planning companions** with the user's edits as constraints:
+   - Apply the same coherence check to every user feedback comment from step 3 — a comment in `Acceptance Criteria` that contradicts the `Requirements` section is a contradiction, not just a comment.
+6. **Re-run planning companions** with the user's edits and comments as constraints:
    - `Skill("code-quality", "plan")` — surface design concerns introduced by the edits.
    - `Skill("confidence", "plan")` — re-score the revised plan against the multi-signal gate.
-6. **Invoke `aw-create-plan`** to write `plan.md` with `version: N+1` in the frontmatter. The Progress Log entry for this write MUST cite the user's edits:
+7. **Invoke `aw-create-plan`** to write `plan.md` with `version: N+1` in the frontmatter. The Progress Log entry for this write MUST cite the user's edits AND the comments addressed:
 
    ```markdown
-   - [{TIMESTAMP}] Phase 2: plan.md updated to version {N+1} (user-edit iteration — {short summary of changed sections})
+   - [{TIMESTAMP}] Phase 2: plan.md updated to version {N+1} (user-edit iteration — {short summary of changed sections}; addressed K inline comment(s): {one-line list})
    ```
 
-7. **Re-emit the handoff message** (high-confidence or below-gate, based on the new `confidence(plan)` score). The user can iterate again, accept, or stop.
+8. **Re-emit the handoff message** (high-confidence or below-gate, based on the new `confidence(plan)` score). The user can iterate again, accept, or stop.
 
 ### Iteration cap
 

@@ -118,7 +118,10 @@ Reply with one of:
 - "review" — inspect the plan first.
 - "iterate" — edit plan.md directly in your editor, then reply
   "iterate" to have the planner read your edits, re-run the gate, and
-  bump plan.md to version N+1. See User-edit iteration below.
+  bump plan.md to version N+1. You can also leave inline notes as HTML
+  comments (<!-- ... -->) anywhere in plan.md — the iterate loop scans
+  for them and treats each one as a hard constraint. See User-edit
+  iteration below.
 ```
 
 Then stop. Do not proceed to Phase 3.
@@ -141,7 +144,8 @@ using the below-gate format from [`rules/planner-executor-handoff.md#handoff-mes
 Choose:
 - refine — planner does up to 2 more research iterations (planner-driven).
 - iterate — edit plan.md yourself, then reply "iterate" (user-edit-driven;
-  see User-edit iteration below).
+  inline <!-- ... --> comments are picked up as hard constraints; see
+  User-edit iteration below).
 - proceed — accept and dispatch executor anyway (NOT recommended).
 - stop — abandon.
 ```
@@ -157,10 +161,20 @@ Summary:
 
 1. Re-read `plan.md` (the user's edits are the new constraints; no diffing required).
 2. Parse the `version:` frontmatter field; the next write bumps it by 1.
-3. Summarise what changed at section level and confirm with the user.
-4. Run the consistency check, re-run `code-quality(plan)` and
+3. **Scan for inline `<!-- ... -->` user comments and treat each as a hard
+   constraint.** Diff against the previous `plan.v*.md` snapshot to isolate
+   newly-added HTML comments — added comments are user feedback; pre-existing
+   template instructional comments are not. Procedure and `diff` command in
+   the rules file linked above.
+4. Summarise what changed at section level **and list every user comment**
+   with its location and how you plan to address it. Confirm with the user.
+   If you detected zero comments, state that explicitly — silence on this
+   line means the scan was skipped.
+5. Run the consistency check, re-run `code-quality(plan)` and
    `confidence(plan)`, invoke `aw-create-plan` to re-write `plan.md` with
-   `version: N+1`, and re-emit the handoff message.
+   `version: N+1` (the new version must address every listed comment; the
+   comments themselves are not carried forward), and re-emit the handoff
+   message.
 
 This is **user-edit-driven** — distinct from the planner-driven `refine`
 option in the below-gate branch and from the generic `aw-create-plan`
