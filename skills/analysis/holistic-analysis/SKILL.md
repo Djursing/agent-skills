@@ -5,10 +5,13 @@ description: >
   of continuing to patch in isolation, this skill triggers a structured step-back
   analysis that traces the entire execution path end-to-end — from entry point to
   exit — analyzing each block, every contract boundary, and the full data flow.
-  Two modes: "fix" (default) for bugs and broken behavior, "refactor" for
-  restructuring/improvement. Use when the user says "step back", "think holistically",
-  "analyze the whole thing", "zoom out", "look at the bigger picture", "rethink this",
-  or when an attempt has failed and the user wants a fresh, thorough analysis.
+  Three modes: "fix" (default) for bugs and broken behavior, "refactor" for
+  restructuring/improvement, and "review" for PR validation (returns structured
+  intent-match + system-fit findings for the reviewer / pr-reviewer agents to
+  consume — never run on its own for routine review work). Use when the user
+  says "step back", "think holistically", "analyze the whole thing", "zoom out",
+  "look at the bigger picture", "rethink this", or when an attempt has failed
+  and the user wants a fresh, thorough analysis.
   Also triggers on "/holistic", "/step-back", "/rethink", "/zoom-out".
 disable-model-invocation: false
 license: MIT
@@ -34,7 +37,7 @@ code.
 
 ## Contents
 
-- [Mode Detection](#mode-detection) — pick `fix` (default) or `refactor`
+- [Mode Detection](#mode-detection) — pick `fix` (default), `refactor`, or `review` (rule file)
 - [Context Gathering](#context-gathering) — 11-point checklist before reasoning
 - [Phase 1: Full Execution Path Walkthrough](#phase-1-full-execution-path-walkthrough) — entry-to-exit map, per-block analysis, contract boundaries, summary
 - [Phase 2: Step Back — Identify the Principle](#phase-2-step-back--identify-the-principle)
@@ -55,8 +58,9 @@ Check `$ARGUMENTS` for mode:
 |------------|---------|----------|
 | `fix`      | **yes** | Bug, broken behavior, failing test — something is wrong and needs root cause analysis |
 | `refactor` |         | Restructuring, cleanup, improvement — the code works but needs to be better |
+| `review`   |         | PR validation — does this diff implement what its description claims, and does the change make sense given how the changed code is used in the wider system? Returns structured findings for a reviewer agent to consume — **not** root-cause analysis. Streamlined three-phase flow that skips Phases 2–8; full procedure lives in [`rules/review-mode.md`](./rules/review-mode.md). |
 
-The mode determines how certain phases are framed (noted inline below).
+The mode determines how certain phases are framed (noted inline below). `fix` and `refactor` walk the full eight-phase protocol in this file. `review` is a structurally different flow — see the rule file linked above.
 
 ## Context Gathering
 
