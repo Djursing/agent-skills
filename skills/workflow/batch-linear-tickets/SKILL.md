@@ -14,7 +14,7 @@ description: >
 user-invocable: true
 metadata:
   author: mthines
-  version: '3.0.0'
+  version: '3.1.0'
   workflow_type: orchestrator
   architecture: classify/fan-out-analyse/correlate/gate/fan-out-execute
   composes:
@@ -22,6 +22,7 @@ metadata:
     - holistic-analysis
     - autonomous-workflow
     - confidence
+    - persistent-memory
   agents:
     investigator: linear-ticket-investigator
     planner: aw-planner
@@ -79,6 +80,7 @@ analysis from Phase 1.
 | `aw-planner` + `aw-executor` agents (from [`autonomous-workflow`](../autonomous-workflow/SKILL.md)) | Phase 4 dispatch | **Yes** |
 | `gh` CLI | PR creation by `aw-executor` | **Yes** |
 | `gw` CLI | Worktree management (planner) | Recommended |
+| `persistent-memory` skill | `batch-lessons` self-improvement loop (read Phase 1, write Phase 5) | Optional — loop skips silently if absent |
 | Project domain-navigator skill | Investigation accuracy in monorepos | Optional — see [Customization](#customization) |
 
 ---
@@ -90,6 +92,8 @@ analysis from Phase 1.
 | [ticket-type-classification](./rules/ticket-type-classification.md) | Phase 1 — classify each ticket as bug or feature |
 | [cross-ticket-correlation](./rules/cross-ticket-correlation.md) | Phase 2 — detect shared root causes, duplicates, conflicts |
 | [batch-approval-ux](./rules/batch-approval-ux.md) | Phase 3 — summary table format, status values, approval commands |
+| [self-improvement-loop](./rules/self-improvement-loop.md) | Cross-cutting — `batch-lessons` fast tier (read Phase 1 / write Phase 5) + promotion to `diagnose` |
+| [diagnostic-surface](./rules/diagnostic-surface.md) | Consumed by `/create-skill diagnose batch-linear-tickets` — phase model, guards, hard invariants |
 
 > Investigation rules live in `linear-ticket-investigator`.
 > Bug root-cause rules live in `holistic-analysis`.
@@ -127,6 +131,22 @@ user to either tag them in Linear or re-run with explicit `--type`.
 
 For each ticket, run the analysis pipeline appropriate to its type. **Launch homogeneous calls
 in a single message** so they run in parallel.
+
+### Step 1.read — Read prior batch lessons
+
+Before classifying, load `batch-lessons` so prior classification and correlation
+misfires bias this batch:
+
+```text
+Skill("persistent-memory", "read batch-lessons --tier project-shared")     # skips silently if not installed
+```
+
+Match lessons by label set / ticket-type / affected-area; apply as **advisory
+inputs** to classification (Step 1a) and correlation (Phase 2). Lessons never
+override an explicit `--type` flag or auto-approve a `Needs Info` ticket. Full
+contract: [`rules/self-improvement-loop.md`](./rules/self-improvement-loop.md#read-lessons-phase-1).
+(The planning / implementation phases inherit the `aw-lessons` loop automatically
+via the `aw-planner` / `aw-executor` fan-out in Phase 4 — no action needed here.)
 
 ### Step 1a — Classify
 
@@ -291,6 +311,41 @@ Ask the user whether to update ticket state (e.g., move to "In Progress").
 For failed executions, surface the error and suggested next steps (manual fix, re-plan, more
 context).
 
+### Step 5.write — Capture batch lessons
+
+When the batch's own orchestration misfired, write a lesson so the next batch
+does better:
+
+```text
+Skill("persistent-memory", "write batch-lessons --tier project-shared --auto")     # skips silently if not installed
+```
+
+Capture: a ticket whose type was wrong (label set → correct type), a
+cross-ticket conflict Phase 2 correlation missed, or a chronically `Needs Info`
+ticket shape. `--auto` skips consent, not the privacy pre-flight. A lesson
+recurring `seen_count >= 3` becomes promotion-eligible — see
+[`rules/self-improvement-loop.md`](./rules/self-improvement-loop.md#write-lessons-phase-5).
+
+---
+
+## Self-Improvement
+
+`/batch-linear-tickets` improves across batches through a **two-tier loop**
+(full contract: [`rules/self-improvement-loop.md`](./rules/self-improvement-loop.md)).
+
+- **Inherited for free:** the planning and implementation phases use the
+  `aw-lessons` loop because Phase 4 dispatches `aw-planner` / `aw-executor`.
+- **Fast tier (this skill):** `batch-lessons` — read at Phase 1, written at
+  Phase 5 — covers batch-level orchestration only (type classification,
+  cross-ticket correlation, chronic `Needs Info`). Advisory; skips silently if
+  `persistent-memory` is absent.
+- **Slow tier:** a lesson recurring `seen_count >= 3` (or tagged `structural`)
+  is promoted via `/create-skill diagnose batch-linear-tickets`, which reads the
+  [diagnostic surface](./rules/diagnostic-surface.md) and `batch-lessons`
+  history and emits a confidence-gated diff (commonly into
+  `ticket-type-classification.md` / `cross-ticket-correlation.md`) behind the
+  `confidence(analysis) ≥ 90 %` + user-approval gate.
+
 ---
 
 ## Customization
@@ -339,3 +394,9 @@ always pass `--type=bug` / `--type=feature` explicitly.
    offer to retry.
 7. **User stays in control.** Every batch requires explicit approval at Phase 3. Information
    gaps and unclassified tickets must be resolved before approval.
+8. **Learn across batches, but only advisory.** `batch-lessons` (read Phase 1,
+   write Phase 5) biases type classification and correlation from prior misfires;
+   it never auto-approves a ticket or overrides `--type`. Planning / implementation
+   learning is inherited from `aw-lessons` via the Phase 4 fan-out. Recurring
+   lessons (`seen_count >= 3`) promote into the skill's rules only through the
+   confidence-gated `diagnose` apply.

@@ -134,6 +134,27 @@ The pointer block also tells the host skill to call `write` at the
 This is what makes the loop persistent: read at the start, write at
 the end.
 
+### Worked example: the `aw-lessons` self-improvement loop
+
+`autonomous-workflow` is a real consumer of this handshake. It reads the
+committed `aw-lessons` scope before planning (Phase 1) and writes a lesson
+when it gets stuck (Phase 4) or finishes (Phase 7), using
+`write aw-lessons --auto`. The lessons are **procedural** ("what to do
+better next time"), and a lesson that recurs (`seen_count >= 3`) is promoted
+into the skill's own source through a separate confidence-gated step. Two
+things make this a safe pattern worth copying:
+
+1. **`--auto` skips consent but never the privacy pre-flight** — the
+   workflow runs unattended, so it cannot pause per write, but secrets / PII
+   are still refused outright.
+2. **Lessons are advisory** — they bias the host's behavior, they never
+   silently change one of its gates. Behavior changes go through an explicit,
+   gated promotion step. This is the entrenchment guard the Reflexion
+   research warns is mandatory.
+
+See [`../../../workflow/autonomous-workflow/rules/self-improvement-loop.md`](../../../workflow/autonomous-workflow/rules/self-improvement-loop.md)
+for the full contract.
+
 ## When NOT to integrate
 
 Some skills should never call `persistent-memory`:

@@ -85,15 +85,27 @@ Full registry in [`rules/companion-skills.md`](../rules/companion-skills.md).
 **Companions skip silently if not installed** — log
 `companion: <name> — not available, continuing` and proceed.
 
-| Phase | Companion           | Trigger                                          | Args      |
-| ----- | ------------------- | ------------------------------------------------ | --------- |
-| 1     | `holistic-analysis` | Complex / multi-domain / unfamiliar task         | —         |
-| 1     | `code-quality`      | Always (informs design)                          | `plan`    |
-| 1     | `confidence`        | Always — MANDATORY plan gate                     | `plan`    |
-| 2     | `aw-create-plan`    | Full Mode only                                   | —         |
+| Phase | Companion           | Trigger                                          | Args              |
+| ----- | ------------------- | ------------------------------------------------ | ----------------- |
+| 1     | `persistent-memory` | Always — load prior workflow lessons before design | `read aw-lessons --tier project-shared` |
+| 1     | `holistic-analysis` | Complex / multi-domain / unfamiliar task         | —                 |
+| 1     | `code-quality`      | Always (informs design)                          | `plan`            |
+| 1     | `confidence`        | Always — MANDATORY plan gate                     | `plan`            |
+| 2     | `aw-create-plan`    | Full Mode only                                   | —                 |
 
 `confidence(plan)` cannot be disabled. It is the workflow's primary safety
 mechanism.
+
+## Lessons (fast tier of self-improvement)
+
+Before research, run `Skill("persistent-memory", "read aw-lessons --tier project-shared")` and treat
+each lesson whose `trigger-context` matches this task as a **hard constraint**
+on the plan (record them under `## Lessons applied` in `plan.md`). Lessons are
+advisory — if one conflicts with the user's intent, the user wins; surface it.
+If a matched lesson has `seen_count >= 3` or `status: structural`, surface the
+promotion suggestion (`/create-skill diagnose autonomous-workflow`). Skips
+silently if `persistent-memory` is not installed. Full contract:
+[`rules/self-improvement-loop.md`](../rules/self-improvement-loop.md).
 
 ## Handoff Protocol
 

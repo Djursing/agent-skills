@@ -12,7 +12,7 @@ disable-model-invocation: false
 license: MIT
 metadata:
   author: mthines
-  version: '3.8.0'
+  version: '3.11.0'
   workflow_type: orchestrator
   tags:
     - autonomous
@@ -34,19 +34,33 @@ companions skip silently if not installed.
 
 ---
 
-## Retrospective Self-Improvement
+## Self-Improvement
 
-If a workflow run shipped wrong code despite all gates passing — or a
-post-merge bug traces back to a missed check — invoke
+The workflow improves across runs through a **two-tier loop** (full contract in
+[`rules/self-improvement-loop.md`](./rules/self-improvement-loop.md)):
+
+**Fast tier — episodic lessons (`persistent-memory`, optional companion).** The
+workflow reads accumulated lessons before planning (Phase 1) and writes new ones
+when it gets stuck (Phase 4) or finishes (Phase 7), in the committed
+`aw-lessons` scope. Lessons are **advisory** — they bias the plan, never
+silently change a gate. Skips silently if `persistent-memory` is not installed.
+
+**Slow tier — retrospective diagnosis.** When a run shipped wrong code despite
+all gates passing — or a post-merge bug traces back to a missed check, or a
+lesson recurs `seen_count >= 3` — invoke
 [`/create-skill diagnose autonomous-workflow`](../../authoring/create-skill/SKILL.md#diagnose-workflow)
-**while the failing session is still in context**.
-The diagnoser reads this skill's [diagnostic surface](./rules/diagnostic-surface.md)
-(phase model, failure taxonomy, existing-guards table, hard invariants) and
-emits a confidence-gated unified-diff proposal against this skill's source.
+**while the failing session is still in context**. The diagnoser reads this
+skill's [diagnostic surface](./rules/diagnostic-surface.md) (phase model,
+failure taxonomy, existing-guards table, hard invariants) — and the `aw-lessons`
+history as evidence — then emits a confidence-gated unified-diff proposal
+against this skill's source, applied only at `confidence(analysis) ≥ 90 %` with
+explicit user confirmation.
 
-The diagnose capability is owned by `create-skill` so the same procedure works
-across every skill in the repo (`fix-bug`, `batch-linear-tickets`, future
-ones) — they each declare their own diagnostic surface.
+The fast tier captures lessons cheaply and reversibly; recurrence promotes a
+proven lesson into a permanent guard through the gated slow tier. The diagnose
+engine is owned by `create-skill` so the same procedure works across every
+skill in the repo (`fix-bug`, `batch-linear-tickets`, future ones) — they each
+declare their own diagnostic surface.
 
 ---
 
@@ -123,22 +137,26 @@ for the full registry, trigger conditions, and **how to disable any companion**.
 
 | Phase | Companion              | Trigger                                                | Args             |
 | ----- | ---------------------- | ------------------------------------------------------ | ---------------- |
+| 1     | `persistent-memory`    | Always — read accumulated workflow lessons before design (fast-tier self-improvement) | `read aw-lessons --tier project-shared` |
 | 1     | `holistic-analysis`    | Complex / multi-domain / unfamiliar task               | —                |
 | 1     | `code-quality`         | Always (informs design)                                | `plan`           |
 | 1     | `critical`             | Opt-in only (user passed `--critical` to the workflow). Single adversarial pre-mortem pass between `code-quality(plan)` and `confidence(plan)`. Findings flow into `aw-create-plan` as plan defects (must-fix) and considered-alternatives notes (steelman). Advisory — does not gate. | `plan` |
 | 1     | `confidence`           | Always (plan gate, MANDATORY)                          | `plan`           |
 | 2     | `aw-create-plan`       | Full Mode only                                         | —                |
+| 3     | `persistent-memory`    | Executor entry — read lessons when `plan.md` has no `## Lessons applied` (no-planner paths) | `read aw-lessons --tier project-shared` |
 | 3     | `tdd`                  | Pure logic / business rules / "test-driven"            | —                |
 | 3     | `ux`                   | UI files touched (`*.tsx`, `*.jsx`, `*.vue`, RN)       | —                |
 | 3     | `code-quality`         | Once at end of Phase 3 (not per-file)                  | `code`           |
 | 4     | `test-provenance-guard` | After Step 5 — any new `*.test.*` / `*.unit.*` / `*.spec.*` file written | `--diff --base $(git merge-base HEAD main) --fix` *(autofix gated by `confidence(code) ≥ 90 %`)* |
 | 4     | `confidence`           | At iteration cap (3 Lite / 5 Full) on same failing area | `analysis`   |
 | 4     | `holistic-analysis`    | After confidence at Phase 4 if user asks for retry     | —                |
+| 4     | `persistent-memory`    | At stuck-loop escalation — record failing area + resolution as a lesson | `write aw-lessons --tier project-shared --auto` |
 | 5     | `documentation`        | Always (self-improving doc loop — updates `CLAUDE.md`, `README.md`, `docs/`) | `update`         |
 | 6     | `review-changes`       | Always before push                                     | —                |
 | 6     | `aw-create-walkthrough` | Full Mode only                                        | —                |
 | 6     | `create-pr`            | Always                                                 | —                |
 | 7     | `ci-auto-fix`          | CI run completes with status `failure`                 | `<run-id\|pr-url>` |
+| 7     | `persistent-memory`    | End-of-run (CI green / user stop / post-merge bug) — record durable run lessons; check promotion | `write aw-lessons --tier project-shared --auto` |
 | 7     | `reviewer` *(agent)*   | After CI green — auto-dispatch in PR Mode (self-review sub-mode for self-authored PRs: inline report + autofix; cross-review: pending GitHub review) | `<pr-url> --pr`    |
 
 ---
@@ -272,7 +290,7 @@ download skills, then run [`install.sh`](./install.sh).
 npx skills add https://github.com/mthines/agent-skills \
   --skill autonomous-workflow aw-create-plan aw-create-walkthrough confidence \
           code-quality holistic-analysis tdd ux documentation \
-          review-changes create-pr ci-auto-fix \
+          review-changes create-pr ci-auto-fix persistent-memory \
   --agent claude-code \
   --global --yes
 bash ~/.claude/skills/autonomous-workflow/install.sh --global
@@ -284,7 +302,7 @@ bash ~/.claude/skills/autonomous-workflow/install.sh --global
 npx skills add https://github.com/mthines/agent-skills \
   --skill autonomous-workflow aw-create-plan aw-create-walkthrough confidence \
           code-quality holistic-analysis tdd ux documentation \
-          review-changes create-pr ci-auto-fix \
+          review-changes create-pr ci-auto-fix persistent-memory \
   --agent claude-code \
   --yes
 bash .claude/skills/autonomous-workflow/install.sh
@@ -327,6 +345,7 @@ and how to disable. Run `bash install.sh --help` for script options.
 - [`review-changes`](../../quality/review-changes/SKILL.md) — pre-PR review
 - [`create-pr`](../../delivery/create-pr/SKILL.md) — narrative PR description + push + watch
 - [`ci-auto-fix`](../../delivery/ci-auto-fix/SKILL.md) — diagnose and fix failed CI checks
+- [`persistent-memory`](../../authoring/persistent-memory/SKILL.md) — backs the `aw-lessons` fast-tier self-improvement loop (read at Phase 1, write at Phase 4 / 7)
 
 ### Related Agents
 

@@ -97,6 +97,7 @@ skills/workflow/autonomous-workflow/
 │   ├── smart-worktree-detection.md # Fuzzy-match task to existing worktree.
 │   ├── planner-executor-handoff.md # Handoff contract between planner and executor.
 │   ├── diagnostic-surface.md   # Phase model + failure taxonomy + guards table consumed by `/create-skill diagnose autonomous-workflow`.
+│   ├── self-improvement-loop.md # Episodic-lessons fast tier (persistent-memory aw-lessons) + promotion to diagnose. Read Phase 1; write Phase 4/7.
 │   └── _template.md            # Boilerplate for new rule files.
 ├── templates/
 │   ├── planner.template.md     # aw-planner agent (phases 0-2). Linked by install.sh as aw-planner.md.
@@ -107,6 +108,7 @@ skills/workflow/autonomous-workflow/
     ├── autonomous-workflow-complete.md      # Full end-to-end walked example.
     ├── error-recovery-scenarios.md          # Concrete error → recovery transcripts.
     ├── iterative-refinement.md              # Worked example of stuck-loop recovery.
+    ├── self-improvement-walkthrough.md      # Worked example: a lesson's full lifecycle (capture → recur → promote).
     └── anthropic-architecture-research.md   # Verbatim Anthropic citations + design mapping.
 ```
 
@@ -362,6 +364,12 @@ When editing this skill, do not break these — they're load-bearing:
   `lint`, `build`, and `test` commands are forbidden inside sub-agents and
   reserved for orchestrator-only boundaries (Phase 4 Step 6, Phase 6 pre-PR).
   See [`rules/parallel-coordination.md#sub-agent-resource-discipline`](./rules/parallel-coordination.md#sub-agent-resource-discipline).
+- **Episodic lessons are advisory-only.** An `aw-lessons` lesson biases the plan
+  but never silently changes a gate, skips a phase, or alters a cap. The only
+  path from a lesson to changed behavior is a confidence-gated, user-approved
+  `diagnose` apply, and promotion requires `seen_count >= 3` (or an explicit
+  `structural` tag). Never auto-apply lessons to behavior or promote on one run.
+  See [`rules/self-improvement-loop.md#entrenchment-guards-load-bearing`](./rules/self-improvement-loop.md#entrenchment-guards-load-bearing).
 
 ---
 
@@ -401,6 +409,41 @@ When changing a phase, gate, taxonomy class, or load-bearing invariant in
 this skill, **always update [`rules/diagnostic-surface.md`](./rules/diagnostic-surface.md)
 in the same PR** — otherwise the diagnoser walks a stale matrix and either
 misses real gaps or proposes redundant checks.
+
+---
+
+## Two-tier self-improvement — design intent
+
+v3.10 added a **fast tier** of self-improvement to complement the existing
+`diagnose` **slow tier**. The motivation: `diagnose` is the right mechanism for
+turning a failure into a permanent skill-source change, but it (a) only fires
+when a human invokes it and (b) starts cold from a single session with no record
+that the same failure happened before. The fast tier fills both gaps.
+
+| Tier | Mechanism | Storage | Behavior change? | Gate |
+| ---- | --------- | ------- | ---------------- | ---- |
+| **Fast** | `persistent-memory` `aw-lessons` (read Phase 1, write Phase 4/7) | committed markdown at `<repo>/memory/aw-lessons/` | No — advisory input to planning | none (privacy pre-flight only) |
+| **Slow** | `/create-skill diagnose autonomous-workflow` | this skill's source | Yes — a rule / gate / trigger | `confidence(analysis) ≥ 90 %` + user approval |
+
+The two are connected by a **recurrence gate**: a lesson reaching
+`seen_count >= 3` (or tagged `structural`) is promotion-eligible, and the
+workflow suggests running `diagnose` — which then reads `aw-lessons` as evidence
+so the diagnosis is grounded in N occurrences, not one. The full contract,
+lesson schema, and the entrenchment guards live in
+[`rules/self-improvement-loop.md`](./rules/self-improvement-loop.md).
+
+**Why a fast tier that doesn't change behavior?** Because the dominant risk in
+any reflective-memory loop is *self-reinforcing error* (Reflexion's documented
+failure mode; the SSGM governance literature). Letting a single run rewrite the
+skill is exactly that failure. The fast tier captures lessons cheaply and
+reversibly; only recurrence-proven lessons earn a permanent, human-approved
+change. The fast tier is a fully optional companion — uninstall
+`persistent-memory` and it degrades to nothing while `diagnose` keeps working.
+
+**Design rule for the loop:** keep domain knowledge out of this skill. The
+lessons themselves live in `persistent-memory`, not in the workflow's rules. The
+workflow only owns *when* to read / write / promote — the same orchestrator
+discipline that governs every other companion.
 
 ---
 
@@ -501,6 +544,30 @@ end-user-facing; this file is contributor-facing.
 ---
 
 ## History
+
+- **v3.11** — Two-tier self-improvement. Added a **fast tier** of episodic
+  lessons on top of the existing `diagnose` slow tier. New
+  `rules/self-improvement-loop.md` owns the contract: `persistent-memory` is
+  wired as an optional companion that **reads** the committed `aw-lessons` scope
+  at Phase 1 (lessons applied as plan constraints) and **writes** lessons at
+  Phase 4 stuck-loop escalation and Phase 7 end-of-run. A lesson reaching
+  `seen_count >= 3` (or tagged `structural`) becomes promotion-eligible: the
+  workflow suggests `/create-skill diagnose autonomous-workflow`, which reads
+  `aw-lessons` as evidence and applies a source change only behind the unchanged
+  `confidence(analysis) ≥ 90 %` + user-approval gate. Lessons are **advisory** —
+  they never auto-change behavior (the entrenchment guard against
+  self-reinforcing error). The committed scope is seeded at
+  `<repo>/memory/aw-lessons/`. Coupled surfaces updated: `companion-skills.md`
+  (3 rows + Self-Improvement Loop section), `phase-1-planning.md` (`lessons-read`),
+  `phase-4-testing.md` (`lessons-write`), `phase-7-ci-gate.md` (`lessons-write`),
+  `diagnostic-surface.md` (guards + advisory-only invariant), both agent
+  templates, `SKILL.md` (Self-Improvement section + companion table + install
+  sets + version 3.11.0), and `README.md`. Root `CLAUDE.md` / `README.md`
+  inventory updated. `persistent-memory` skips silently if not installed — the
+  fast tier degrades to nothing and `diagnose` is unaffected. Research basis:
+  CoALA episodic→procedural promotion, ExpeL trajectory-distilled lessons,
+  Agentic Context Engineering (incremental deltas, not rewrites), and the
+  Reflexion / SSGM self-reinforcing-error guards.
 
 - **v3.10** — Plan template tiered into Core + Extended; rationale grounded in
   empirical evidence. The `aw-create-plan` template no longer forces all ~14

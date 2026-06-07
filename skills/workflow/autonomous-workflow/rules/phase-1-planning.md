@@ -63,6 +63,42 @@ non-removable gate in any mode.
 
 ---
 
+## Lessons Read
+
+**Anchor:** `lessons-read`
+
+Before research, load the workflow's accumulated lessons so prior mistakes bias
+the plan. This is the **fast tier** of the self-improvement loop — full contract
+in [`self-improvement-loop.md`](./self-improvement-loop.md#fast-tier--read-lessons).
+
+```
+Skill("persistent-memory", "read aw-lessons --tier project-shared")     # skips silently if not installed
+```
+
+1. Match each lesson's `trigger-context` against the current task (file globs,
+   task type, tech). Load full entries only for matches (progressive disclosure).
+2. Treat each matching lesson's *"What to do next time"* as a **hard constraint**
+   on the plan — like an Acceptance Criterion. Record applied lessons in `plan.md`
+   under `## Lessons applied`.
+3. Lessons are **advisory**: they inform the plan, never silently change a gate
+   or skip a phase. If a lesson conflicts with the user's intent, the user wins —
+   surface the conflict.
+4. **Promotion check:** if any matched lesson has `seen_count >= 3` or
+   `status: structural`, surface the one-line promotion suggestion from
+   [`self-improvement-loop.md#lesson-promotion`](./self-improvement-loop.md#lesson-promotion).
+
+Log:
+
+```markdown
+- [TIMESTAMP] Phase 1: persistent-memory(read aw-lessons --tier project-shared) — N lessons matched, applied as constraints
+- [TIMESTAMP] Phase 1: persistent-memory(read aw-lessons --tier project-shared) — not available, continuing
+```
+
+Disable by removing this invocation (see
+[`companion-skills.md`](./companion-skills.md#registry)).
+
+---
+
 ## Parallel Research
 
 **Anchor:** `parallel-research`
@@ -251,7 +287,7 @@ Disable by removing the invocation here (see
 
 ---
 
-## Adversarial Pre-Mortem (opt-in)
+## Adversarial Pre-Mortem
 
 **Anchor:** `adversarial-pre-mortem`
 
@@ -340,6 +376,7 @@ contract and message format.
 
 ## Planning Checklist
 
+- [ ] `persistent-memory(read aw-lessons --tier project-shared)` invoked; matching lessons applied as constraints (anchor: `lessons-read`)
 - [ ] Codebase analyzed (structure, patterns, stack)
 - [ ] Parallel `Explore` sub-agents used if complexity triggered (anchor: `parallel-research`)
 - [ ] `holistic-analysis` invoked if complexity triggered (anchor: `complex-task-detection`)

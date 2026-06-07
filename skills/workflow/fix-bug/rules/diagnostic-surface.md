@@ -17,6 +17,7 @@ tags:
 - [Failure taxonomy](#failure-taxonomy)
 - [Hard invariants](#hard-invariants)
 - [Artifacts](#artifacts)
+- [Lessons scope](#lessons-scope)
 - [Validators](#validators)
 
 ---
@@ -63,7 +64,7 @@ The bug-notes ledger ([`bug-notes-ledger.md`](./bug-notes-ledger.md)) is read on
 | Phase | Existing guards                                                                                                                                          | Typical gaps                                                                                                                |
 | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | 0     | First-match input-classification table; mode-flag detection (`--analyse-only`, `--verify-deploy`, `--force-holistic`); `bugClass` inference; refuse-on-free-text | Input shape misclassified (e.g. URL-only stack trace); `bugClass` set to `unknown` and downstream gates didn't compensate    |
-| 0.5   | 14-row signal table; conservative-by-default decision rule; refuses `force-simple` when input lacks an anchor; pre-flight can upgrade `complex` → `simple` | Classified `simple` on a cross-cutting bug (caught by CEGIS round 3 fallback); classified `complex` on a trivial bug (wasted tokens, no correctness loss) |
+| 0.5   | 14-row signal table; conservative-by-default decision rule; refuses `force-simple` when input lacks an anchor; pre-flight can upgrade `complex` → `simple`; `persistent-memory(read fix-bug-lessons --tier project-shared)` applies prior triage/repro/analysis lessons as advisory inputs | Classified `simple` on a cross-cutting bug (caught by CEGIS round 3 fallback); classified `complex` on a trivial bug (wasted tokens, no correctness loss); a recorded lesson existed but its `trigger-context` bugClass didn't match so it wasn't applied |
 | 1a    | Per-input resolution procedures; capability gates for Dash0 / Linear / video MCPs                                                                        | MCP missing ⇒ silent fallback that produced a thin Evidence Record                                                           |
 | 1b    | Recent-commits probe; lockfile / env diff; last-known-green deploy SHA; CI flip detection                                                                | Pre-flight short-circuit fired on coincidence (commit aligned but wasn't the cause)                                           |
 | 2a    | Evidence Record schema in [`templates/bug-notes.md`](../templates/bug-notes.md)                                                                          | Required field left blank ⇒ holistic-analysis (or lightweight analysis on fast-lane) ran on incomplete evidence              |
@@ -80,6 +81,7 @@ Cross-cutting guards (apply to every phase):
 
 - **Bug-notes ledger** — survives compaction; phases append on exit so the next phase reads the full record on entry. Failure mode: ledger written but not read (phase ran with stale Evidence Record).
 - **Three independent confidence gates** — `confidence(analysis)` at 4, `confidence(plan)` inside `aw-planner` at 6, `bug-fix-verifier` at 7. Self-grading is not allowed at any of these.
+- **Self-improvement loop (`fix-bug-lessons`)** — read at Phase 0.5, written at Phase 7 verifier-red / Phase 8 telemetry-still-firing / triage upgrades / Phase 5 stops. Lessons are advisory only (never relax a gate); a recurring lesson (`seen_count >= 3`) is promotion-eligible into a permanent guard via `diagnose`. Implementation-phase lessons are owned by `aw-lessons` (via `aw-executor`), not here. Failure mode: a recurring diagnostic-phase failure that was never written as a lesson, so it recurs every run. See [`self-improvement-loop.md`](./self-improvement-loop.md).
 
 The matrix is not exhaustive — when a real failure exposes a guard not listed here, add it as part of a confidence-gated, user-approved diagnosis.
 
@@ -123,6 +125,7 @@ The diagnoser must not propose to relax any of these without explicit user confi
 - **Phase 2b's `/tdd` / `/e2e-testing*` delegation is not optional outside the documented best-effort carve-out, and is enforced mechanically at Phase 5.** A repro may be marked best-effort only when the bug matches one of the cases in [`reproduction.md` § Best-effort fallback](./reproduction.md#best-effort-fallback) (race / production-only / Heisenbug) or rows 7–8 of the layer routing table (visual / performance). The [Phase 5 reproduction gate](../SKILL.md#step-5a--reproduction-gate-mechanical) runs a deterministic check on the bug-notes ledger's `## Reproduction (Phase 2.5)` section before any dispatch and fails-closed when the closed list is not satisfied. "Small diff", "pattern exercised elsewhere", "scaffolding overhead", and "would duplicate the fix" are forbidden self-justifications per [`reproduction.md` § Forbidden reasons to skip Phase 2b](./reproduction.md#forbidden-reasons-to-skip-phase-2b). No force-proceed below this gate.
 - **Phase 6 dispatch and Phase 7 verifier invocation are mechanically required and bypass-resistant.** Implementation work runs **only** inside `aw-executor` via `Task(subagent_type="aw-executor", ...)` — never inline by the main agent. The [Phase 6.pre branch pre-flight assertion](../SKILL.md#step-6pre--branch-pre-flight-assertion-mechanical) fails-closed when the agent reaches Phase 6 on a protected trunk branch (`main` / `master` / `develop` / `trunk`); the [Phase 7.pre draft PR assertion](../SKILL.md#step-7pre--draft-pr-assertion-mechanical) fails-closed when no draft PR exists for the current branch. Direct commits to protected branches and skipping the verifier on "small diff" or "diff-sanity grading only" grounds are forbidden. No force-proceed below either gate.
 - **`--verify-deploy` requires a bug-notes ledger.** Without the ledger, the recovery handle is gone; the skill refuses rather than guessing.
+- **`fix-bug-lessons` are advisory-only.** A lesson biases triage / repro-layer / analysis from prior misfires but must never relax a confidence gate, the Phase 5 thresholds, the reproduction gate, the verifier, or any hard invariant above. The only path from a lesson to a behavior change is a confidence-gated, user-approved `diagnose` apply; promotion requires `seen_count >= 3` (or an explicit `structural` tag). A diagnoser must never propose auto-applying lessons or promoting on one run. See [`self-improvement-loop.md`](./self-improvement-loop.md#entrenchment-guards).
 
 ---
 
@@ -143,6 +146,16 @@ The diagnoser must not propose to relax any of these without explicit user confi
 | Phase 8 verification log                      | `telemetry-verification.md`                                 | Phase 8 (post-deploy)                                               |
 
 `--analyse-only` runs produce only Phases 0–4 artifacts (no plan.md, no PR, no verifier, no Phase 8); diagnoses against analyse-only runs have a thinner evidence trail and the report should call that out. Triage (Phase 0.5) runs and is logged even in analyse-only mode.
+
+---
+
+## Lessons scope
+
+- Scope: `fix-bug-lessons` (fix-bug's own diagnostic-phase lessons; implementation-phase lessons live in `aw-lessons`)
+- Tier: `project-shared` (`<repo>/memory/fix-bug-lessons/`)
+- Read for evidence with: `Skill("persistent-memory", "read fix-bug-lessons --tier project-shared")`
+
+Diagnose Step 2 loads promotion-eligible lessons (`seen_count >= 3` or `status: structural`) as evidence — keyed by `bugClass` + input shape. See [`self-improvement-loop.md`](./self-improvement-loop.md).
 
 ---
 

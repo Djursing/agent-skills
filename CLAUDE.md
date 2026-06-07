@@ -27,10 +27,10 @@ Type markers: `auto` = model-invokable via `Skill()`; `/` = slash command only; 
 
 ### `workflow/` — end-to-end orchestrators
 
-- `autonomous-workflow` (`auto`) — phase-based feature delivery 0–7. Design intent: [`workflow/autonomous-workflow/CLAUDE.md`](./skills/workflow/autonomous-workflow/CLAUDE.md)
+- `autonomous-workflow` (`auto`) — phase-based feature delivery 0–7. Two-tier self-improvement: fast episodic-lessons tier (`persistent-memory` `aw-lessons`, read Phase 1 / write Phase 4·7) promotes to the gated `diagnose` slow tier at `seen_count ≥ 3`. Loop: [`rules/self-improvement-loop.md`](./skills/workflow/autonomous-workflow/rules/self-improvement-loop.md). Design intent: [`workflow/autonomous-workflow/CLAUDE.md`](./skills/workflow/autonomous-workflow/CLAUDE.md)
 - `aw-create-plan`, `aw-create-walkthrough`, `aw-review-quality-gate` (`Skill()`) — autonomous-workflow companions
-- `batch-linear-tickets` (`/`) — fan out `/fix-bug` across Linear tickets; requires Linear MCP
-- `fix-bug` (`/`) — single-bug pipeline phases 0–8. Flags: `--analyse-only`, `--force-holistic`
+- `batch-linear-tickets` (`/`) — fan out `/fix-bug` across Linear tickets; requires Linear MCP. Self-improvement: `batch-lessons` fast tier (read Phase 1 / write Phase 5) for classification + correlation; inherits `aw-lessons` via the planner/executor fan-out; promotes to `diagnose`
+- `fix-bug` (`/`) — single-bug pipeline phases 0–8. Flags: `--analyse-only`, `--force-holistic`. Self-improvement: `fix-bug-lessons` fast tier (read Phase 0.5 / write Phase 5·7·8) for its diagnostic phases; inherits `aw-lessons` via `aw-executor`; promotes to `diagnose`
 - `implement-suggestion` (`/`) — apply reviewer suggestions across PRs; per-comment `/critical` + `/confidence` validation
 
 ### `quality/` — code, tests, plans, AI apps
@@ -81,7 +81,7 @@ Type markers: `auto` = model-invokable via `Skill()`; `/` = slash command only; 
 - `create-skill` (`/`) — scaffold, review, upgrade, diagnose skills
 - `documentation` (`auto`) — author / audit `CLAUDE.md`, `AGENTS.md`, `README.md`, Diátaxis `docs/` trees
 - `optimize-claude-md` (`/`) — audit `CLAUDE.md` for context bloat; refuses below 10k chars
-- `persistent-memory` (`/`) — cross-conversation markdown memory store; tiered (home / project-local / project-shared)
+- `persistent-memory` (`/`) — cross-conversation markdown memory store; tiered (home / project-local / project-shared). Also backs the fast-tier self-improvement loops for `autonomous-workflow`, `fix-bug`, and `batch-linear-tickets` via committed scopes at [`memory/`](./memory/) (`aw-lessons`, `fix-bug-lessons`, `batch-lessons`)
 
 ### Agents
 

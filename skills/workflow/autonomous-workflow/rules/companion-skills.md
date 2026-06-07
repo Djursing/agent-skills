@@ -9,6 +9,7 @@ to disable, swap, or add companions.
 - [How invocation works](#how-invocation-works)
 - [Registry](#registry)
 - [Agent Companions](#agent-companions)
+- [Self-Improvement Loop (persistent-memory)](#self-improvement-loop-persistent-memory)
 - [Stuck-Loop Protocol (Phase 4)](#stuck-loop-protocol-phase-4)
 - [Parallelization](#parallelization)
 - [Adding a New Companion](#adding-a-new-companion)
@@ -44,18 +45,22 @@ When invoking, log one line in the conversation and the `plan.md` Progress Log:
 | `code-quality`       | 1     | Always (informs design — favors low-complexity structures upfront)      | `plan`                | Remove invocation in [`phase-1-planning.md`](./phase-1-planning.md#design-quality)         |
 | `critical`           | 1     | Opt-in only — user passed `--critical` to the workflow. Single adversarial pre-mortem pass between `code-quality(plan)` and `confidence(plan)`; advisory, does not gate. | `plan` | Remove invocation in [`phase-1-planning.md`](./phase-1-planning.md#adversarial-pre-mortem) |
 | `confidence`         | 1     | Always (plan gate — MANDATORY)                                          | `plan`                | **Cannot disable** — required gate                                       |
+| `persistent-memory`  | 1     | Always — load accumulated workflow lessons before design (fast tier of the self-improvement loop) | `read aw-lessons --tier project-shared`     | Remove invocation in [`phase-1-planning.md`](./phase-1-planning.md#lessons-read) |
 | `aw-create-plan`     | 2     | Full Mode only                                                          | —                     | Switch task to Lite Mode                                                 |
+| `persistent-memory`  | 3     | Executor entry — only when `plan.md` has no `## Lessons applied` (no-planner paths: Lite Mode, `fix-bug` fast-lane, direct dispatch) | `read aw-lessons --tier project-shared` | Remove invocation in [`phase-3-implementation.md`](./phase-3-implementation.md#lessons-read) |
 | `tdd`                | 3     | Pure logic / business rules / "test-driven" requested                   | —                     | Remove invocation in [`phase-3-implementation.md`](./phase-3-implementation.md#tdd-trigger) |
 | `ux`                 | 3     | Files touched include `*.tsx`, `*.jsx`, `*.vue`, `*.svelte`, RN screens | —                     | Remove invocation in [`phase-3-implementation.md`](./phase-3-implementation.md#ux-trigger)  |
 | `code-quality`       | 3     | Once at end of Phase 3 (not per-file — TDD owns inner loop)             | `code`                | Remove invocation in [`phase-3-implementation.md`](./phase-3-implementation.md#code-quality-trigger) |
 | `confidence`         | 4     | At iteration cap on same failing area (3 in Lite Mode, 5 in Full Mode) — automatic | `analysis`        | Adjust cap or threshold in [`phase-4-testing.md`](./phase-4-testing.md#stuck-loop-detection) |
 | `holistic-analysis`  | 4     | Auto: when `confidence(analysis) < 90%` (one-shot per area). User-driven: when user picks `try different approach` after escalation | — | Remove invocation in [`phase-4-testing.md`](./phase-4-testing.md#stuck-recovery)            |
 | `test-provenance-guard` | 4  | After Step 5 — any new `*.test.*` / `*.unit.*` / `*.spec.*` file written or extended | `--diff --base $(git merge-base HEAD main) --fix` — autofix is **gated by `confidence(code) ≥ 90 %`** before any file is mutated, plus the three post-heal mechanical gates afterwards. Either failure ⇒ no refactor; stuck-loop protocol takes over | Remove invocation in [`phase-4-testing.md`](./phase-4-testing.md#test-provenance-trigger) |
+| `persistent-memory`  | 4     | At stuck-loop escalation (cap hit / user escalation) — record the failing area and resolution | `write aw-lessons --tier project-shared --auto` | Remove invocation in [`phase-4-testing.md`](./phase-4-testing.md#lessons-write) |
 | `documentation`      | 5     | Always (self-improving doc loop — keeps `CLAUDE.md`, `README.md`, `docs/` aligned) | `update --auto`      | Remove invocation in [`phase-5-documentation.md`](./phase-5-documentation.md#documentation-trigger). Skip per-task by user override or skip-condition match (see [`phase-5-documentation.md#when-to-skip`](./phase-5-documentation.md#when-to-skip)). |
 | `review-changes`     | 6     | Always before push                                                      | —                     | Remove invocation in [`phase-6-pr-creation.md`](./phase-6-pr-creation.md#pre-push-review)   |
 | `aw-create-walkthrough` | 6  | Full Mode only                                                          | —                     | Switch task to Lite Mode                                                 |
 | `create-pr`          | 6     | Always (handles description + push + open + watch)                      | —                     | Remove invocation in [`phase-6-pr-creation.md`](./phase-6-pr-creation.md#pr-creation) (replace with manual `gh pr create`) |
 | `ci-auto-fix`        | 7     | CI run completes with status `failure`                                  | `<run-id\|pr-url>`    | Skip Phase 7 entirely — remove invocation in [`phase-7-ci-gate.md`](./phase-7-ci-gate.md#auto-fix) |
+| `persistent-memory`  | 7     | End-of-run (CI green / user stop / post-merge bug) — record durable run lessons; check promotion | `write aw-lessons --tier project-shared --auto` | Remove invocation in [`phase-7-ci-gate.md`](./phase-7-ci-gate.md#lessons-write) |
 
 ---
 
@@ -71,6 +76,26 @@ A second class of optional companions exists: **agents** (definitions in `agents
 The `reviewer` agent's PR Mode behavior depends on authorship: for cross-review (author ≠ current user) it posts a **pending** GitHub review invisible to the PR author until submitted from the GitHub UI; for self-review (author == current user, detected via Rule 0 `gh api user` pre-check), it auto-fixes and emits an inline terminal report (Step 5.8) — no pending comments are posted (cross-review only; self-authored PRs receive inline terminal report instead).
 
 The `feature-pr-verifier` agent runs in fresh context with no access to the planner's or executor's reasoning — only `plan.md`, `walkthrough.md`, the PR diff, and the project test command. It returns a green / red verdict against the four checks (Acceptance-Criteria match, PASS_TO_PASS, diff sanity, walkthrough integrity). The verdict is advisory: only the user undrafts the PR. This is the feature-PR counterpart to `bug-fix-verifier` (which is owned by `/fix-bug`), and serves the same purpose — closing the self-grading loophole Anthropic's harness research warns about.
+
+---
+
+## Self-Improvement Loop (persistent-memory)
+
+`persistent-memory` is wired in at three points to give the workflow a
+**fast tier** of self-improvement: it reads accumulated lessons before planning
+(Phase 1) and writes new lessons when something goes wrong (Phase 4 stuck-loop)
+or a run completes (Phase 7). Lessons are **advisory** — they bias the plan,
+never silently change a gate. A lesson that recurs (`seen_count >= 3`) or is
+tagged `structural` becomes promotion-eligible: the workflow suggests
+`/create-skill diagnose autonomous-workflow`, which turns the lesson into a
+permanent skill-source change behind the existing `confidence(analysis) ≥ 90 %`
+gate (the **slow tier**).
+
+The full contract — lesson schema, read / write triggers, promotion gate, and
+the entrenchment guards that stop self-reinforcing error — lives in
+[`self-improvement-loop.md`](./self-improvement-loop.md). Like every companion,
+`persistent-memory` **skips silently if not installed**: the fast tier degrades
+to nothing and the slow tier (`diagnose`) is unaffected.
 
 ---
 
