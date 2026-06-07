@@ -24,7 +24,7 @@ shared lesson schema and entrenchment guards are canonical in
 - [Scope](#scope)
 - [Read lessons (Phase 1)](#read-lessons-phase-1)
 - [Write lessons (Phase 5)](#write-lessons-phase-5)
-- [Promotion to skill source](#promotion-to-skill-source)
+- [Lesson promotion to skill source](#lesson-promotion)
 - [Entrenchment guards](#entrenchment-guards)
 
 ---
@@ -47,7 +47,7 @@ decisions `aw-planner` / `aw-executor` never make:
 
 Because this surface is workspace-specific, batch lessons are often most useful
 when promoted into the project's classification / correlation rules — see
-[Promotion](#promotion-to-skill-source).
+[Lesson promotion](#lesson-promotion).
 
 ---
 
@@ -71,7 +71,7 @@ field naming the batch phase (`1a`, `1d`, `2`).
 At the **start of Phase 1**, before classifying ticket types, load lessons:
 
 ```
-Skill("persistent-memory", "read batch-lessons")     # skips silently if not installed
+Skill("persistent-memory", "read batch-lessons --tier project-shared")     # skips silently if not installed
 ```
 
 Apply matches as **advisory inputs**: a classification lesson biases the
@@ -95,7 +95,7 @@ when the batch's own orchestration was shown to misfire:
 | A ticket shape was chronically `Needs Info` | What evidence the investigator needed up front |
 
 ```
-Skill("persistent-memory", "write batch-lessons --auto")     # skips silently if not installed
+Skill("persistent-memory", "write batch-lessons --tier project-shared --auto")     # skips silently if not installed
 ```
 
 `--auto` skips consent, not the privacy pre-flight. Recurring lessons UPDATE and
@@ -103,7 +103,7 @@ bump `seen_count`; at `seen_count >= 3`, surface the promotion suggestion.
 
 ---
 
-## Promotion to skill source
+## Lesson promotion
 
 **Anchor:** `lesson-promotion`
 

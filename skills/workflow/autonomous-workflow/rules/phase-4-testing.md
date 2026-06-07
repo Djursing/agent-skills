@@ -446,7 +446,7 @@ of the self-improvement loop — full contract in
 [`self-improvement-loop.md`](./self-improvement-loop.md#fast-tier--write-lessons).
 
 ```
-Skill("persistent-memory", "write aw-lessons --auto")     # skips silently if not installed
+Skill("persistent-memory", "write aw-lessons --tier project-shared --auto")     # skips silently if not installed
 ```
 
 Capture: the failing area, every hypothesis tried, what finally worked (or that

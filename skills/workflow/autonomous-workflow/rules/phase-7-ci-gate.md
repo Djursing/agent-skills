@@ -390,7 +390,7 @@ the **fast tier** of the self-improvement loop; full contract in
 [`self-improvement-loop.md`](./self-improvement-loop.md#fast-tier--write-lessons).
 
 ```
-Skill("persistent-memory", "write aw-lessons --auto")     # skips silently if not installed
+Skill("persistent-memory", "write aw-lessons --tier project-shared --auto")     # skips silently if not installed
 ```
 
 Good end-of-run lessons: a companion trigger that should have fired but didn't,

@@ -25,7 +25,7 @@ and the entrenchment guards are canonical in
 - [Scope](#scope)
 - [Read lessons (Phase 0.5)](#read-lessons-phase-05)
 - [Write lessons (Phase 5 / 7 / 8 + triage events)](#write-lessons)
-- [Promotion to skill source](#promotion-to-skill-source)
+- [Lesson promotion to skill source](#lesson-promotion)
 - [Entrenchment guards](#entrenchment-guards)
 - [Not the bug-notes ledger](#not-the-bug-notes-ledger)
 
@@ -73,7 +73,7 @@ At the start of **Complexity Triage (Phase 0.5)**, after `bugClass` is inferred
 (Phase 0c) but before the triage decision commits, load lessons:
 
 ```
-Skill("persistent-memory", "read fix-bug-lessons")     # skips silently if not installed
+Skill("persistent-memory", "read fix-bug-lessons --tier project-shared")     # skips silently if not installed
 ```
 
 1. Match each lesson's `trigger-context` against the current `bugClass` + input
@@ -91,8 +91,8 @@ Skill("persistent-memory", "read fix-bug-lessons")     # skips silently if not i
 Log to the ledger:
 
 ```markdown
-- [TIMESTAMP] Phase 0.5: persistent-memory(read fix-bug-lessons) — N lessons matched (bugClass=<x>), applied
-- [TIMESTAMP] Phase 0.5: persistent-memory(read fix-bug-lessons) — not available, continuing
+- [TIMESTAMP] Phase 0.5: persistent-memory(read fix-bug-lessons --tier project-shared) — N lessons matched (bugClass=<x>), applied
+- [TIMESTAMP] Phase 0.5: persistent-memory(read fix-bug-lessons --tier project-shared) — not available, continuing
 ```
 
 ---
@@ -112,7 +112,7 @@ have under-performed — these are the high-signal moments:
 | **Phase 5 stop** | `< 92 %` stop, or below-70 % hand-back | An evidence / analysis gap pattern for this `bugClass` (what evidence would have raised the score) |
 
 ```
-Skill("persistent-memory", "write fix-bug-lessons --auto")     # skips silently if not installed
+Skill("persistent-memory", "write fix-bug-lessons --tier project-shared --auto")     # skips silently if not installed
 ```
 
 - `--auto` skips consent, **not** the privacy pre-flight (never store secrets /
@@ -124,7 +124,7 @@ Log to the ledger's `Phase log`.
 
 ---
 
-## Promotion to skill source
+## Lesson promotion
 
 **Anchor:** `lesson-promotion`
 

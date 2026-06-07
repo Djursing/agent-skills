@@ -23,7 +23,7 @@ contain thin invocation blocks that reference the anchors here.
 - [The lesson record](#the-lesson-record)
 - [Fast tier — read lessons (Phase 1, Phase 3/4)](#fast-tier--read-lessons)
 - [Fast tier — write lessons (Phase 4 stuck-loop, Phase 7 end-of-run)](#fast-tier--write-lessons)
-- [Slow tier — promotion to skill source](#slow-tier--promotion-to-skill-source)
+- [Lesson promotion — slow tier](#lesson-promotion)
 - [Entrenchment guards (load-bearing)](#entrenchment-guards-load-bearing)
 - [Storage](#storage)
 - [Disable](#disable)
@@ -99,7 +99,7 @@ Invoked at the **start of planning** (Phase 1) and again before
 work before mistakes repeat.
 
 ```
-Skill("persistent-memory", "read aw-lessons")     # skips silently if not installed
+Skill("persistent-memory", "read aw-lessons --tier project-shared")     # skips silently if not installed
 ```
 
 After the INDEX loads:
@@ -118,9 +118,9 @@ After the INDEX loads:
 Log:
 
 ```markdown
-- [TIMESTAMP] Phase 1: persistent-memory(read aw-lessons) — N lessons matched, applied as constraints
-- [TIMESTAMP] Phase 1: persistent-memory(read aw-lessons) — not available, continuing
-- [TIMESTAMP] Phase 1: persistent-memory(read aw-lessons) — 0 lessons matched this task
+- [TIMESTAMP] Phase 1: persistent-memory(read aw-lessons --tier project-shared) — N lessons matched, applied as constraints
+- [TIMESTAMP] Phase 1: persistent-memory(read aw-lessons --tier project-shared) — not available, continuing
+- [TIMESTAMP] Phase 1: persistent-memory(read aw-lessons --tier project-shared) — 0 lessons matched this task
 ```
 
 ---
@@ -138,7 +138,7 @@ something went wrong or a run just completed — no new reflection step is added
 | **Phase 7 end-of-run** | CI green, or user-approved stop, or a post-merge bug surfaces in the same session | Any durable lesson from the run — a missed trigger, a plan gap, a recurring fix pattern |
 
 ```
-Skill("persistent-memory", "write aw-lessons --auto")   # skips silently if not installed
+Skill("persistent-memory", "write aw-lessons --tier project-shared --auto")   # skips silently if not installed
 ```
 
 - `--auto` bypasses the consent preview (the autonomous loop cannot pause for
@@ -162,9 +162,9 @@ Log:
 
 ---
 
-## Slow tier — promotion to skill source
+## Lesson promotion
 
-**Anchor:** `lesson-promotion`
+**Anchor:** `lesson-promotion` (slow tier)
 
 A lesson graduates from advisory note to permanent skill rule when it has
 proven itself. Promotion is **suggested**, never automatic.

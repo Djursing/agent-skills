@@ -72,7 +72,7 @@ the plan. This is the **fast tier** of the self-improvement loop — full contra
 in [`self-improvement-loop.md`](./self-improvement-loop.md#fast-tier--read-lessons).
 
 ```
-Skill("persistent-memory", "read aw-lessons")     # skips silently if not installed
+Skill("persistent-memory", "read aw-lessons --tier project-shared")     # skips silently if not installed
 ```
 
 1. Match each lesson's `trigger-context` against the current task (file globs,
@@ -90,8 +90,8 @@ Skill("persistent-memory", "read aw-lessons")     # skips silently if not instal
 Log:
 
 ```markdown
-- [TIMESTAMP] Phase 1: persistent-memory(read aw-lessons) — N lessons matched, applied as constraints
-- [TIMESTAMP] Phase 1: persistent-memory(read aw-lessons) — not available, continuing
+- [TIMESTAMP] Phase 1: persistent-memory(read aw-lessons --tier project-shared) — N lessons matched, applied as constraints
+- [TIMESTAMP] Phase 1: persistent-memory(read aw-lessons --tier project-shared) — not available, continuing
 ```
 
 Disable by removing this invocation (see
@@ -368,7 +368,7 @@ contract and message format.
 
 ## Planning Checklist
 
-- [ ] `persistent-memory(read aw-lessons)` invoked; matching lessons applied as constraints (anchor: `lessons-read`)
+- [ ] `persistent-memory(read aw-lessons --tier project-shared)` invoked; matching lessons applied as constraints (anchor: `lessons-read`)
 - [ ] Codebase analyzed (structure, patterns, stack)
 - [ ] Parallel `Explore` sub-agents used if complexity triggered (anchor: `parallel-research`)
 - [ ] `holistic-analysis` invoked if complexity triggered (anchor: `complex-task-detection`)

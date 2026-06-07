@@ -261,7 +261,7 @@ owns the auto-implement call.
 skill's own past misfires (triage / repro-layer / analysis) bias the run:
 
 ```text
-Skill("persistent-memory", "read fix-bug-lessons")     # skips silently if not installed
+Skill("persistent-memory", "read fix-bug-lessons --tier project-shared")     # skips silently if not installed
 ```
 
 Match lessons by `bugClass` + input shape; apply matches as **advisory inputs**
@@ -510,7 +510,7 @@ and the higher bar on the gate we keep restores the three-gate invariant.
 lesson so the next bug of this `bugClass` does better:
 
 ```text
-Skill("persistent-memory", "write fix-bug-lessons --auto")     # skips silently if not installed
+Skill("persistent-memory", "write fix-bug-lessons --tier project-shared --auto")     # skips silently if not installed
 ```
 
 `--auto` skips consent, not the privacy pre-flight. See
@@ -647,7 +647,7 @@ three gates, which is the highest-signal moment to capture *which earlier phase
 under-caught it* (triage too `simple`? repro false-green? analysis wrong file?):
 
 ```text
-Skill("persistent-memory", "write fix-bug-lessons --auto")     # skips silently if not installed
+Skill("persistent-memory", "write fix-bug-lessons --tier project-shared --auto")     # skips silently if not installed
 ```
 
 See [`rules/self-improvement-loop.md`](./rules/self-improvement-loop.md#write-lessons).
@@ -689,7 +689,7 @@ is the strongest evidence that the "fix" did not fix the production symptom, and
 almost always points back to a Phase 3 analysis or Phase 2b repro-fidelity gap:
 
 ```text
-Skill("persistent-memory", "write fix-bug-lessons --auto")     # skips silently if not installed
+Skill("persistent-memory", "write fix-bug-lessons --tier project-shared --auto")     # skips silently if not installed
 ```
 
 See [`rules/self-improvement-loop.md`](./rules/self-improvement-loop.md#write-lessons).

@@ -138,7 +138,7 @@ Before classifying, load `batch-lessons` so prior classification and correlation
 misfires bias this batch:
 
 ```text
-Skill("persistent-memory", "read batch-lessons")     # skips silently if not installed
+Skill("persistent-memory", "read batch-lessons --tier project-shared")     # skips silently if not installed
 ```
 
 Match lessons by label set / ticket-type / affected-area; apply as **advisory
@@ -317,7 +317,7 @@ When the batch's own orchestration misfired, write a lesson so the next batch
 does better:
 
 ```text
-Skill("persistent-memory", "write batch-lessons --auto")     # skips silently if not installed
+Skill("persistent-memory", "write batch-lessons --tier project-shared --auto")     # skips silently if not installed
 ```
 
 Capture: a ticket whose type was wrong (label set → correct type), a

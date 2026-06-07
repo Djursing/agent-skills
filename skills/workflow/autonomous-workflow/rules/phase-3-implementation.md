@@ -12,6 +12,7 @@ tags:
 ## Contents
 
 - [Receiving Planner Handoff](#receiving-planner-handoff)
+- [Lessons Read](#lessons-read)
 - [Overview](#overview)
 - [Prerequisite](#prerequisite)
 - [Core Principles](#core-principles)
@@ -43,6 +44,27 @@ This is the executor's entry phase. Before starting Step 1 of implementation:
 
 See [`planner-executor-handoff.md`](./planner-executor-handoff.md) for the
 full handoff contract.
+
+## Lessons Read
+
+**Anchor:** `lessons-read`
+
+Load `aw-lessons` for the area being implemented — **only when `plan.md` has no
+`## Lessons applied` section** (i.e. the planner did not already apply them at
+Phase 1). This covers the no-planner paths: Lite Mode, the `fix-bug` fast-lane,
+and any direct executor dispatch. If `plan.md` already lists applied lessons,
+skip — they are already in context.
+
+```
+Skill("persistent-memory", "read aw-lessons --tier project-shared")     # skips silently if not installed
+```
+
+Match each lesson's `trigger-context` against the files / area you are about to
+touch; treat matches as constraints (same advisory rule as the planner's read).
+Full contract: [`self-improvement-loop.md`](./self-improvement-loop.md#fast-tier--read-lessons).
+
+Disable by removing this invocation (see
+[`companion-skills.md`](./companion-skills.md#registry)).
 
 ## Overview
 
@@ -316,6 +338,7 @@ Registry: [`companion-skills.md`](./companion-skills.md#registry).
 
 ## Implementation Checklist
 
+- [ ] `aw-lessons` read at executor entry when `plan.md` had no `## Lessons applied` (anchor: `lessons-read`)
 - [ ] All planned files modified
 - [ ] Code follows existing patterns
 - [ ] Fast check passes after each edit (max 3 attempts per failure)
