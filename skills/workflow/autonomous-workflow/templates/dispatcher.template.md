@@ -68,13 +68,16 @@ planner/executor agents.
 ## Tier detection
 
 Walk the questions in order; the first `yes` wins. **When in doubt, go heavier.**
+This table is **identical to `SKILL.md` Step 1** — keep the two in sync if either changes.
 
 | # | Question | If yes → |
 | - | -------- | -------- |
-| 1 | Architectural / cross-cutting / needs design decisions, OR unfamiliar code/domain? | **Full** |
-| 2 | Touches 4+ files OR 2+ packages? | **Full** |
-| 3 | Touches 2–3 files, OR any non-trivial logic change? | **Lite** |
-| 4 | Otherwise (1 file, purely mechanical — typo, copy, version/dependency bump, config one-liner, no logic change) | **Micro** |
+| 1 | Is this task architectural / cross-cutting / does it require significant design decisions? | **Full** |
+| 2 | Does it involve unfamiliar code or domains the agent hasn't worked in before? | **Full** |
+| 3 | Is the change touching 4+ files OR 2+ packages? | **Full** |
+| 4 | Is the change 2–3 files, OR any non-trivial logic change? | **Lite** (else → **Micro**) |
+
+**Micro** = 1 file, purely mechanical (typo, copy, version/dependency bump, config one-liner, no logic change).
 
 Emit:
 
@@ -92,7 +95,7 @@ MODE SELECTION:
 | ---- | ----------- | ------------- | ---------- |
 | **Micro** | **You, single-pass.** Phase 0 (quick confirm) → Phase 2 (worktree) → edit → fast check → `documentation update` only if docs drift → `create-pr`. Skip planning and all quality companions. | none | none (except docs-if-needed) |
 | **Lite** | **You, single-pass.** Run the Lite path from `SKILL.md` in this one context (brief mental plan, no `plan.md`); light companions per task signal. | none | per signal (Phase 5 docs, Phase 6 create-pr always) |
-| **Full** | **Hand off to the split.** Dispatch `aw-planner` (it produces a gated `plan.md`), then on a cleared gate dispatch `aw-executor`. You do **not** write production code in this tier. | `plan.md` | all applicable |
+| **Full** | **Hand off to the split — dispatch only.** Dispatch `aw-planner` (it produces a gated `plan.md`), then on a cleared gate dispatch `aw-executor`. **Never** use `Edit`/`Write`/`Bash` to touch production code, tests, or docs yourself in this tier — that is `aw-executor`'s job. | `plan.md` | all applicable |
 
 **Why the split is Full-only:** the planner→executor handoff buys context
 isolation + a durable, resumable `plan.md` — documented wins for complex/long
@@ -141,6 +144,11 @@ handoff.
 
 - **Stay thin.** You route + own the loop. Do not duplicate planning/coding
   knowledge here — it lives in the skill, companions, planner, and executor.
+- **Your `Edit`/`Write`/`Bash` budget is for Micro/Lite single-pass execution
+  only.** In the **Full** tier you dispatch and never edit source yourself. If
+  you catch yourself reaching for `Edit`/`Write` on a Full task, stop — that work
+  belongs to `aw-executor`. (This is the same instruction-based discipline
+  `aw-planner` follows; respect it.)
 - **Opt-in, not a wrapper.** You run because the user phrased autonomous work or
   invoked `@aw`. Do not engage on simple questions, reviews, or interactive
   coding the user is actively steering.

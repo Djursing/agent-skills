@@ -580,6 +580,34 @@ There's no automated test suite for this skill. The validation pattern is:
 If you change the stuck-loop number, mode-detection criteria, or the
 companion list, do both runs.
 
+#### `aw` dispatcher smoke test (run after any dispatcher / tier-routing change)
+
+The dispatcher's two load-bearing runtime behaviors have **no static check** —
+they must be exercised live (markdown can't prove them). Run this after editing
+`dispatcher.template.md`, the tier tables, or the routing rule:
+
+1. **Install** all three agents: `bash install.sh --development` (links `aw.md`,
+   `aw-planner.md`, `aw-executor.md`) and confirm `readlink ~/.claude/agents/aw.md`
+   resolves.
+2. **Micro routing (single-pass, no split):** invoke `@aw` on a 1-file mechanical
+   change (e.g. fix a typo in a README). Expect: `MODE SELECTION: Tier: Micro`,
+   no `aw-planner` dispatch, a worktree + draft PR, **no `plan.md`**.
+3. **Full routing (nested dispatch — the R1 risk):** invoke `@aw` on a 4-file /
+   architectural task. Expect: `Tier: Full`, then `aw` **dispatches `aw-planner`**
+   (a gated `plan.md` appears), then **`aw-executor`**. If the harness refuses
+   nested sub-agent dispatch, `aw` must fall back to telling you to run them —
+   confirm it does **not** silently downgrade to single-pass.
+4. **Universal loop + tier pin (the R2 risk):** after any of the above, confirm a
+   lesson file was written under **`<repo>/memory/aw-lessons/entries/`** (the
+   committed `project-shared` scope) — **not** `~/.agent-memory/aw-lessons/`. If
+   it landed in `~/.agent-memory/`, the `--tier project-shared` pin is not being
+   honored by `persistent-memory`.
+5. **Opt-in boundary:** in an interactive session, make a casual single-file edit
+   **without** a trigger phrase or `@aw`. Expect: `aw` does **not** engage.
+
+Steps 3 and 4 are the gate — they cover the only two behaviors that reading the
+source cannot verify.
+
 ---
 
 ## Coupled documentation
