@@ -22,7 +22,7 @@ user-invocable: true
 disable-model-invocation: true
 metadata:
   author: mthines
-  version: '2.1.0'
+  version: '2.2.0'
   workflow_type: orchestrator
   architecture: classify/triage/preflight/reproduce/analyse/gate/handoff(fast|standard)/verify/telemetry
   agents:
@@ -139,6 +139,7 @@ Flags are mutually exclusive. They are detected in Phase 0 step 0a and stripped 
 | `bug-fix-verifier` agent ([`agents/bug-fix-verifier.md`](../../../agents/bug-fix-verifier.md)) | Phase 7 independent verification | **Yes** for auto-fix path |
 | `gh` CLI | Draft PR creation by `aw-executor`; `gh pr ready` by Phase 7 | **Yes** for auto-fix path |
 | `gw` CLI | Worktree management (planner) | Recommended |
+| `persistent-memory` skill | `fix-bug-lessons` self-improvement loop (read Phase 0.5, write Phase 5/7/8) | Optional — loop skips silently if absent |
 | `video-analyser` skill | Resolve video / screen-recording inputs | If video input |
 | Dash0 MCP server (`mcp__dash0__*` or equivalent) | Resolve span / log / web event URLs; Phase 8 polling | If Dash0 input |
 | Linear MCP (`mcp__claude_ai_Linear__*`) | Linear-ticket input route via `linear-ticket-investigator` | If Linear input |
@@ -158,6 +159,7 @@ Flags are mutually exclusive. They are detected in Phase 0 step 0a and stripped 
 | [independent-verification](./rules/independent-verification.md) | Phase 7 — verifier checks (FAIL_TO_PASS, PASS_TO_PASS, diff sanity, repro integrity) |
 | [telemetry-verification](./rules/telemetry-verification.md) | Phase 8 — post-deploy polling of the originating telemetry query |
 | [bug-notes-ledger](./rules/bug-notes-ledger.md) | Cross-cutting — durable artefact written by every phase |
+| [self-improvement-loop](./rules/self-improvement-loop.md) | Cross-cutting — `fix-bug-lessons` fast tier (read Phase 0.5 / write Phase 5·7·8) + promotion to `diagnose` |
 | [diagnostic-surface](./rules/diagnostic-surface.md) | Consumed by `/create-skill diagnose fix-bug` — phase model, failure taxonomy, existing-guards table, hard invariants |
 
 ## Templates
@@ -254,6 +256,18 @@ Pick between two routing lanes for the rest of the pipeline: **`simple`** (light
 analysis + fast-lane handoff) or **`complex`** (canonical holistic-analysis + standard-lane
 handoff). This is a **routing decision, not a quality decision** — confidence (Phase 4) still
 owns the auto-implement call.
+
+**Before the decision — read prior lessons.** Load `fix-bug-lessons` so this
+skill's own past misfires (triage / repro-layer / analysis) bias the run:
+
+```text
+Skill("persistent-memory", "read fix-bug-lessons")     # skips silently if not installed
+```
+
+Match lessons by `bugClass` + input shape; apply matches as **advisory inputs**
+to the triage decision (they never override the conservative `complex` default
+or relax any gate). Record applied lessons in the bug-notes ledger. Full
+contract: [`rules/self-improvement-loop.md`](./rules/self-improvement-loop.md#read-lessons-phase-05).
 
 Walk the 14-row signal table in [`rules/complexity-triage.md`](./rules/complexity-triage.md) and
 apply the decision rule (conservative default: pick `complex` when in doubt). The outcome:
@@ -491,6 +505,17 @@ The 92 % threshold is the substitute for aw-planner's `confidence(plan) ≥ 90 %
 bypasses. It is *stricter* on purpose: bypassing the planner means one fewer independent gate,
 and the higher bar on the gate we keep restores the three-gate invariant.
 
+**On a stop (`< 92 %`, or below-70 % hand-back), and on any triage upgrade
+(`simple → complex`) or fast-lane → standard-lane CEGIS fallback**, write a
+lesson so the next bug of this `bugClass` does better:
+
+```text
+Skill("persistent-memory", "write fix-bug-lessons --auto")     # skips silently if not installed
+```
+
+`--auto` skips consent, not the privacy pre-flight. See
+[`rules/self-improvement-loop.md`](./rules/self-improvement-loop.md#write-lessons).
+
 ---
 
 ## Phase 6 — Autonomous Handoff (Lane-Split)
@@ -617,6 +642,16 @@ See [`rules/independent-verification.md`](./rules/independent-verification.md) f
 procedure. Source: [Effective harnesses for long-running agents (Anthropic)](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
 — "agents reliably skew positive when grading their own work."
 
+**On a verifier RED verdict**, write a lesson — the fix was wrong despite all
+three gates, which is the highest-signal moment to capture *which earlier phase
+under-caught it* (triage too `simple`? repro false-green? analysis wrong file?):
+
+```text
+Skill("persistent-memory", "write fix-bug-lessons --auto")     # skips silently if not installed
+```
+
+See [`rules/self-improvement-loop.md`](./rules/self-improvement-loop.md#write-lessons).
+
 ---
 
 ## Phase 8 — Telemetry Verification
@@ -649,16 +684,40 @@ Default operating mode is **deferred** — emit a follow-up task to be re-invoke
 lands (`/fix-bug --verify-deploy <PR>`). The `--inline-verify` flag opts into running
 synchronously when the project auto-deploys on merge.
 
+**If the originating signal does not decay (or recurs)**, write a lesson — this
+is the strongest evidence that the "fix" did not fix the production symptom, and
+almost always points back to a Phase 3 analysis or Phase 2b repro-fidelity gap:
+
+```text
+Skill("persistent-memory", "write fix-bug-lessons --auto")     # skips silently if not installed
+```
+
+See [`rules/self-improvement-loop.md`](./rules/self-improvement-loop.md#write-lessons).
+
 ---
 
-## Retrospective Self-Improvement
+## Self-Improvement
 
-If a `/fix-bug` run shipped wrong code despite all three confidence gates passing — or a
-post-merge regression traces back to a missed check — invoke
-[`/create-skill diagnose fix-bug`](../../authoring/create-skill/SKILL.md#diagnose-workflow) **while the
-failing session is still in context**. The diagnoser reads this skill's
-[diagnostic surface](./rules/diagnostic-surface.md) and emits a confidence-gated diff
-against this skill's source — never against user product code.
+`/fix-bug` improves across bugs through a **two-tier loop** (full contract:
+[`rules/self-improvement-loop.md`](./rules/self-improvement-loop.md)).
+
+**Fast tier — episodic lessons (`persistent-memory`, optional).** Reads
+`fix-bug-lessons` at Phase 0.5 (keyed by `bugClass` + input shape) and writes
+lessons at the highest-signal failure moments — verifier RED (Phase 7),
+telemetry-still-firing (Phase 8), triage upgrades, and Phase 5 stops — in the
+committed `fix-bug-lessons` scope. Lessons cover fix-bug's **own** diagnostic
+phases; implementation-phase lessons live in `aw-lessons` (written by
+`aw-executor`). Lessons are advisory and skip silently if `persistent-memory`
+is absent.
+
+**Slow tier — retrospective diagnosis.** If a run shipped wrong code despite all
+three confidence gates — or a post-merge regression traces back to a missed
+check, or a lesson recurs `seen_count >= 3` — invoke
+[`/create-skill diagnose fix-bug`](../../authoring/create-skill/SKILL.md#diagnose-workflow)
+**while the failing session is still in context**. The diagnoser reads this
+skill's [diagnostic surface](./rules/diagnostic-surface.md) and the
+`fix-bug-lessons` history as evidence, and emits a confidence-gated diff against
+this skill's source — never against user product code.
 
 ---
 
@@ -762,3 +821,8 @@ shape stays stable; only the tail varies.
     `linear-ticket-investigator` to produce an Evidence Record, then continues at Phase 2 like
     any other input. `/batch-linear-tickets` is a thin wrapper that fans out
     `/fix-bug --analyse-only` per ticket.
+12. **Learn across bugs, but only advisory.** `fix-bug-lessons` (read Phase 0.5,
+    write Phase 5/7/8) biases triage / repro / analysis from prior misfires;
+    it never relaxes a gate. A lesson recurring `seen_count >= 3` is promoted
+    into a permanent guard only through the confidence-gated `diagnose` apply.
+    Implementation-phase learning lives in `aw-lessons` via `aw-executor`.
