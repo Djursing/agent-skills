@@ -338,6 +338,11 @@ Exactly three options, plain language:
 
 **Step 3: Exit loop based on response.**
 
+**Step 4: Capture the lesson.** Before or immediately after escalation, write a
+lesson per [Lessons Write](#lessons-write) so the failing area, the hypotheses
+tried, and the resolution are available to future runs. Skip silently if
+`persistent-memory` is not installed.
+
 ### Logging
 
 Log every step of the auto-replan protocol in `plan.md` Progress Log:
@@ -431,6 +436,43 @@ catalogue.
 
 ---
 
+## Lessons Write
+
+**Anchor:** `lessons-write`
+
+When the stuck-loop hits the cap (and especially at mandatory user escalation),
+capture what was learned so the next run does better. This is the **fast tier**
+of the self-improvement loop — full contract in
+[`self-improvement-loop.md`](./self-improvement-loop.md#fast-tier--write-lessons).
+
+```
+Skill("persistent-memory", "write aw-lessons --auto")     # skips silently if not installed
+```
+
+Capture: the failing area, every hypothesis tried, what finally worked (or that
+it didn't), and the **earliest phase** that should have caught it. The lesson is
+**procedural** — phrase *"What to do next time"* as a prescriptive, testable
+instruction (see the schema in the loop file).
+
+- `--auto` skips the consent preview (the loop cannot pause per write); the
+  **privacy pre-flight still runs** — never store secrets / PII. Lessons are
+  about workflow mechanics, never product data.
+- A recurring lesson resolves to **UPDATE** and bumps `seen_count` — it does not
+  duplicate. When `seen_count >= 3`, surface the promotion suggestion from
+  [`self-improvement-loop.md#lesson-promotion`](./self-improvement-loop.md#lesson-promotion).
+
+Log:
+
+```markdown
+- [TIMESTAMP] Phase 4: persistent-memory(write aw-lessons) — 1 lesson (UPDATE, seen_count→3); promotion suggested
+- [TIMESTAMP] Phase 4: persistent-memory(write aw-lessons) — not available, continuing
+```
+
+Disable by removing this invocation (see
+[`companion-skills.md`](./companion-skills.md#registry)).
+
+---
+
 ## Test Provenance Trigger
 
 This section is the anchor referenced from [`companion-skills.md`](./companion-skills.md#registry).
@@ -496,6 +538,7 @@ Registry: [`companion-skills.md`](./companion-skills.md#registry).
 - [ ] `plan.v{N+1}.md` snapshot created and `plan.md` updated after auto-replan (via `aw-create-plan`)
 - [ ] One-shot guard respected — auto_replan_used not bypassed
 - [ ] User escalation triggered when confidence >= 90% OR auto-replan exhausted
+- [ ] `persistent-memory(write aw-lessons)` invoked at stuck-loop escalation; promotion suggested if `seen_count >= 3` (anchor: `lessons-write`)
 - [ ] New tests added for new functionality
 - [ ] `test-provenance-guard` invoked after new test files written; findings healed or escalated
 - [ ] Full suite + lint + build all green

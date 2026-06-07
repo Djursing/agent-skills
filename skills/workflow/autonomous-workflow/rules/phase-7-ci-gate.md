@@ -176,7 +176,9 @@ Once all checks are green:
 
 Tell the user: PR URL, all checks green, and that the worktree is preserved pending their review/merge.
 
-Then proceed to [Auto Verify](#auto-verify) before any cleanup.
+Then proceed to [Auto Verify](#auto-verify) before any cleanup. Capture any
+durable run lesson per [Lessons Write](#lessons-write) (also applies on a
+user-approved stop, or when a post-merge bug surfaces in the same session).
 
 ## Auto Verify
 
@@ -378,6 +380,41 @@ cd "$(git rev-parse --show-toplevel)"
 - [TIMESTAMP] Phase 7: Worktree <branch-name> removed (post-merge)
 ```
 
+## Lessons Write
+
+**Anchor:** `lessons-write`
+
+At end-of-run — CI green, a user-approved stop, or a post-merge bug observed in
+the same session — capture any durable lesson so future runs improve. This is
+the **fast tier** of the self-improvement loop; full contract in
+[`self-improvement-loop.md`](./self-improvement-loop.md#fast-tier--write-lessons).
+
+```
+Skill("persistent-memory", "write aw-lessons --auto")     # skips silently if not installed
+```
+
+Good end-of-run lessons: a companion trigger that should have fired but didn't,
+a plan gap that surfaced only during execution, a recurring fix pattern worth
+encoding. Capture nothing if the run was clean — empty lessons are noise.
+
+- `--auto` skips consent, **not** the privacy pre-flight (never store secrets /
+  PII). Lessons are workflow mechanics, never product data.
+- Recurring lessons UPDATE and bump `seen_count`. When a written or matched
+  lesson reaches `seen_count >= 3` (or is tagged `structural`), surface the
+  promotion suggestion — run `/create-skill diagnose autonomous-workflow` to
+  harden the skill's source behind its confidence gate. See
+  [`self-improvement-loop.md#lesson-promotion`](./self-improvement-loop.md#lesson-promotion).
+
+Log:
+
+```markdown
+- [TIMESTAMP] Phase 7: persistent-memory(write aw-lessons) — 1 lesson (ADD); 1 promotion-eligible (seen_count=3) → suggested diagnose
+- [TIMESTAMP] Phase 7: persistent-memory(write aw-lessons) — not available, continuing
+```
+
+Disable by removing this invocation (see
+[`companion-skills.md`](./companion-skills.md#registry)).
+
 ## Phase 7 Checklist
 
 - [ ] CI watch started after PR opened
@@ -388,6 +425,7 @@ cd "$(git rev-parse --show-toplevel)"
 - [ ] (Optional, Full Mode) `feature-pr-verifier` agent dispatched after CI green; verdict surfaced or skip logged
 - [ ] (Optional) `reviewer` agent dispatched after CI green; inline report surfaced or skip logged
 - [ ] (Optional) PR merged → worktree removed with user confirmation
+- [ ] `persistent-memory(write aw-lessons)` invoked at end-of-run; promotion suggested if `seen_count >= 3` (anchor: `lessons-write`)
 - [ ] Final status reported to user
 
 ## References

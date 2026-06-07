@@ -37,6 +37,7 @@ the workflow never blocks on a missing companion.
 | [`rules/artifacts-overview.md`](./rules/artifacts-overview.md) | Artifact pattern (`.agent/{branch}/`).      |
 | [`rules/error-recovery.md`](./rules/error-recovery.md)         | Recovery procedures for common errors.      |
 | [`rules/safety-guardrails.md`](./rules/safety-guardrails.md)   | Validation checkpoints and resource caps.   |
+| [`rules/self-improvement-loop.md`](./rules/self-improvement-loop.md) | Fast-tier episodic-lessons loop (`aw-lessons`) + promotion to `diagnose`. |
 | [`rules/parallel-coordination.md`](./rules/parallel-coordination.md) | Sub-agent fan-out and multi-agent handoff. |
 | [`templates/`](./templates/)       | Agent template + auto-trigger routing rule.                     |
 | [`references/`](./references/)     | Lazy-loaded examples (full execution trace, error scenarios).   |
@@ -89,7 +90,7 @@ routing-rule symlinks for you. Two steps: download skills, then run install.
 npx skills add https://github.com/mthines/agent-skills \
   --skill autonomous-workflow aw-create-plan aw-create-walkthrough confidence \
           code-quality holistic-analysis tdd ux documentation \
-          review-changes create-pr ci-auto-fix \
+          review-changes create-pr ci-auto-fix persistent-memory \
   --agent claude-code \
   --global --yes
 bash ~/.claude/skills/autonomous-workflow/install.sh --global
@@ -101,7 +102,7 @@ bash ~/.claude/skills/autonomous-workflow/install.sh --global
 npx skills add https://github.com/mthines/agent-skills \
   --skill autonomous-workflow aw-create-plan aw-create-walkthrough confidence \
           code-quality holistic-analysis tdd ux documentation \
-          review-changes create-pr ci-auto-fix \
+          review-changes create-pr ci-auto-fix persistent-memory \
   --agent claude-code \
   --yes
 bash .claude/skills/autonomous-workflow/install.sh
@@ -143,6 +144,7 @@ trigger registry is in
 
 | Phase | Companion              | Required? | What it does                                  |
 | ----- | ---------------------- | --------- | --------------------------------------------- |
+| 1     | `persistent-memory`    | Optional  | Reads `aw-lessons` — applies prior workflow lessons as plan constraints (fast-tier self-improvement) |
 | 1     | `holistic-analysis`    | Optional  | Multi-domain execution-path tracing           |
 | 1     | `code-quality`         | Optional  | Design-quality review (informs the plan)      |
 | 1     | `confidence`           | **Required** | Plan gate (>= 90% to proceed)              |
@@ -156,7 +158,9 @@ trigger registry is in
 | 6     | `review-changes`       | Optional  | Pre-PR diff review                            |
 | 6     | `aw-create-walkthrough` | Optional  | Writes `.agent/{branch}/walkthrough.md`      |
 | 6     | `create-pr`            | Optional  | Narrative PR description + push + watch       |
+| 4     | `persistent-memory`    | Optional  | Writes a lesson at stuck-loop escalation (`write aw-lessons`) |
 | 7     | `ci-auto-fix`          | Optional  | Diagnose + fix failed CI checks               |
+| 7     | `persistent-memory`    | Optional  | End-of-run: writes durable run lessons; suggests promotion when `seen_count >= 3` |
 | 7     | `reviewer` *(agent)*   | Optional  | After CI green: dispatches as PR Mode sub-agent and posts a pending GitHub review |
 
 **`confidence` at Phase 1 is the only non-removable companion.** Without it,
@@ -290,10 +294,27 @@ You can also invoke explicitly: `@autonomous-workflow implement X`.
 
 ---
 
-## Retrospective Self-Improvement
+## Self-Improvement
+
+The workflow improves across runs through a **two-tier loop** (full contract:
+[`rules/self-improvement-loop.md`](./rules/self-improvement-loop.md)).
+
+### Fast tier — episodic lessons (`persistent-memory`)
+
+When `persistent-memory` is installed, the workflow **reads** accumulated
+lessons before planning (Phase 1) and **writes** new ones when it gets stuck
+(Phase 4) or finishes (Phase 7), in the committed `aw-lessons` scope at
+`<repo>/memory/aw-lessons/`. Lessons are **advisory** — they bias the plan
+(applied like Acceptance Criteria), never silently change a gate. The fast tier
+is fully optional: uninstall `persistent-memory` and it degrades to nothing.
+Lessons expire (default 90 days) and `/persistent-memory consolidate aw-lessons`
+prunes stale ones, so a wrong lesson decays instead of entrenching.
+
+### Slow tier — retrospective diagnosis
 
 If the workflow ships incorrect code despite all gates passing — or a
-post-merge bug traces back to a missed check — invoke
+post-merge bug traces back to a missed check, or a lesson recurs
+`seen_count >= 3` — invoke
 `/create-skill diagnose autonomous-workflow` **while the failing session is
 still in context**. It does not run the phases. It analyses the failed run,
 classifies the failure against this skill's taxonomy, walks every phase to
@@ -353,6 +374,7 @@ to this skill's source.
 - [`review-changes`](../../quality/review-changes/) — pre-PR review
 - [`create-pr`](../../delivery/create-pr/) — narrative PR description + push + watch
 - [`ci-auto-fix`](../../delivery/ci-auto-fix/) — diagnose and fix failed CI checks
+- [`persistent-memory`](../../authoring/persistent-memory/) — backs the `aw-lessons` fast-tier self-improvement loop
 - [`git-worktree-workflows`](../git-worktree-workflows/) — worktree basics
 
 ---
