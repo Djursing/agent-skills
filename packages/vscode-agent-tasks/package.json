@@ -1,0 +1,528 @@
+{
+  "name": "agent-tasks",
+  "displayName": "Agent Tasks",
+  "description": "Visualize autonomous agent workflow artifacts (plan.md, task.md, walkthrough.md, diagnose-*.md) from the VS Code sidebar",
+  "version": "0.71.0",
+  "publisher": "mthines",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mthines/agent-skills.git",
+    "directory": "packages/vscode-agent-tasks"
+  },
+  "icon": "icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "agent",
+    "workflow",
+    "tasks",
+    "plan",
+    "autonomous"
+  ],
+  "activationEvents": [
+    "workspaceContains:.agent",
+    "workspaceContains:.gw",
+    "onStartupFinished",
+    "onView:agentSessionsExplorer"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agentTasks",
+          "title": "Agent Tasks",
+          "icon": "$(tasklist)"
+        }
+      ]
+    },
+    "views": {
+      "agentTasks": [
+        {
+          "id": "agentSessionsExplorer",
+          "name": "Sessions",
+          "icon": "$(history)",
+          "contextualTitle": "Claude Sessions"
+        },
+        {
+          "id": "agentTasksExplorer",
+          "name": "Agent Tasks",
+          "icon": "$(tasklist)",
+          "contextualTitle": "Agent Tasks"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "agentTasks.refresh",
+        "title": "Refresh Agent Tasks",
+        "icon": "$(refresh)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.openPlan",
+        "title": "Open Plan",
+        "icon": "$(notebook)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.openTask",
+        "title": "Open Task File",
+        "icon": "$(tasklist)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.openWalkthrough",
+        "title": "Open Walkthrough",
+        "icon": "$(book)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.sort",
+        "title": "Sort Agent Tasks",
+        "icon": "$(list-ordered)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.focus",
+        "title": "Focus Agent Tasks Sidebar",
+        "icon": "$(tasklist)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.openMarkdown",
+        "title": "Open Markdown File",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.sessions.refresh",
+        "title": "Refresh Sessions",
+        "icon": "$(refresh)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.sessions.openSession",
+        "title": "Resume Session",
+        "icon": "$(play)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.sessions.toggleScope",
+        "title": "Group by Worktree",
+        "icon": "$(list-tree)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.sessions.find",
+        "title": "Find Session…",
+        "icon": "$(search)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.toggleScope",
+        "title": "Toggle Agent Tasks Scope (current / all worktrees)",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "agentTasks.sessions.newSession",
+        "title": "New Claude Session",
+        "icon": "$(add)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.revealInOS",
+        "title": "Reveal in Finder",
+        "icon": "$(folder-opened)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.copyPath",
+        "title": "Copy Path",
+        "icon": "$(copy)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.deleteArtifacts",
+        "title": "Delete…",
+        "icon": "$(trash)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.hooks.enable",
+        "title": "Turn on live session updates",
+        "icon": "$(zap)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.sessions.openPR",
+        "title": "Open PR in Browser",
+        "icon": "$(link-external)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.sessions.openPRForBranch",
+        "title": "Open Pull Request",
+        "icon": "$(git-pull-request)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.sessions.createPRForBranch",
+        "title": "Create Pull Request",
+        "icon": "$(git-pull-request-create)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.sessions.openFilter",
+        "title": "Filter Sessions…",
+        "icon": "$(filter)",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.sessions.resetFilter",
+        "title": "Show All Sessions",
+        "category": "Agent Tasks"
+      },
+      {
+        "command": "agentTasks.sessions.restoreDefaultFilter",
+        "title": "Show Fewer Sessions (Restore Default Filter)",
+        "category": "Agent Tasks"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "agentTasks.openPlan",
+          "when": "false"
+        },
+        {
+          "command": "agentTasks.openTask",
+          "when": "false"
+        },
+        {
+          "command": "agentTasks.openWalkthrough",
+          "when": "false"
+        },
+        {
+          "command": "agentTasks.openMarkdown",
+          "when": "false"
+        },
+        {
+          "command": "agentTasks.sessions.openSession",
+          "when": "false"
+        },
+        {
+          "command": "agentTasks.sessions.newSession",
+          "when": "false"
+        },
+        {
+          "command": "agentTasks.revealInOS",
+          "when": "false"
+        },
+        {
+          "command": "agentTasks.copyPath",
+          "when": "false"
+        },
+        {
+          "command": "agentTasks.deleteArtifacts",
+          "when": "false"
+        },
+        {
+          "command": "agentTasks.sessions.openPR",
+          "when": "false"
+        },
+        {
+          "command": "agentTasks.sessions.openPRForBranch",
+          "when": "false"
+        },
+        {
+          "command": "agentTasks.sessions.createPRForBranch",
+          "when": "false"
+        },
+        {
+          "command": "agentTasks.sessions.openFilter",
+          "when": "true"
+        },
+        {
+          "command": "agentTasks.sessions.resetFilter",
+          "when": "true"
+        },
+        {
+          "command": "agentTasks.sessions.restoreDefaultFilter",
+          "when": "true"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "agentTasks.refresh",
+          "when": "view == agentTasksExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "agentTasks.sort",
+          "when": "view == agentTasksExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "agentTasks.toggleScope",
+          "when": "view == agentTasksExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "agentTasks.hooks.enable",
+          "when": "view == agentSessionsExplorer && agentTasks.hooks.dormant",
+          "group": "navigation@-1"
+        },
+        {
+          "command": "agentTasks.sessions.newSession",
+          "when": "view == agentSessionsExplorer",
+          "group": "navigation@0"
+        },
+        {
+          "command": "agentTasks.sessions.find",
+          "when": "view == agentSessionsExplorer",
+          "group": "navigation@1"
+        },
+        {
+          "command": "agentTasks.sessions.toggleScope",
+          "when": "view == agentSessionsExplorer",
+          "group": "navigation@2"
+        },
+        {
+          "command": "agentTasks.sessions.openFilter",
+          "when": "view == agentSessionsExplorer",
+          "group": "navigation@3"
+        },
+        {
+          "command": "agentTasks.sessions.refresh",
+          "when": "view == agentSessionsExplorer",
+          "group": "navigation@4"
+        },
+        {
+          "command": "agentTasks.sessions.resetFilter",
+          "when": "view == agentSessionsExplorer",
+          "group": "1_filter@1"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "agentTasks.openPlan",
+          "when": "view == agentTasksExplorer && (viewItem == agentBranch || viewItem == agentWorktreeFlat)",
+          "group": "inline@1"
+        },
+        {
+          "command": "agentTasks.openWalkthrough",
+          "when": "view == agentTasksExplorer && (viewItem == agentBranchCompleted || viewItem == agentWorktreeFlatCompleted)",
+          "group": "inline@1"
+        },
+        {
+          "command": "agentTasks.sessions.openSession",
+          "when": "view == agentSessionsExplorer && viewItem =~ /^claudeSession/",
+          "group": "navigation@1"
+        },
+        {
+          "command": "agentTasks.revealInOS",
+          "when": "view == agentTasksExplorer && viewItem =~ /^(agentBranch|agentWorktreeFlat|agentPlanFile|agentPlanVersion|agentWalkthroughFile|agentDiagnoseFile)/",
+          "group": "1_navigation@1"
+        },
+        {
+          "command": "agentTasks.copyPath",
+          "when": "view == agentTasksExplorer && viewItem =~ /^(agentBranch|agentWorktreeFlat|agentPlanFile|agentPlanVersion|agentWalkthroughFile|agentDiagnoseFile)/",
+          "group": "1_navigation@2"
+        },
+        {
+          "command": "agentTasks.deleteArtifacts",
+          "when": "view == agentTasksExplorer && viewItem =~ /^(agentBranch|agentWorktreeFlat|agentPlanVersion|agentWalkthroughFile|agentDiagnoseFile)/",
+          "group": "9_destructive@1"
+        },
+        {
+          "command": "agentTasks.sessions.openPR",
+          "when": "view == agentSessionsExplorer && viewItem =~ /WithPr$/",
+          "group": "navigation@2"
+        },
+        {
+          "command": "agentTasks.sessions.openPR",
+          "when": "view == agentSessionsExplorer && viewItem =~ /WithPr$/",
+          "group": "inline@1"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "agentTasks.focus",
+        "key": "ctrl+shift+a ctrl+shift+t",
+        "mac": "cmd+shift+a cmd+shift+t",
+        "when": "!editorFocus"
+      },
+      {
+        "command": "agentTasks.sessions.openSession",
+        "key": "enter",
+        "when": "focusedView == 'agentSessionsExplorer' && viewItem =~ /^claudeSession/"
+      }
+    ],
+    "configuration": {
+      "title": "Agent Tasks",
+      "properties": {
+        "agentTasks.directories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            ".agent",
+            ".gw"
+          ],
+          "scope": "resource",
+          "description": "Directories (relative to workspace and ancestors) to scan for agent task artifacts (plan.md, task.md, walkthrough.md, diagnose-*.md). Order = priority. Empty array falls back to the defaults ['.agent', '.gw']."
+        },
+        "agentTasks.autoOpenWalkthrough": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically open walkthrough.md when it is created"
+        },
+        "agentTasks.autoOpenPlan": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically open plan.md when it is created"
+        },
+        "agentTasks.autoOpenDiagnose": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically open a diagnose-{target}.md report the first time it is created. Subsequent re-runs of /create-skill diagnose against the same target overwrite the report in place and do not re-open it."
+        },
+        "agentTasks.openMarkdownInPreview": {
+          "type": "boolean",
+          "default": true,
+          "description": "Open task.md, plan.md, and walkthrough.md in Markdown preview mode instead of the text editor"
+        },
+        "agentTasks.sortBy": {
+          "type": "string",
+          "default": "date",
+          "enum": [
+            "date",
+            "name",
+            "status"
+          ],
+          "enumDescriptions": [
+            "Sort by modification date",
+            "Sort by branch name",
+            "Sort by workflow status (in-progress first)"
+          ],
+          "description": "How to sort agent tasks in the sidebar"
+        },
+        "agentTasks.sortOrder": {
+          "type": "string",
+          "default": "desc",
+          "enum": [
+            "asc",
+            "desc"
+          ],
+          "enumDescriptions": [
+            "Ascending (oldest/A-Z first)",
+            "Descending (newest/Z-A first)"
+          ],
+          "description": "Sort order for agent tasks"
+        },
+        "agentTasks.sessions.openWith": {
+          "type": "string",
+          "default": "resume",
+          "enum": [
+            "resume",
+            "editor"
+          ],
+          "enumDescriptions": [
+            "Open a terminal in the session's original CWD and run 'claude --resume <session-id>'",
+            "Open the session JSONL transcript file in the text editor"
+          ],
+          "description": "What to do when a session is clicked in the Sessions panel."
+        },
+        "agentTasks.sessions.scope": {
+          "type": "string",
+          "default": "all",
+          "enum": [
+            "current",
+            "all"
+          ],
+          "enumDescriptions": [
+            "Show only sessions for the current worktree",
+            "Show sessions for the current worktree and all sibling worktrees"
+          ],
+          "description": "Which worktrees the Sessions panel includes. Toggle quickly via the filter icon in the panel header."
+        },
+        "agentTasks.scope": {
+          "type": "string",
+          "default": "all",
+          "enum": [
+            "current",
+            "all"
+          ],
+          "enumDescriptions": [
+            "Show only agent task artifacts for the current worktree",
+            "Show agent task artifacts for all sibling worktrees, grouped by worktree"
+          ],
+          "description": "Which worktrees the Agent Tasks panel includes. Toggle quickly via the filter icon in the panel header."
+        },
+        "agentTasks.hooks.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show Claude sessions updating live in the Sessions panel. When off, the panel still works but updates lag a few seconds behind. Turn back on with the **Agent Tasks: Turn on live session updates** command."
+        },
+        "agentTasks.sessions.prLinkage": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show PR status badges in the Sessions panel. Requires the gh CLI to be installed. When off, no gh subprocess calls are made and all sessions show JSONL-derived status icons."
+        },
+        "agentTasks.sessions.filter.showActive": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show active sessions: running, waiting for input, or unread."
+        },
+        "agentTasks.sessions.filter.showOpenPr": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show idle sessions whose branch has an open or draft Pull Request."
+        },
+        "agentTasks.sessions.filter.showMergedClosedPr": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show idle sessions whose Pull Request has been merged or closed."
+        },
+        "agentTasks.sessions.filter.showIdleNoPr": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show idle sessions whose branch has no Pull Request."
+        },
+        "agentTasks.sessions.filter.showStalled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show stalled sessions (mid-turn but no recent writes)."
+        }
+      }
+    },
+    "viewsWelcome": [
+      {
+        "view": "agentSessionsExplorer",
+        "contents": "Live session updates are off.\n\nTurn them on to see Claude sessions transition between running, waiting, and idle in real time. The plugin emits only the event name, session ID, and folder — nothing leaves your machine.\n\n[Turn on live updates](command:agentTasks.hooks.enable)",
+        "when": "agentTasks.hooks.dormant"
+      },
+      {
+        "view": "agentSessionsExplorer",
+        "contents": "No Claude Code sessions found for this workspace yet.",
+        "when": "!agentTasks.hooks.dormant"
+      }
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "20.19.9",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.25.0",
+    "vitest": "4.0.9"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  }
+}

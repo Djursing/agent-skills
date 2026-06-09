@@ -1,1 +1,51 @@
-ai-guidelines/
+# Nx
+.nx/
+
+# Python bytecode (from skills that ship .py scripts)
+__pycache__/
+*.pyc
+
+# Agent workflow artifacts
+.agent
+
+# Agent/tool config directories
+.claude
+.adal
+.agents
+.augment
+.bob
+.codebuddy
+.commandcode
+.continue
+.cortex
+.crush
+.factory
+.goose
+.iflow
+.junie
+.kilocode
+.kiro
+.kode
+.mcpjam
+.mux
+.neovate
+.openhands
+.pi
+.pochi
+.qoder
+.qwen
+.roo
+.trae
+.vibe
+.windsurf
+.zencoder
+
+# Dependencies
+node_modules
+
+# Build
+dist
+
+# Environment
+.env*
+.next

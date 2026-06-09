@@ -1,0 +1,169 @@
+# Agent Tasks
+
+Visualize autonomous agent workflow artifacts (`plan.md`, `task.md`, `walkthrough.md`, `diagnose-*.md`) in the VS Code sidebar. Works with any workflow that writes artifacts to `.agent/` or `.gw/` directories — including the [`autonomous-workflow`](https://github.com/mthines/agent-skills) skill.
+
+## Features
+
+- **Agent Tasks sidebar** — browse all in-flight and completed agent tasks by branch
+- **Task progress** — see phase, status (in-progress/blocked/completed), and sub-tasks at a glance
+- **Plan viewer** — inspect the plan summary, files to create/modify, and complexity estimate
+- **Diagnose reports** — surface every `diagnose-{target}.md` produced by `/create-skill diagnose <target>` next to the plan and walkthrough, with the failure class and confidence score in the row description
+- **Walkthrough, plan, and diagnose auto-open** — when a `walkthrough.md`, `plan.md`, or new `diagnose-*.md` is created, the extension opens it automatically in Markdown Preview (each toggleable)
+- **Configurable directories** — scan `.agent/`, `.gw/`, or any custom directory name
+- **Sort** — sort by date, name, or status; ascending or descending
+- **Sessions panel** — view Claude Code session history for the current workspace and sibling worktrees; click to open the transcript or resume the session in a terminal
+
+## Install
+
+Search for **Agent Tasks** in the VS Code Marketplace or install by ID:
+
+```
+mthines.agent-tasks
+```
+
+## Usage
+
+1. Open a workspace that contains a `.agent/` or `.gw/` directory with artifacts.
+2. Click the **Agent Tasks** icon in the Activity Bar.
+3. Expand a branch entry to see tasks, plan, and walkthrough.
+
+## Sessions
+
+The **Sessions** panel (below the Agent Tasks view in the same activity-bar container) lists Claude Code session history for the current workspace.
+
+### How it works
+
+Sessions are read from `~/.claude/projects/<encoded-cwd>/` — where `<encoded-cwd>` is your absolute workspace path with every non-alphanumeric character replaced by `-`. For example `/Users/you/myrepo.git/main` becomes `-Users-you-myrepo-git-main`.
+
+Each session entry shows:
+- **Label** — the first user message, whitespace-collapsed and truncated
+- **Description** — relative time (`now / 5m / 3h / 2d / Apr 17`)
+- **Icon** — reflects a real run-state derived from JSONL turn analysis combined with file mtime:
+  - **🔵 Blue pulse — `running`**: claude is mid-turn (last `assistant.stop_reason ≠ end_turn` or a follow-up `user` event after a turn end), AND the file was written in the last 30 seconds.
+  - **🟢 Green chat-bubble — `needs-input`**: claude finished a turn (last `assistant.stop_reason = end_turn` OR a `system subtype = turn_duration` event followed the last user input). Waiting for your reply.
+  - **🟡 Yellow warning — `stalled`**: mid-turn JSONL state, but no writes for 30 s – 5 min. Claude likely died mid-response.
+  - **⚪️ Gray history — `idle`**: nothing relevant in the last hour.
+
+These states come from real JSONL semantics, not just file activity, so they're stable across paused sessions, slow-tool calls, and external editor saves.
+
+The panel auto-refreshes every 15 seconds while visible (and immediately on JSONL writes via a 50 ms-debounced file watcher) so transitions between states feel realtime.
+
+Hover over a session for a tooltip with last activity, branch, message count, session ID, CWD, and file path.
+
+### Running section
+
+When at least one Claude session is currently active — either with a `claude --resume` terminal open in this VS Code window, or with JSONL activity in the last 2 minutes (covering other windows / external terminals) — a pinned **Running (N)** section appears at the top of the panel. Click any item to focus its terminal (same window) or open a fresh resume terminal (cross-window). The section is hidden entirely when nothing is running, so the panel stays uncluttered. Sessions still appear in their worktree group below — Running is a shortcut, not a replacement.
+
+### Worktree grouping
+
+When the workspace is part of a multi-worktree setup (gw-managed or plain git), sessions are grouped by worktree. The current worktree is pinned to the top, marked **(current)**, and expanded by default; other worktrees are collapsed. Discovery priority: `.gw/config.json` (sibling worktrees) → `git worktree list --porcelain` → just the workspace path. Single-worktree workspaces show a flat list.
+
+Sessions launched from sub-directories of a worktree (e.g. `apps/api/` inside `feat/foo/`) are also surfaced and bucketed under their parent worktree by reading the `cwd` field on the session events.
+
+### Filtering
+
+Use the **filter icon** in the Sessions panel header (or the command **Toggle Sessions Scope**) to switch between:
+- **All worktrees** (default) — every worktree's sessions, grouped, current first
+- **Current worktree only** — flat list of just this worktree's sessions
+
+The choice is persisted in `agentTasks.sessions.scope`.
+
+### Searching
+
+Use the **search icon** in the Sessions panel header (or the command **Find Session…**) to open a QuickPick across **every** session for this workspace — regardless of the scope filter. Type to fuzzy-match against the message title, branch, or CWD; press Enter to open the picked session via the same `openWith` setting (resume by default).
+
+### Click behavior
+
+Clicking a session does one of two things depending on the `agentTasks.sessions.openWith` setting:
+
+| Value | Behavior |
+|-------|----------|
+| `"resume"` (default) | Opens a terminal in the session's original CWD and runs `claude --resume <session-id>` |
+| `"editor"` | Opens the JSONL transcript file in the VS Code text editor |
+
+In **resume** mode the extension tracks which terminal belongs to which session within this VS Code window. Clicking the same session again focuses the existing terminal tab instead of spawning a duplicate. Closing the terminal removes the association, so a subsequent click starts a fresh process.
+
+Cross-window terminal tracking isn't possible — the VS Code extension API is window-scoped. If you've resumed the same session in another VS Code window, clicking here will start a second `claude --resume` against the same JSONL. Claude Code itself handles this gracefully but you'll have two processes appending to the same file.
+
+> **Note:** `resume` mode requires `claude` to be on your `PATH`. If `claude` is not installed or not found, the terminal will show an error — the extension does not validate the command.
+
+### Activation note
+
+As of this release, the extension also activates via `onStartupFinished` so the Sessions panel works in any workspace — even those without `.agent/` or `.gw/` directories. This means the extension is active in all workspaces. The startup overhead is minimal (~50 ms). If you only want it active in agent-workflow repos, remove `onStartupFinished` from `activationEvents` in a local extension build.
+
+## Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `agentTasks.directories` | `[".agent", ".gw"]` | Directories to scan for artifacts. Order = priority. Empty array falls back to the defaults. |
+| `agentTasks.sortBy` | `"date"` | How to sort: `"date"`, `"name"`, or `"status"`. |
+| `agentTasks.sortOrder` | `"desc"` | Sort direction: `"asc"` or `"desc"`. |
+| `agentTasks.autoOpenWalkthrough` | `true` | Auto-open `walkthrough.md` in Preview when created. |
+| `agentTasks.autoOpenPlan` | `true` | Auto-open `plan.md` in Preview when created. |
+| `agentTasks.autoOpenDiagnose` | `true` | Auto-open a `diagnose-{target}.md` report the first time it is created. Re-runs of `/create-skill diagnose` against the same target overwrite the report in place and do not re-open it. |
+| `agentTasks.openMarkdownInPreview` | `true` | Open artifact files in Markdown Preview mode. |
+| `agentTasks.sessions.openWith` | `"resume"` | What to do when a session is clicked: `"resume"` opens a terminal in the session's original CWD and runs `claude --resume <session-id>`; `"editor"` opens the JSONL file instead. |
+| `agentTasks.sessions.scope` | `"all"` | Which worktrees the Sessions panel includes: `"all"` shows every worktree (grouped, current first); `"current"` shows only the current worktree. Toggle quickly via the filter icon in the panel header. |
+
+### Configurable directories
+
+By default the extension scans `.agent/` (primary) and `.gw/` (legacy fallback). You can change this:
+
+```jsonc
+// .vscode/settings.json
+{
+  "agentTasks.directories": [".agent", ".gw"]
+}
+```
+
+To add a custom directory:
+
+```jsonc
+{
+  "agentTasks.directories": [".agent", ".workflow", ".gw"]
+}
+```
+
+If you set the array to `[]`, the extension silently falls back to the defaults `[".agent", ".gw"]`.
+
+**Note:** Adding a new directory name requires a VS Code window reload to activate the extension in workspaces that only contain the new directory (because `activationEvents` are static). The built-in defaults `.agent` and `.gw` activate automatically.
+
+### Migrating from `gw.*` settings
+
+If you previously used `vscode-gw` (gw Worktrees) with Agent Tasks, the settings have moved to the `agentTasks.*` namespace. Re-configure your preferences:
+
+- `gw.agentTasksSortBy` → `agentTasks.sortBy`
+- `gw.agentTasksSortOrder` → `agentTasks.sortOrder`
+- `gw.autoOpenWalkthrough` → `agentTasks.autoOpenWalkthrough`
+- `gw.openMarkdownInPreview` → `agentTasks.openMarkdownInPreview`
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `Agent Tasks: Refresh Agent Tasks` | Reload the tree from disk |
+| `Agent Tasks: Sort Agent Tasks` | Interactive sort picker |
+| `Agent Tasks: Focus Agent Tasks Sidebar` | Focus the sidebar panel |
+| `Agent Tasks: Refresh Sessions` | Reload the Sessions panel and rebuild the file watcher |
+| `Agent Tasks: Toggle Sessions Scope` | Switch between current-worktree and all-worktrees views |
+| `Agent Tasks: Find Session…` | Fuzzy-search every session for this workspace and open the picked one |
+
+## Logging
+
+The extension writes structured timestamped logs to a dedicated output channel — open it via **View → Output → mthines.agent-tasks**. The channel records activation, command invocations, watcher rebuilds, session refresh events, terminal lifecycle (create / focus existing / close), and errors. Useful when reporting issues or sanity-checking why a session doesn't appear.
+
+## Artifacts recognized
+
+The extension reads:
+
+- `task.md` — task progress with phase, in-progress markers, sub-tasks, blockers, decisions
+- `plan.md` — plan frontmatter, summary, files to create/modify, complexity
+- `walkthrough.md` — post-implementation summary and files-changed table
+- `diagnose-{target}.md` — retrospective failure-analysis reports produced by `/create-skill diagnose <target>`. The row label carries the target skill name; the description shows the failure class and confidence score parsed from the header bullet list (`- Failure class: …`, `- Confidence (Step 6): N%`). Multiple targets coexist as siblings under the same branch.
+
+These are written by the [`autonomous-workflow`](https://github.com/mthines/agent-skills) skill's companion skills (`aw-create-plan`, `aw-create-walkthrough`) and by `/create-skill diagnose`.
+
+## Requirements
+
+- VS Code 1.85.0 or later
+- A workspace with `.agent/` or `.gw/` artifact directories (or custom via `agentTasks.directories`)

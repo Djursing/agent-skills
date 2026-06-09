@@ -1,0 +1,153 @@
+# vscode-agent-tasks
+
+VS Code extension for visualizing autonomous agent workflow artifacts.
+
+## Commands
+
+```bash
+# Development
+nx dev vscode-agent-tasks         # Watch mode with esbuild
+
+# Build
+nx build vscode-agent-tasks       # Build extension
+nx package vscode-agent-tasks     # Create .vsix package
+
+# Testing
+nx test vscode-agent-tasks        # Run vitest tests
+nx lint vscode-agent-tasks        # Run ESLint
+
+# Publishing
+nx release vscode-agent-tasks     # Publish to VS Code Marketplace + Open VSX
+nx release vscode-agent-tasks --configuration=dry-run  # Dry-run release
+```
+
+## Architecture
+
+```
+src/
+  extension.ts              # Entry point, command registration, terminal tracking
+  lib/
+    logger.ts                       # `mthines.agent-tasks` OutputChannel wrapper
+    worktree-discovery.ts           # Shared worktree discovery helpers (pure Node.js, vitest-testable)
+    session-artifact-correlator.ts  # Pure helper — `(worktree, branch, dirs)` → linked artifact file paths
+    process-tree.ts                 # Pure helpers: `parsePsOutput`, `findClaudeDescendant`, `claimPendingAdoption` — no VS Code dep, vitest-testable
+  providers/                # TreeDataProviders for sidebar views
+    agent-tasks-provider    # Agent tasks explorer view — multi-worktree groups + scope toggle
+    sessions-provider       # Sessions panel — Running section + worktree groups + artifact correlation
+  parsers/                  # Pure modules — NO VS Code dependency, vitest-testable
+    markdown-parser.ts      # Parses task.md, plan.md, walkthrough.md
+    session-jsonl-parser.ts # Parses ~/.claude/projects/<encoded-cwd>/*.jsonl files
+  watchers/                 # File system watchers
+    artifact-watcher.ts     # Watches .agent/.gw dirs for artifact changes — refreshes BOTH Agent Tasks AND Sessions trees
+    session-watcher.ts      # Watches ~/.claude/projects/<encoded-cwd>/ for JSONL changes
+```
+
+## Key Concepts
+
+- **Artifact directories** — configured via `agentTasks.directories` (default: `[".agent", ".gw"]`); the extension scans each in order
+- **Agent Tasks** — read from `<dir>/<branch>/` directories (`task.md`, `plan.md`, `plan.v*.md`, `walkthrough.md`, `diagnose-*.md`)
+- **Diagnose reports** — `/create-skill diagnose <target>` writes `<dir>/<branch>/diagnose-{target}.md` (no timestamp — re-runs against the same target overwrite the report in place). The extension surfaces every matching file as a `DiagnoseSummaryItem` leaf under the branch (one row per target) and parses the header bullet list via `parseDiagnoseMd` in `markdown-parser.ts` to extract the failure class and confidence score for the row description. `DIAGNOSE_FILE_PATTERN = /^diagnose-.+\.md$/` is the shared pattern used by both `artifact-watcher.ts` (refresh + auto-open) and `session-artifact-correlator.ts` (Sessions panel correlation). Sessions inherit each report as a `LinkedArtifactItem` child labelled `Diagnose: <target>`. Auto-open behavior mirrors plan/walkthrough but is configurable via `agentTasks.autoOpenDiagnose` (default `true`); the per-path `knownDiagnoses` set ensures only first-create fires a preview, not subsequent overwrites.
+- **Plan versioning** — `aw-create-plan` writes `plan.md` (the latest pointer) plus an immutable `plan.v{N}.md` snapshot on every invocation. The extension renders snapshots as a collapsible "Previous Versions" group under the Plan node, newest-first, with the latest version flagged. `findPlanVersions(branchDir)` in `agent-tasks-provider.ts` is the read-side decoder; `PLAN_VERSION_PATTERN` in `artifact-watcher.ts` matches the file pattern for refresh events. Versioned snapshots never auto-open — only `plan.md` does — to avoid popping a preview tab on every iteration.
+- **Right-click context actions** — `agentTasks.revealInOS`, `agentTasks.copyPath`, `agentTasks.deleteArtifacts` apply uniformly to branch rows, plan files, walkthrough files, individual `plan.v*.md` snapshots, and `diagnose-*.md` reports. The shared `resolveTarget(item)` helper in `extension.ts` maps every supported `viewItem` (`agentBranch`, `agentWorktreeFlat`, `agentPlanFile`, `agentPlanVersion`, `agentWalkthroughFile`, `agentDiagnoseFile`) to a `{ fsPath, isDirectory, label }` triple. Delete uses `useTrash: true` and prompts with item-specific copy (directory wipes warn that `.agent/` is typically gitignored; versioned-snapshot deletes warn that the audit trail is being broken; diagnose-report deletes note that re-running `/create-skill diagnose` regenerates the file but the current report is lost). `plan.md` is intentionally NOT deletable on its own — it is a regenerable mirror of the newest snapshot, and removing it without the snapshots produces broken state.
+- **Multi-worktree artifact discovery** — `ArtifactWatcher.findArtifactRoots()` enumerates `<worktreePath>/<configuredDir>/` for every worktree returned by `discoverWorktreePaths()` in addition to the walk-up logic. This ensures `autoOpenPlan` fires when a planner agent writes `plan.md` into a sibling worktree's `.agent/` directory.
+- **Artifact Watcher** — watches configured dirs for changes, triggers view refresh; auto-opens `walkthrough.md` and `plan.md` on creation; rebuilds watchers when `agentTasks.directories` changes or a configured root appears after activation; watches all sibling worktrees
+- **Live worktree discovery** — `setupWorktreeDiscoveryWatchers()` non-recursively `fs.watch`es the parent directory of every known worktree (so a NEW sibling worktree created by `git worktree add` is observed) AND each known sibling worktree's root (so an `.agent`/`.gw` directory materialising inside it later also rebuilds). Events are coalesced via a 250 ms timer; a rebuild fires only when `findArtifactRoots()` actually changes, otherwise just emits a `'directory'` refresh so providers re-read `discoverWorktreePaths()` for the new placeholder group.
+- **Bare-repo indirection** — only for `.gw/`: reads `config.json` to find the default-branch worktree's `.gw/` dir
+- **Worktree grouping in Agent Tasks** — mirrors Sessions panel; `discoverWorktreePaths()` enumerates all worktrees; current worktree pinned first and expanded; others collapsed. Single-worktree shows flat. `WorktreeArtifactGroupItem` is the group node for 2+ branches.
+- **1-branch flatten rule** — when a multi-worktree group contains exactly 1 `AgentBranchItem`, a `WorktreeFlatItem` is emitted instead of `WorktreeArtifactGroupItem`. The flattened node IS the branch: expanding it shows Tasks/Plan/Walkthrough directly (no intermediate branch level). Its icon and description are derived from the branch state via the shared `getBranchIcon()` / `getBranchDescription()` free functions. Context values `agentWorktreeFlat` / `agentWorktreeFlatCompleted` mirror `agentBranch` / `agentBranchCompleted` so inline Open Plan / Open Walkthrough actions appear. The `openPlan`, `openTask`, and `openWalkthrough` commands resolve `WorktreeFlatItem → item.branch` before reading `artifactDir`.
+- **Agent Tasks scope toggle** — `agentTasks.scope` (`"all"` default | `"current"`). When `"current"`, flat list for the current worktree only. `EmptyScopeItem` shows a helpful placeholder when the current worktree is empty but others have artifacts. Toggle via the filter icon in the panel header.
+- **Shared worktree discovery** — `src/lib/worktree-discovery.ts` exports `findGwRoot`, `getWorktreePathsFromGw`, `getWorktreePathsFromGit`, `discoverWorktreePaths`. Used by both Sessions and Agent Tasks providers and by `ArtifactWatcher`. Pure Node.js — no VS Code API — vitest-testable.
+- **Panel order** — Sessions panel appears FIRST (above Agent Tasks) in the activity bar because it is the higher-frequency surface.
+- **Session encoding** — `~/.claude/projects/<encoded-cwd>/` where `<encoded-cwd>` replaces every non-`[A-Za-z0-9-]` character with `-` (`.git` → `-git`, spaces → `-`, leading `.` → `-`). NOT just slash replacement.
+- **Session run-state** — four real states from JSONL turn analysis combined with mtime: `running` (mid-turn, fresh writes), `needs-input` (last `assistant.stop_reason = end_turn` OR `system subtype = turn_duration` followed last user), `stalled` (mid-turn, no writes 30 s–5 min), `idle`. `deriveRunState(turnEnded, mtime)` is pure in `session-jsonl-parser.ts`; the provider layers terminal-open / closed-after-mtime overrides for definitive signals.
+- **Subdir-aware session discovery** — `findCandidateSessionDirs` prefix-matches `~/.claude/projects/*` against every worktree's encoded path, then `bucketSessionsByWorktree` verifies each session's `cwd` field and assigns to the longest-matching worktree. Catches sessions started from `apps/api/`, `packages/x/`, etc.
+- **Pinned Running section** — `RunningGroupItem` is prepended at the top of the tree whenever any session is `running` or recently `needs-input` (terminal open in this window OR mtime <5 min). Hidden entirely when empty. Sessions also still appear in their worktree group below — this is a shortcut, not a replacement.
+- **Worktree grouping in Sessions** — gw-aware (walks up to find `.gw/config.json`, then enumerates sibling worktrees by `.git` file marker) → falls back to `git worktree list --porcelain` → finally just the workspace path. Multi-worktree always groups; current worktree pinned first and marked `(current)`. Single-worktree shows flat.
+- **Session Watcher** — 50 ms trailing debounce (was 500 ms — kept tight for realtime icon transitions). 15 s visibility-bound refresh tick drives `running → stalled` ageing-out without waiting on file events.
+- **Per-session terminal tracking** — `extension.ts` maintains a `Map<sessionId, vscode.Terminal>` so re-clicking a session focuses its existing tab instead of spawning a duplicate. `onDidCloseTerminal` cleans up. Cross-window is impossible — VS Code's API is window-scoped.
+- **Open-session paths** — three uniform paths reach any session regardless of tree shape (leaf or collapsible group member):
+  1. Click a leaf `SessionItem` row → fires the item's `.command` → `openSession` (VS Code convention for leaf items).
+  2. Click a `WorktreeGroupItem` row → expands/collapses the group (VS Code convention for collapsible items — no `openSession` fires).
+  3. Hover any session row → click the `▶` inline icon (`$(play)`, `view/item/context inline@1`, `viewItem =~ /^claudeSession/`) → `openSession`.
+  4. Focus any session row → press Enter → fires `agentTasks.sessions.openSession` keybinding (`when: focusedView == 'agentSessionsExplorer' && viewItem =~ /^claudeSession/`).
+  5. Right-click any session row → "Resume Session" in the context menu (`view/item/context navigation@1`, same `when` clause) → `openSession`.
+  The `viewItem =~ /^claudeSession/` regex future-proofs all three affordances against new `SessionItem` subtypes (e.g. `claudeSessionWithArtifacts`).
+- **Terminal adoption on click** — when `openSession` finds no tracked terminal for a session, `tryAdoptTerminal` runs the argv fast-path scan across `vscode.window.terminals`:
+  - **Argv fast-path** (`findClaudeDescendant`): one `ps -A -o pid,ppid,command` snapshot; BFS each terminal's shell PID for a descendant whose command contains `claude --resume <sid>`. Succeeds when the extension itself previously spawned the terminal and lost tracking on window reload.
+  - All failures (ps error, no match) fall through silently to spawn. The scan runs only inside `openSession` — never on refresh, watcher tick, or panel render.
+- **Pending-adoption queue** — when the user clicks the `+` new-session button, the spawned terminal is pushed onto `pendingAdoptions: Array<PendingAdoption<vscode.Terminal>>` with the workspace cwd and a `spawnedAt` timestamp. `SessionsProvider.onDidDiscoverSession` fires whenever a new session ID is seen for the first time. `extension.ts` listens and calls `claimPendingAdoption(pendingAdoptions, session.cwd, Date.now(), PENDING_TTL_MS)` — a pure function that evicts stale entries (>60 s) and returns the first exact-cwd-match. On a claim: the terminal is inserted into `sessionTerminals`, `setTerminalOpen` fires, and the terminal is focused. `onDidCloseTerminal` evicts the terminal from the queue if it closes before a session appears.
+- **Documented limitation** — bare `claude` processes typed by the user in external or integrated terminals OUTSIDE the `+` flow cannot be safely adopted. Cwd-match was empirically shown to produce false-positive adoptions (same-cwd sessions in the same worktree adopt each other). Clicking such a session spawns a fresh `claude --resume <id>` terminal. Once spawned and tracked, subsequent clicks focus that terminal correctly.
+- **Parse cache** — `parseSessionFile` is mtime-keyed; unchanged JSONL files skip read+parse on refresh. Bounded by unique session count (tens to hundreds).
+- **Session ↔ artifact correlation** — `findLinkedArtifacts(worktreePath, gitBranch, configuredDirs)` in `lib/session-artifact-correlator.ts` joins a session to its `<worktree>/<dir>/<branchName>/{task,plan,walkthrough}.md` files. The bucket worktree (longest match for `session.cwd`) is the correlation root, paired with `session.gitBranch`. When any artifact exists, the `SessionItem` becomes collapsible (`contextValue = claudeSessionWithArtifacts`), the row-click `command` is dropped (so single-click expands cleanly), and a `$(play)` inline action exposes Resume. `LinkedArtifactItem` children open via `agentTasks.openMarkdown`. The correlation map is rebuilt on every `buildRootItems` and on every `artifactWatcher.onArtifactChanged` event so chevrons appear/disappear live.
+
+## Configuration namespace
+
+All settings use `agentTasks.*` (NOT `gw.*`):
+
+- `agentTasks.directories` — artifact directory names (array)
+- `agentTasks.sortBy` — sort field (`date`/`name`/`status`)
+- `agentTasks.sortOrder` — sort direction (`asc`/`desc`)
+- `agentTasks.autoOpenWalkthrough` — auto-open `walkthrough.md` on create
+- `agentTasks.autoOpenPlan` — auto-open `plan.md` on create
+- `agentTasks.autoOpenDiagnose` — auto-open a `diagnose-{target}.md` report on first create (not on overwrite by re-runs)
+- `agentTasks.openMarkdownInPreview` — preview mode
+- `agentTasks.scope` — `"all"` (default — every worktree, grouped) or `"current"` (just the active worktree, flat). Toggle via filter icon in Agent Tasks panel header.
+- `agentTasks.sessions.openWith` — `"resume"` (default — open terminal in session's `cwd` and run `claude --resume <id>`) or `"editor"` (open the JSONL transcript)
+- `agentTasks.sessions.scope` — `"all"` (default — every worktree, grouped) or `"current"` (just the active worktree). Toggle via filter icon in Sessions panel header.
+
+## Extension Manifest
+
+All commands, views, settings, and keybindings are defined in `package.json`:
+
+- Commands: `contributes.commands` (all `agentTasks.*`)
+- Views: `contributes.views` (`agentSessionsExplorer` FIRST, then `agentTasksExplorer` inside `agentTasks` activity bar — Sessions is the higher-frequency surface)
+- Settings: `contributes.configuration` (`agentTasks.*` namespace)
+- Keybindings: `contributes.keybindings` — focus sidebar chord + Enter-to-open on focused session rows
+- Activation: `workspaceContains:.agent`, `workspaceContains:.gw`, `onStartupFinished`, `onView:agentSessionsExplorer`
+
+## Command IDs
+
+| Command | Description |
+|---------|-------------|
+| `agentTasks.refresh` | Refresh Agent Tasks tree |
+| `agentTasks.sort` | Sort picker QuickPick |
+| `agentTasks.focus` | Focus sidebar |
+| `agentTasks.toggleScope` | Toggle `current` / `all` worktrees in the Agent Tasks panel |
+| `agentTasks.openMarkdown` | Internal — open a markdown file path |
+| `agentTasks.openPlan` | Open plan.md for a branch item |
+| `agentTasks.openTask` | Open task.md for a branch item |
+| `agentTasks.openWalkthrough` | Open walkthrough.md for a branch item |
+| `agentTasks.sessions.refresh` | Refresh Sessions tree |
+| `agentTasks.sessions.openSession` | Resume a session — fires on leaf row click, Enter keybinding, hover `▶` inline icon, and right-click "Resume Session" context menu. Hidden from command palette. |
+| `agentTasks.sessions.toggleScope` | Toggle `current` / `all` worktrees in the Sessions panel |
+| `agentTasks.sessions.find` | Open a QuickPick across every session for this workspace |
+| `agentTasks.sessions.newSession` | Start a new `claude` session in the workspace root CWD. Appears as a `+` icon in the `agentSessionsExplorer` panel title bar (`navigation@0`). Hidden from command palette. Pushes a `PendingAdoption` entry so the first new JSONL in that cwd is automatically linked to the spawned terminal via `onDidDiscoverSession`. |
+| `agentTasks.revealInOS` | Reveal the row's underlying file or directory in Finder/Explorer/Files. Right-click on a branch row, plan file, walkthrough file, or `plan.v*.md` snapshot. Hidden from command palette. |
+| `agentTasks.copyPath` | Copy the row's absolute path to the clipboard. Same applicability as `revealInOS`. Hidden from command palette. |
+| `agentTasks.deleteArtifacts` | Delete the row's file or directory after confirmation. Uses VS Code's trash (recoverable). Branch-row deletes wipe the entire `.agent/{branch}/` directory; `plan.v*.md` deletes warn about breaking the audit trail. `plan.md` itself is deliberately NOT deletable in isolation. Hidden from command palette. |
+
+## Code Style
+
+- Use explicit return types on exported functions
+- Prefer `interface` over `type` for object shapes
+- Use `vscode.` prefix for VS Code API types (not bare imports)
+- Commands receive optional TreeItem argument from context menus
+
+## Testing
+
+- Unit tests use vitest with `.test.ts` suffix alongside source files
+- Test parsers directly (no VS Code API mocking needed)
+- Parsers are pure functions — isolate from VS Code types
+- `vscode` import will fail in vitest — keep parsers clean of VS Code deps
+
+## Gotchas
+
+- VS Code API only available in extension context, not in tests
+- `vscode` import will fail in vitest — isolate parsers from VS Code types
+- The bare-repo `.gw/config.json` indirection only fires when `dirName === '.gw'`
+- Do NOT add ANSI handling, git CLI calls, or QuickPick to the parsers
+- Sessions JSONL format is undocumented and owned by the Claude Code team — all parsing is in `session-jsonl-parser.ts`; unknown events are silently skipped, but specific markers (`assistant.stop_reason`, `system subtype`) ARE used to derive `turnEnded`
+- `vi.spyOn(fs, ...)` does not work with ESM modules in vitest — use real temp directories for parser tests instead of mocking `fs`
+- Run-state is real (JSONL turn analysis), not heuristic. The pure `deriveRunState(turnEnded, mtime)` is the source of truth; provider only OVERRIDES it with terminal-open (force `running`) or close-after-mtime (force `idle`) — never invert the derivation
+- Worktree-relative encoded-path prefix matching for session dirs over-matches sibling worktrees (`foo` matches `foo-bar` directories). Always verify by reading the session's `cwd` field and assigning to the longest matching worktree.
+- VS Code TreeItem `description` is rendered muted/grey and disappears entirely on narrow panels. Keep it short (`5m`, `Apr 17`) — long descriptions get clipped. Branch is in the tooltip.
