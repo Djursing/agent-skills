@@ -156,7 +156,7 @@ for the full registry, trigger conditions, and **how to disable any companion**.
 | 2     | `aw-create-plan`       | Full Mode only                                         | —                |
 | 3     | `persistent-memory`    | Executor entry — read lessons when `plan.md` has no `## Lessons applied` (no-planner paths) | `read aw-lessons --tier project-shared` |
 | 3     | `tdd`                  | Pure logic / business rules / "test-driven"            | —                |
-| 3     | `ux`                   | UI files touched (`*.tsx`, `*.jsx`, `*.vue`, RN)       | —                |
+| 3     | `ux`                   | UI files touched (`*.tsx`, `*.jsx`, `*.vue`, RN); usually skipped for backend-only Spring repos | —                |
 | 3     | `code-quality`         | Once at end of Phase 3 (not per-file)                  | `code`           |
 | 4     | `test-provenance-guard` | After Step 5 — any new `*.test.*` / `*.unit.*` / `*.spec.*` file written | `--diff --base $(git merge-base HEAD main) --fix` *(autofix gated by `confidence(code) ≥ 90 %`)* |
 | 4     | `confidence`           | At iteration cap (3 Lite / 5 Full) on same failing area | `analysis`   |
@@ -347,6 +347,23 @@ single-pass, or planner→executor for Full.
 To run with fewer companions, omit them from the `--skill` list. See
 [`rules/companion-skills.md`](./rules/companion-skills.md) for what each does
 and how to disable. Run `bash install.sh --help` for script options.
+
+---
+
+## Stack Defaults (Java / Spring Boot / Maven)
+
+When this workflow is used on Java repositories, default to Maven + Spring Boot
+commands and conventions unless the repository clearly indicates otherwise.
+
+- Detect Maven via `pom.xml`.
+- Detect Spring Boot via `spring-boot-starter-*` dependencies and/or
+  `@SpringBootApplication`.
+- Prefer `./mvnw` over globally installed `mvn` for reproducibility.
+- Use `./mvnw -q -DskipTests compile` for fast verify-after-edit checks.
+- Use focused JUnit loops (`./mvnw -Dtest=ClassName#method test`) during Phase 4.
+- Use `./mvnw verify` as the pre-PR validation gate.
+- Use Lombok instead of getters and setters.
+- Keep TypeScript/Node commands as secondary examples for non-Java repos.
 
 ---
 
