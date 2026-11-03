@@ -186,6 +186,7 @@ How it works inside: [`full-tier.md`](./skills/workflow/autonomous-workflow/aw/r
 | [`ideate`](./skills/analysis/ideate/SKILL.md) | Research-grounded brainstorming with independent judges. |
 | [`interview`](./skills/analysis/interview/SKILL.md) | Aligns on scope before planning; asks only what research can't answer. |
 | [`rum-tracking`](./skills/analysis/rum-tracking/SKILL.md) | Decides which product analytics to track, and what is PII. |
+| [`schema-lookup`](./skills/analysis/schema-lookup/SKILL.md) | Answers MySQL table-structure questions from on-disk DDL snapshots, without database access. |
 | [`video-analyser`](./skills/analysis/video-analyser/SKILL.md) | Pulls bugs and repro steps out of a screen recording. |
 | [`screencast`](./skills/analysis/screencast/SKILL.md) | Records browser videos with a cursor and step captions, cuts the waits, and outputs an mp4 with a contact sheet. |
 | [`/playwright-trace-analyzer`](./skills/analysis/playwright-trace-analyzer/SKILL.md) | Names the race behind a flaky Playwright test. |
