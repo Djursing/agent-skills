@@ -2894,10 +2894,8 @@ async function selfTest() {
     // Before this, only a caller that hand-built every link got buttons, and nothing noticed when
     // one did not (mthines/agent-skills#213).
     if (existsSync(join(outDir, "report-body.md"))) {
-      check("default run, no login: Fix all is still built, calling /implement-suggestion",
-        readFileSync(join(outDir, "report-body.md"), "utf8").includes(
-          "d0_source=github:pr-reviewer-fix-all")
-        && readFileSync(join(outDir, "report-body.md"), "utf8").includes(encodeURIComponent("/implement-suggestion https://github.com/o/r/pull/205")));
+      check("default run (fork: fix links disabled): the report carries no Agent0 button",
+        !readFileSync(join(outDir, "report-body.md"), "utf8").includes("goto/agent0"));
     }
     {
       const fxDir = join(e2eDir, "fix-links");
@@ -2914,12 +2912,12 @@ async function selfTest() {
         return { status: rr.status, plan, report };
       };
       const on = spawnFx("on", []);
-      check("default run with a login: the inline claim carries a Fix this button scoped to its path:line",
-        on.status === 0 && Boolean(on.plan?.review_create?.comments?.[0]?.body.includes("d0_source=github:pr-reviewer-fix-this"))
-        && Boolean(on.plan?.review_create?.comments?.[0]?.body.includes(encodeURIComponent("src/api/client.ts:88"))));
-      check("default run with a login: Fix all calls /implement-suggestion and Loop /review-loop --merge",
-        on.report.includes(encodeURIComponent("/implement-suggestion https://github.com/o/r/pull/205"))
-        && on.report.includes(encodeURIComponent("/review-loop https://github.com/o/r/pull/205 --merge")));
+      check("default run with a login (fork: fix links disabled): neither placement is built",
+        on.status === 0 && !on.report.includes("goto/agent0")
+        && !on.plan?.review_create?.comments?.some((/** @type {any} */ c) => c.body.includes("goto/agent0")));
+      const forced = spawnFx("forced", ["--fix-links"]);
+      check("--fix-links cannot turn them back on in this fork",
+        forced.status === 0 && !forced.report.includes("goto/agent0"));
       const off = spawnFx("off", ["--no-fix-links"]);
       check("--no-fix-links builds neither placement",
         off.status === 0 && !off.report.includes("goto/agent0")
@@ -3565,7 +3563,7 @@ async function main() {
     return;
   }
 
-  // Fix-with-Agent0 buttons: built here on every GitHub-writer run, on by default
+  // Fix-with-Agent0 buttons: disabled in this fork (fix-links.mjs resolveFixLinks always returns off).
   // (agent0-fix-links.md § Opt-in). A link the caller already supplied is kept.
   const fixSettings = resolveFixLinks({
     noFixLinks: Boolean(opts["no-fix-links"]), fixLinks: Boolean(opts["fix-links"]), config: context?.agent0 ?? null,
@@ -3576,6 +3574,11 @@ async function main() {
       inline: result.inline, threads: context?.threads ?? [],
       existingFixAll: result.payload?.FIX_ALL_URL ?? null,
     });
+    if (!fixSettings.on) {
+      // Fork-local: also drop any link a caller supplied, so no Agent0 button ever renders.
+      for (const f of result.inline || []) delete f.fix_url;
+      if (result.payload) { delete result.payload.FIX_ALL_URL; delete result.payload.REVIEW_URL; delete result.payload.LOOP_URL; }
+    }
     if (result.payload) {
       if (fx.fixAllUrl) result.payload.FIX_ALL_URL = fx.fixAllUrl;
       if (fx.reviewUrl && !result.payload.REVIEW_URL) result.payload.REVIEW_URL = fx.reviewUrl;

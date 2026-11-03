@@ -29,10 +29,9 @@ import { CLAIM_PREFIXES } from "./thresholds.mjs";
 export function resolveFixLinks({ noFixLinks = false, fixLinks = false, config = null } = {}) {
   const env = config?.environment === "development" ? "development" : "production";
   const org = config?.org ? String(config.org).trim() || null : null;
-  if (noFixLinks) return { on: false, env, org, reason: "--no-fix-links" };
-  if (fixLinks) return { on: true, env, org, reason: "--fix-links" };
-  if (config?.fixLinks === false) return { on: false, env, org, reason: "agent0_fix_links: false" };
-  return { on: true, env, org, reason: config?.fixLinks === true ? "agent0_fix_links: true" : "default" };
+  // Fork-local: Agent0 (Dash0) fix links are disabled unconditionally; no flag or config turns them on.
+  void noFixLinks; void fixLinks;
+  return { on: false, env, org, reason: "disabled in this fork" };
 }
 
 // A github.com pull-request URL, optionally with a trailing slash, query, or fragment.
@@ -161,12 +160,10 @@ async function selfTest() {
   };
   const PR = "https://github.com/o/r/pull/7";
 
-  check("default is on at production with no org", JSON.stringify(resolveFixLinks({})) === JSON.stringify({ on: true, env: "production", org: null, reason: "default" }));
-  check("agent0_fix_links: false turns them off", resolveFixLinks({ config: { fixLinks: false } }).on === false);
-  check("--fix-links beats agent0_fix_links: false", resolveFixLinks({ fixLinks: true, config: { fixLinks: false } }).on === true);
-  check("--no-fix-links beats --fix-links", resolveFixLinks({ noFixLinks: true, fixLinks: true }).on === false);
-  check("agent0_environment picks the host only", resolveFixLinks({ config: { environment: "development" } }).env === "development"
-    && resolveFixLinks({ config: { environment: "development" } }).on === true);
+  check("always off, whatever the flags or config", [{}, { fixLinks: true }, { config: { fixLinks: true } }, { noFixLinks: true }]
+    .every((i) => resolveFixLinks(i).on === false));
+  // The builder itself is still exercised with a hand-made "on" setting.
+  const ON = { on: true, env: "production", org: null, reason: "test" };
 
   const inline = /** @type {any[]} */ ([
     { prefix: "issue", path: "a.ts", line: 3 },
@@ -174,7 +171,7 @@ async function selfTest() {
     { prefix: "nitpick", path: "c.ts", line: 1 },
     { prefix: "issue", path: "d.ts", line: 4, fix_url: "https://app.dash0.com/goto/agent0?keep" },
   ]);
-  const r = applyFixLinks({ settings: resolveFixLinks({}), prUrl: PR, login: "bot", inline });
+  const r = applyFixLinks({ settings: ON, prUrl: PR, login: "bot", inline });
   check("Fix this is built for issue and suggestion", String(inline[0].fix_url).includes("d0_source=github:pr-reviewer-fix-this")
     && String(inline[1].fix_url).includes(encodeURIComponent("b.ts:9")));
   check("Fix this is never built for a nitpick", inline[2].fix_url === undefined);
@@ -191,7 +188,7 @@ async function selfTest() {
     prRef("https://ghe.example.com/o/r/pull/7") === "https://ghe.example.com/o/r/pull/7");
   check("prRef keeps a non-PR github.com URL unchanged", prRef("https://github.com/o/r/issues/7") === "https://github.com/o/r/issues/7");
 
-  const dev = applyFixLinks({ settings: resolveFixLinks({ config: { environment: "development", org: "acme" } }), prUrl: PR, login: "bot", inline: [{ prefix: "issue", path: "a.ts", line: 1 }] });
+  const dev = applyFixLinks({ settings: { ...ON, env: "development", org: "acme" }, prUrl: PR, login: "bot", inline: [{ prefix: "issue", path: "a.ts", line: 1 }] });
   check("development host and org reach the Fix-all link", String(dev.fixAllUrl).startsWith("https://app.dash0-dev.com/") && String(dev.fixAllUrl).endsWith("&org=acme"));
 
   const off = /** @type {any[]} */ ([{ prefix: "issue", path: "a.ts", line: 1 }]);
@@ -199,14 +196,14 @@ async function selfTest() {
   check("off builds neither placement", offR.fixAllUrl === null && off[0].fix_url === undefined);
 
   const noLogin = /** @type {any[]} */ ([{ prefix: "issue", path: "a.ts", line: 1 }]);
-  const nl = applyFixLinks({ settings: resolveFixLinks({}), prUrl: PR, login: null, inline: noLogin });
+  const nl = applyFixLinks({ settings: ON, prUrl: PR, login: null, inline: noLogin });
   check("no login: no Fix this, Fix all still built (it needs no login)", noLogin[0].fix_url === undefined
     && String(nl.fixAllUrl).includes(encodeURIComponent(`/implement-suggestion ${PR}`)));
 
-  check("zero open findings: Fix all omitted", applyFixLinks({ settings: resolveFixLinks({}), prUrl: PR, login: "bot", inline: [{ prefix: "nitpick", path: "a.ts", line: 1 }] }).fixAllUrl === null);
-  check("an open thread by this reviewer counts toward Fix all", applyFixLinks({ settings: resolveFixLinks({}), prUrl: PR, login: "bot", inline: [],
+  check("zero open findings: Fix all omitted", applyFixLinks({ settings: ON, prUrl: PR, login: "bot", inline: [{ prefix: "nitpick", path: "a.ts", line: 1 }] }).fixAllUrl === null);
+  check("an open thread by this reviewer counts toward Fix all", applyFixLinks({ settings: ON, prUrl: PR, login: "bot", inline: [],
     threads: [{ is_resolved: false, author: "bot", path: "x.ts", line: 2 }, { is_resolved: false, author: "human", path: "y.ts", line: 2 }] }).fixAllUrl !== null);
-  check("a human's open thread alone does not", applyFixLinks({ settings: resolveFixLinks({}), prUrl: PR, login: "bot", inline: [],
+  check("a human's open thread alone does not", applyFixLinks({ settings: ON, prUrl: PR, login: "bot", inline: [],
     threads: [{ is_resolved: false, author: "human", path: "y.ts", line: 2 }] }).fixAllUrl === null);
   const botThread = [{ is_resolved: false, author: "dash0-dev", path: "a", line: 1 }];
   check("a thread by `x` counts for login `x[bot]`", openFindingCount([], botThread, "dash0-dev[bot]") === 1);
@@ -218,11 +215,11 @@ async function selfTest() {
   check("Re-review and Loop carry the full PR URL (review-loop has no short form)",
     String(r.reviewUrl).includes(encodeURIComponent(`/pr-review ${PR}`)) && String(r.reviewUrl).includes("d0_source=github:pr-reviewer-re-review")
     && String(r.loopUrl).includes(encodeURIComponent(`/review-loop ${PR} --merge`)) && String(r.loopUrl).includes("d0_source=github:pr-reviewer-loop"));
-  const clean = applyFixLinks({ settings: resolveFixLinks({}), prUrl: PR, login: "bot", inline: [] });
+  const clean = applyFixLinks({ settings: ON, prUrl: PR, login: "bot", inline: [] });
   check("nothing to fix: Re-review stays, Loop goes with Fix all", clean.reviewUrl !== null && clean.fixAllUrl === null && clean.loopUrl === null);
   check("off builds no Re-review or Loop", offR.reviewUrl === null && offR.loopUrl === null);
-  check("a caller-supplied FIX_ALL_URL brings Loop with it", applyFixLinks({ settings: resolveFixLinks({}), prUrl: PR, login: "bot", inline: [], existingFixAll: "https://app.dash0.com/x" }).loopUrl !== null);
-  check("a caller-supplied FIX_ALL_URL is kept", applyFixLinks({ settings: resolveFixLinks({}), prUrl: PR, login: "bot", inline: [], existingFixAll: "https://app.dash0.com/x" }).fixAllUrl === "https://app.dash0.com/x");
+  check("a caller-supplied FIX_ALL_URL brings Loop with it", applyFixLinks({ settings: ON, prUrl: PR, login: "bot", inline: [], existingFixAll: "https://app.dash0.com/x" }).loopUrl !== null);
+  check("a caller-supplied FIX_ALL_URL is kept", applyFixLinks({ settings: ON, prUrl: PR, login: "bot", inline: [], existingFixAll: "https://app.dash0.com/x" }).fixAllUrl === "https://app.dash0.com/x");
 
   if (failed > 0) {
     console.error(`\nfix-links self-test: ${failed} check(s) failed`);
